@@ -22,43 +22,41 @@ class ConfigurationTest {
     }
 
     @Test
-    void devEnvStopsWithAClearMessageWhenDatabaseUrlIsMissing() {
+    void prodStopsWithAClearMessageWhenDatabaseUrlIsMissing() {
         assumeTrue(System.getenv("DB_URL") == null);
 
         var e = assertThrows(
                 NoSuchElementException.class,
-                () -> config("dev-env").getValue("quarkus.datasource.jdbc.url", String.class));
+                () -> config("prod").getValue("quarkus.datasource.jdbc.url", String.class));
 
         assertEquals(true, e.getMessage().contains("DB_URL"), e.getMessage());
     }
 
     @Test
-    void devEnvStopsWhenCorsOriginsAreMissing() {
+    void prodStopsWhenCorsOriginsAreMissing() {
         assumeTrue(System.getenv("CASTOR_CORS_ORIGINS") == null);
 
         var e = assertThrows(
-                NoSuchElementException.class,
-                () -> config("dev-env").getValue("quarkus.http.cors.origins", String.class));
+                NoSuchElementException.class, () -> config("prod").getValue("quarkus.http.cors.origins", String.class));
 
         assertEquals(true, e.getMessage().contains("CASTOR_CORS_ORIGINS"), e.getMessage());
     }
 
     @Test
-    void logsAreJsonOutsideLocalAndPlainInLocal() {
-        assertEquals(true, config("dev-env").getValue("quarkus.log.console.json.enabled", Boolean.class));
+    void logsAreJsonInProdAndPlainInDev() {
         assertEquals(true, config("prod").getValue("quarkus.log.console.json.enabled", Boolean.class));
-        assertEquals(false, config("local").getValue("quarkus.log.console.json.enabled", Boolean.class));
+        assertEquals(false, config("dev").getValue("quarkus.log.console.json.enabled", Boolean.class));
         assertEquals(
-                "DEBUG", config("local").getValue("quarkus.log.category.\"it.replica8.castor\".level", String.class));
+                "DEBUG", config("dev").getValue("quarkus.log.category.\"it.replica8.castor\".level", String.class));
         assertEquals(
-                "INFO", config("dev-env").getValue("quarkus.log.category.\"it.replica8.castor\".level", String.class));
+                "INFO", config("prod").getValue("quarkus.log.category.\"it.replica8.castor\".level", String.class));
     }
 
     @Test
-    void localNeedsNoEnvironmentValues() {
+    void devNeedsNoEnvironmentValues() {
         assumeTrue(System.getenv("CASTOR_CORS_ORIGINS") == null);
 
-        var config = config("local");
+        var config = config("dev");
 
         assertEquals("http://localhost:5173", config.getValue("quarkus.http.cors.origins", String.class));
         assertEquals("castor-core", config.getValue("quarkus.application.name", String.class));

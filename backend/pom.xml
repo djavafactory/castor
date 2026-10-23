@@ -105,6 +105,7 @@
             <systemPropertyVariables>
               <castor.version>${project.version}</castor.version>
               <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
+              <quarkus.test.profile>dev</quarkus.test.profile>
               <maven.home>${maven.home}</maven.home>
             </systemPropertyVariables>
           </configuration>
@@ -118,6 +119,7 @@
             </includes>
             <systemPropertyVariables>
               <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
+              <quarkus.test.profile>dev</quarkus.test.profile>
               <maven.home>${maven.home}</maven.home>
             </systemPropertyVariables>
           </configuration>

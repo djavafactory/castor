@@ -23,6 +23,10 @@ Features must not import from each other; share code through `src/lib` and `src/
 
 Requires Node 24 (`.nvmrc`). Copy `.env.example` to `.env.local` first; an invalid or missing value shows a full-page configuration error.
 
+The frontend needs no database or container: Vitest mocks the API with MSW and the Playwright smoke test serves the built app with fixed test values. To see real data, start the backend first (it brings its own PostGIS, see [backend/README.md](../backend/README.md#run-and-test)) with `cd ../backend && ./mvnw -pl castor-core quarkus:dev`.
+
+There is no full end-to-end test (browser + backend + database) yet. Playwright currently runs `e2e/smoke.spec.ts` against the frontend alone; a suite that also starts the backend and database arrives with the compose setup (SETUP-08).
+
 ```
 npm ci
 npm run dev           # dev server on PORT (default 5173, strict)
