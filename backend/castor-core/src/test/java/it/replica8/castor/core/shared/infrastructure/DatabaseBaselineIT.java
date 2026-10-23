@@ -47,10 +47,9 @@ class DatabaseBaselineIT {
                 .load()
                 .migrate();
 
-        // audit.audit_log belongs to SETUP-12; a stand-in shows what the default privileges give the application
+        // ref.probe shows what the default privileges give the application
         try (var c = connect("castor_flyway", "castor_flyway_dev");
                 Statement s = c.createStatement()) {
-            s.execute("CREATE TABLE audit.audit_log (id bigint PRIMARY KEY, action text NOT NULL)");
             s.execute("CREATE TABLE ref.probe (id bigint PRIMARY KEY, name text)");
         }
     }
@@ -97,7 +96,7 @@ class DatabaseBaselineIT {
             s.execute("INSERT INTO ref.probe VALUES (1, 'a')");
             s.execute("UPDATE ref.probe SET name = 'b' WHERE id = 1");
             s.execute("DELETE FROM ref.probe WHERE id = 1");
-            s.execute("INSERT INTO audit.audit_log VALUES (1, 'x')");
+            s.execute("INSERT INTO audit.audit_log (actor, action, entity_kind) VALUES ('a', 'x', 'k')");
             assertTrue(s.executeQuery("SELECT * FROM audit.audit_log").next());
         }
     }

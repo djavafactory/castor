@@ -4,9 +4,71 @@ info:
   version: 1.0.0
 # Placeholder snapshot created by SETUP-05 so the frontend type generation has an input.
 # Replace with the snapshot generated from the backend code (/q/openapi) once the contract test exists.
-paths: {}
+paths:
+  /api/v1/me:
+    get:
+      operationId: getMe
+      summary: The signed-in user
+      security: [{basicAuth: []}]
+      responses:
+        '200':
+          description: The signed-in user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+        '401':
+          description: Missing or wrong credentials
+  /api/v1/auth/demo-users:
+    get:
+      operationId: listDemoUsers
+      summary: Demo users for the login page (local and dev with demo login on)
+      security: []
+      responses:
+        '200':
+          description: The demo users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DemoUser'
+        '404':
+          description: Demo login is off
+  /api/v1/auth/logout:
+    post:
+      operationId: logout
+      summary: Records that the user signed out
+      security: [{basicAuth: []}]
+      responses:
+        '204':
+          description: Recorded
 components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
   schemas:
+    Me:
+      type: object
+      required: [username, roles, displayName]
+      properties:
+        username:
+          type: string
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+        displayName:
+          type: string
+    DemoUser:
+      type: object
+      required: [username, label]
+      properties:
+        username:
+          type: string
+        label:
+          type: string
     Role:
       type: string
       enum: [VIEWER, EDITOR, PUBLISHER, ADMIN]

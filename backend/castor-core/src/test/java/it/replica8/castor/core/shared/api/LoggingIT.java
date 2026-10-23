@@ -86,6 +86,7 @@ class LoggingIT {
     }
 
     @Test
+    @TestSecurity(user = "viewer", roles = "VIEWER")
     void finishedRequestLineCarriesRequestIdUserRouteStatusAndDuration() {
         Response response = given().when().get("/api/v1/layouts");
 
@@ -95,7 +96,7 @@ class LoggingIT {
                 .orElseThrow();
 
         assertEquals(response.getHeader("X-Request-Id"), line.mdc().get("requestId"));
-        assertEquals("anonymous", line.mdc().get("username"));
+        assertEquals("viewer", line.mdc().get("username"));
         assertEquals("GET /api/v1/layouts", line.mdc().get("route"));
         assertEquals("200", line.mdc().get("status"));
         assertNotNull(line.mdc().get("durationMs"));
@@ -110,6 +111,7 @@ class LoggingIT {
     }
 
     @Test
+    @TestSecurity(user = "viewer", roles = "VIEWER")
     void identifiersInPathsDoNotMakeNewRoutes() {
         given().when().get("/api/v1/layouts/9c1f2e3a-0000-4000-8000-000000000001/assets");
 

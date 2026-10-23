@@ -18,7 +18,17 @@ export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
-      <Toaster />
+      <Toaster
+        position="bottom-center"
+        offset={68}
+        duration={3000}
+        toastOptions={{
+          classNames: {
+            toast:
+              '!rounded-full !bg-ink !px-4 !py-2 !text-sm !font-medium !text-paper !border-0 !shadow-card',
+          },
+        }}
+      />
     </QueryClientProvider>
   )
 }

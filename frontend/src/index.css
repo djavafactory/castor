@@ -1,1 +1,35 @@
 @import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Be Vietnam Pro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --color-canvas: #e8e5de;
+  --color-paper: #ffffff;
+  --color-paper-2: #f6f4ef;
+  --color-ink: #16181d;
+  --color-muted: #5d616a;
+  --color-line: #cfcbc1;
+  --color-line-soft: #e3e0d8;
+  --color-signal: #0f766e;
+  --color-bad: #b42318;
+  --shadow-card: 0 12px 40px rgb(22 24 29 / 0.16), 0 2px 6px rgb(22 24 29 / 0.08);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+}
+
+:where(button, input, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: 2px;
+}
