@@ -3,8 +3,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { loadEnv } from 'vite'
-import { defineConfig } from 'vitest/config'
+import { defineConfig, loadEnv } from 'vite'
 
 function gitCommit(): string {
   if (process.env.GIT_COMMIT) return process.env.GIT_COMMIT
@@ -53,23 +52,6 @@ export default defineConfig(({ mode }) => {
             return undefined
           },
         },
-      },
-    },
-    test: {
-      globals: true,
-      environment: 'jsdom',
-      env: {
-        VITE_APP_ENV: 'test',
-        VITE_API_URL: 'http://api.test/api',
-        VITE_PORT_CODE: 'WESTPORTS',
-        VITE_SATELLITE_TILE_URL: 'https://tiles.example.test/{z}/{y}/{x}.jpg',
-      },
-      setupFiles: ['./src/test/setup.ts'],
-      include: ['src/**/*.test.{ts,tsx}'],
-      coverage: {
-        provider: 'v8',
-        include: ['src/**/*.{ts,tsx}'],
-        exclude: ['src/types/api.ts', 'src/test/**', 'src/**/*.test.{ts,tsx}', 'src/main.tsx'],
       },
     },
   }

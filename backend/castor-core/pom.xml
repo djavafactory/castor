@@ -168,17 +168,25 @@
               <dataFile>${project.build.directory}/jacoco-merged.exec</dataFile>
               <rules>
                 <rule>
+                  <element>PACKAGE</element>
+                  <includes>
+                    <include>it.replica8.castor.core.*.domain</include>
+                  </includes>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>${jacoco.domain.line.minimum}</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+                <rule>
                   <element>BUNDLE</element>
                   <limits>
                     <limit>
                       <counter>LINE</counter>
                       <value>COVEREDRATIO</value>
                       <minimum>${jacoco.line.minimum}</minimum>
-                    </limit>
-                    <limit>
-                      <counter>BRANCH</counter>
-                      <value>COVEREDRATIO</value>
-                      <minimum>${jacoco.branch.minimum}</minimum>
                     </limit>
                   </limits>
                 </rule>

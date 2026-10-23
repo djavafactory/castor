@@ -66,6 +66,28 @@ describe('api client', () => {
     expect(seen?.headers.get('content-type')).toBe('application/json')
   })
 
+  it('builds the query string, skips undefined values and keeps a quoted ETag as given', async () => {
+    let seen: Request | undefined
+    server.use(
+      http.get(`${BASE}/v1/search`, ({ request }) => {
+        seen = request
+        return HttpResponse.json([])
+      }),
+      http.patch(`${BASE}/v1/things/1`, ({ request }) => {
+        seen = request
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+
+    await apiGet('v1/search', { query: { q: 'crane', page: 2, skip: undefined } })
+    expect(new URL(seen!.url).search).toBe('?q=crane&page=2')
+
+    await apiRequest('/v1/things/1', { method: 'PATCH', body: {}, rowVersion: 'W/"9"' })
+    expect(seen?.headers.get('if-match')).toBe('W/"9"')
+    await apiRequest('/v1/things/1', { method: 'PATCH', body: {}, rowVersion: '"4"' })
+    expect(seen?.headers.get('if-match')).toBe('"4"')
+  })
+
   it('parses Problem Details into an ApiError', async () => {
     server.use(
       http.post(`${BASE}/v1/layouts/1/publish`, () =>

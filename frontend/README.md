@@ -42,3 +42,9 @@ npm run api:check     # CI: fails when src/types/api.ts is out of date
 - Every request goes through `src/lib/api-client.ts`. `VITE_API_URL` is the API root (`/api` in containers) and callers pass paths below it, for example `/v1/ports/WESTPORTS/layouts/current`.
 - API types come only from `src/types/api.ts` (generated from `backend/castor-core/src/main/resources/openapi/castor-api-v1.yaml`); never hand-write them.
 - Stores live in `src/lib/stores`. The auth store is memory only. 3D code reads stores with `getState()` or transient subscriptions; panels use selectors with `useShallow`.
+
+## Tests
+
+- `npm test` runs Vitest (jsdom, jest-dom, an MSW server from `src/test/setup.ts`, `@react-three/test-renderer` for scenes).
+- `npm run test:coverage` adds coverage gates: `src/lib` (including stores) at least 85%, overall at least 70% (`vitest.config.ts`).
+- `npm run test:e2e` runs Playwright on Chromium with software WebGL. Set `E2E_BASE_URL` to test a running stack (the dev compose stack resets on start); without it the built app is served locally. Helpers in `e2e/helpers`: `login(role)`, `enterDesign()`, `placeAsset(type, lon, lat)`, `drawPolygon(points)`, `expectNoA11yViolations(page)`.
