@@ -91,6 +91,14 @@ Each environment is a set of variables; see `.env.example` and `frontend/.env.ex
 - The backend refuses to start when `CASTOR_ENV` is anything else and demo login is on, a value contains `CHANGE_ME`, the admin password has fewer than 14 characters, or CORS origins are empty or `*`.
 - `CASTOR_RESET_ON_START=true` is allowed only in dev or test, otherwise start-up fails with "Refusing to wipe data: reset-on-start is only allowed in dev or test".
 
+## Versioning and releases
+
+One version for the whole app, `MAJOR.MINOR.PATCH`, in the root `VERSION` file (0.1.0 now, 1.0.0 when Phase 1 is accepted). `backend/pom.xml` (`<revision>`) and `frontend/package.json` must equal it; CI runs `node scripts/check-versions.mjs` and fails if they differ.
+
+- Build stamps: version, 7-character git commit, UTC build time. Untagged builds are `<version>-dev+<commit>`; a git tag `vX.Y.Z` builds exactly `X.Y.Z` (CI refuses a tag that differs from `VERSION`). `scripts/build-stamp.sh` prints them. Docker and Compose builds take them as `BUILD_VERSION`, `GIT_COMMIT` and `BUILD_TIME`: `eval "$(scripts/build-stamp.sh)" && export BUILD_VERSION GIT_COMMIT BUILD_TIME && docker compose --profile dev up -d --build`.
+- Shown in `GET /api/v1/version` (no login), the login card footer and the Help popover. Local and dev add the commit and environment. A frontend and server on different versions show `(server v<x>)`.
+- Release PR: bump `VERSION`, `backend/pom.xml`, `frontend/package.json` (and its lock file) and add the version's section to `CHANGELOG.md`, written from the Conventional Commits since the last tag, all in the same PR. After merge, tag `vX.Y.Z`: CI builds images tagged `X.Y.Z` (not pushed).
+
 ## Git rules
 
 Trunk-based with short-lived branches, Conventional Commits, squash merge. `main` is protected: green CI and one review. CODEOWNERS covers `backend/`, `frontend/`, `.github/`.

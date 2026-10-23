@@ -19,6 +19,18 @@ paths:
                 $ref: '#/components/schemas/Me'
         '401':
           description: Missing or wrong credentials
+  /api/v1/version:
+    get:
+      operationId: getVersion
+      summary: Version of the running build (no login needed)
+      security: []
+      responses:
+        '200':
+          description: The build stamps
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Version'
   /api/v1/auth/demo-users:
     get:
       operationId: listDemoUsers
@@ -60,6 +72,22 @@ components:
           items:
             $ref: '#/components/schemas/Role'
         displayName:
+          type: string
+    Version:
+      type: object
+      required: [version, commit, buildTime, environment]
+      properties:
+        version:
+          type: string
+          description: X.Y.Z for a release build, otherwise X.Y.Z-dev+commit
+        commit:
+          type: string
+          description: Short git commit (7 characters), or unknown
+        buildTime:
+          type: string
+          format: date-time
+          description: UTC
+        environment:
           type: string
     DemoUser:
       type: object

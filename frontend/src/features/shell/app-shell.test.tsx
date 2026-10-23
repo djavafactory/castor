@@ -194,3 +194,26 @@ describe('layout', () => {
     expect(screen.queryByLabelText('Asset palette')).not.toBeInTheDocument()
   })
 })
+
+describe('help popover', () => {
+  it('shows the same version text as the login card, with the server version when it differs', async () => {
+    server.use(
+      http.get(`${BASE}/v1/version`, () =>
+        HttpResponse.json({
+          version: '9.9.9',
+          commit: 'abc1234',
+          buildTime: '2026-10-23T07:00:00Z',
+          environment: 'test',
+        }),
+      ),
+    )
+    signInAs(['VIEWER'])
+    renderShell()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Help' }))
+
+    expect(
+      await screen.findByText(`Castor v${__APP_VERSION__} (server v9.9.9)`),
+    ).toBeInTheDocument()
+  })
+})

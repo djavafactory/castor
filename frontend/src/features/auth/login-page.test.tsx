@@ -185,3 +185,52 @@ describe('login page', () => {
     })
   })
 })
+
+describe('version footer', () => {
+  function serverVersion(version: string) {
+    server.use(
+      http.get(`${BASE}/v1/version`, () =>
+        HttpResponse.json({
+          version,
+          commit: 'abc1234',
+          buildTime: '2026-10-23T07:00:00Z',
+          environment: 'prod',
+        }),
+      ),
+    )
+  }
+
+  it('shows the build version and nothing about the server when they match', async () => {
+    serverVersion(__APP_VERSION__)
+    renderLogin()
+
+    const footer = await screen.findByText(`Castor v${__APP_VERSION__}`)
+    await waitFor(() => expect(footer).toHaveTextContent(/^Castor v\S+$/))
+  })
+
+  it('adds the server version when the server runs another one', async () => {
+    serverVersion('9.9.9')
+    renderLogin()
+
+    expect(
+      await screen.findByText(`Castor v${__APP_VERSION__} (server v9.9.9)`),
+    ).toBeInTheDocument()
+  })
+
+  it('adds commit and environment in dev', async () => {
+    envState.appEnv = 'dev'
+    serverVersion(__APP_VERSION__)
+    renderLogin()
+
+    expect(
+      await screen.findByText(`Castor v${__APP_VERSION__} · ${__GIT_COMMIT__} · dev`),
+    ).toBeInTheDocument()
+  })
+
+  it('still shows the version when the server does not answer', async () => {
+    server.use(http.get(`${BASE}/v1/version`, () => HttpResponse.error()))
+    renderLogin()
+
+    expect(await screen.findByText(`Castor v${__APP_VERSION__}`)).toBeInTheDocument()
+  })
+})

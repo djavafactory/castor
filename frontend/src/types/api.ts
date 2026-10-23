@@ -21,6 +21,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Version of the running build (no login needed) */
+        get: operations["getVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/demo-users": {
         parameters: {
             query?: never;
@@ -63,6 +80,18 @@ export interface components {
             username: string;
             roles: components["schemas"]["Role"][];
             displayName: string;
+        };
+        Version: {
+            /** @description X.Y.Z for a release build, otherwise X.Y.Z-dev+commit */
+            version: string;
+            /** @description Short git commit (7 characters), or unknown */
+            commit: string;
+            /**
+             * Format: date-time
+             * @description UTC
+             */
+            buildTime: string;
+            environment: string;
         };
         DemoUser: {
             username: string;
@@ -122,6 +151,26 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    getVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The build stamps */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Version"];
+                };
             };
         };
     };

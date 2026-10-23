@@ -6,7 +6,7 @@
 
   <groupId>it.replica8.castor</groupId>
   <artifactId>castor-backend</artifactId>
-  <!-- Keep equal to the root VERSION file (checked by VersionFileTest; automated in SETUP-11) -->
+  <!-- Keep equal to the root VERSION file and frontend/package.json (VersionFileTest, scripts/check-versions.mjs in CI) -->
   <version>${revision}</version>
   <packaging>pom</packaging>
   <name>Castor backend</name>
@@ -17,6 +17,13 @@
 
   <properties>
     <revision>0.1.0</revision>
+
+    <!-- Build stamps (SETUP-11). scripts/build-stamp.sh passes -Dbuild.version, -Dbuild.commit and -Dbuild.time.
+         Untagged builds are <version>-dev+<commit>; a release tag builds exactly X.Y.Z. The timestamp is UTC. -->
+    <maven.build.timestamp.format>yyyy-MM-dd'T'HH:mm:ss'Z'</maven.build.timestamp.format>
+    <build.commit>unknown</build.commit>
+    <build.time>${maven.build.timestamp}</build.time>
+    <build.version>${revision}-dev+${build.commit}</build.version>
     <maven.compiler.release>25</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>

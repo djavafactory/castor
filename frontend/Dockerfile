@@ -7,7 +7,14 @@ COPY . .
 ARG VITE_PORT_CODE=westports
 ARG VITE_DEMO_LOGIN=false
 ARG VITE_SATELLITE_TILE_URL=https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/{z}/{y}/{x}.jpg
-ENV VITE_APP_ENV=dev \
+# Build stamps from scripts/build-stamp.sh (the VERSION file is outside this build context)
+ARG BUILD_VERSION=
+ARG GIT_COMMIT=
+ARG BUILD_TIME=
+ENV BUILD_VERSION=$BUILD_VERSION \
+    GIT_COMMIT=$GIT_COMMIT \
+    BUILD_TIME=$BUILD_TIME \
+    VITE_APP_ENV=dev \
     VITE_API_URL=/api \
     VITE_PORT_CODE=$VITE_PORT_CODE \
     VITE_DEMO_LOGIN=$VITE_DEMO_LOGIN \

@@ -51,6 +51,10 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      args:
+        BUILD_VERSION: ${BUILD_VERSION:-}
+        GIT_COMMIT: ${GIT_COMMIT:-}
+        BUILD_TIME: ${BUILD_TIME:-}
     image: castor-dev-backend:local
     container_name: castor-dev-backend
     depends_on:
@@ -80,6 +84,9 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
+        BUILD_VERSION: ${BUILD_VERSION:-}
+        GIT_COMMIT: ${GIT_COMMIT:-}
+        BUILD_TIME: ${BUILD_TIME:-}
         VITE_PORT_CODE: ${CASTOR_PORT_CODE:-westports}
         VITE_DEMO_LOGIN: "true"
         VITE_SATELLITE_TILE_URL: ${VITE_SATELLITE_TILE_URL:-https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/{z}/{y}/{x}.jpg}

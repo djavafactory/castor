@@ -27,11 +27,28 @@ public interface CastorConfig {
     @WithDefault("false")
     boolean demoLogin();
 
+    /** Stamped at build time (META-INF/microprofile-config.properties); "unknown" when run without that file. */
+    Build build();
+
     Admin admin();
 
     Data data();
 
     Security security();
+
+    interface Build {
+        /** X.Y.Z for a release tag, otherwise X.Y.Z-dev+commit. */
+        @WithDefault("unknown")
+        String version();
+
+        /** Short git commit (7 characters), or "unknown" when the build had no git checkout. */
+        @WithDefault("unknown")
+        String commit();
+
+        /** UTC, ISO-8601. */
+        @WithDefault("unknown")
+        String time();
+    }
 
     interface Admin {
         @WithDefault("admin")

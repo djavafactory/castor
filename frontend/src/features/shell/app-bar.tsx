@@ -10,6 +10,7 @@ import { useUiStore, type Mode } from '@/lib/stores/ui-store'
 import { confirmLeaveDesign, MONITOR_RELOADED_MESSAGE, NOT_AN_EDITOR_MESSAGE } from './leave-design'
 import { Badge } from '@/components/ui/badge'
 import { Logo } from '@/components/logo'
+import { HelpPopover } from './help-popover'
 import { usePort } from './use-port'
 import { useMenu } from './use-menu'
 
@@ -33,6 +34,7 @@ export function AppBar() {
       )}
       <ModeSwitch />
       <div className="ml-auto flex items-center gap-3">
+        <HelpPopover />
         <UserMenu />
       </div>
     </header>

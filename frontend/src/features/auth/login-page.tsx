@@ -6,6 +6,7 @@ import { ATTRIBUTION } from '@/lib/attribution'
 import { getEnv } from '@/lib/env'
 import { basicCredential, useAuthStore } from '@/lib/stores/auth-store'
 import { fetchDemoUsers, fetchMe } from '@/lib/auth-api'
+import { useServerVersion, versionLine } from '@/lib/version'
 
 export const LOGIN_ERROR = 'Wrong username or password'
 
@@ -34,6 +35,7 @@ export function LoginPage() {
     retry: false,
     staleTime: Infinity,
   })
+  const serverVersion = useServerVersion()
   const demoUsers = env.VITE_DEMO_LOGIN && demo.data && demo.data.length > 0 ? demo.data : null
   const selected = demoUsers?.find((u) => u.username === username)?.username ?? ''
 
@@ -163,14 +165,9 @@ export function LoginPage() {
           <p className="text-[10px] leading-snug text-muted">{ATTRIBUTION}</p>
         </form>
         <div className="border-t border-line-soft bg-paper px-6 py-2 text-center text-[11px] text-muted">
-          {versionLine(env.VITE_APP_ENV)}
+          {versionLine(env.VITE_APP_ENV, serverVersion)}
         </div>
       </div>
     </main>
   )
-}
-
-function versionLine(appEnv: string): string {
-  const base = `Castor v${__APP_VERSION__}`
-  return appEnv === 'local' || appEnv === 'dev' ? `${base} · ${__GIT_COMMIT__} · ${appEnv}` : base
 }

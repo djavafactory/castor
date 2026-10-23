@@ -5,7 +5,12 @@ COPY mvnw pom.xml ./
 COPY castor-core/pom.xml castor-core/pom.xml
 RUN tr -d '' < mvnw > mvnw.lf && mv mvnw.lf mvnw && chmod +x mvnw && ./mvnw -B -ntp -pl castor-core -am dependency:go-offline
 COPY castor-core/src castor-core/src
-RUN ./mvnw -B -ntp -pl castor-core -am package -DskipTests
+# Build stamps from scripts/build-stamp.sh; unset values keep the pom defaults (<version>-dev+unknown)
+ARG BUILD_VERSION=
+ARG GIT_COMMIT=
+ARG BUILD_TIME=
+RUN ./mvnw -B -ntp -pl castor-core -am package -DskipTests \
+    ${BUILD_VERSION:+-Dbuild.version=$BUILD_VERSION} ${GIT_COMMIT:+-Dbuild.commit=$GIT_COMMIT} ${BUILD_TIME:+-Dbuild.time=$BUILD_TIME}
 
 FROM eclipse-temurin:25-jre-noble
 RUN useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin castor
