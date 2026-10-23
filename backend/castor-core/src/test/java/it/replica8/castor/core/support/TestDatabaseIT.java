@@ -34,7 +34,7 @@ class TestDatabaseIT {
     @Test
     void databaseIsPostgisWithFlywayHistory() throws Exception {
         assertEquals(1, count("SELECT count(*) FROM pg_extension WHERE extname = 'postgis'"));
-        assertTrue(count("SELECT count(*) FROM flyway_schema_history WHERE success") >= 1);
+        assertTrue(count("SELECT count(*) FROM ref.flyway_schema_history WHERE success") >= 1);
     }
 
     @Test
