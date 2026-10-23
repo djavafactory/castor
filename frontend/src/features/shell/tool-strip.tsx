@@ -1,3 +1,6 @@
+import { PanelRight, PanelLeft } from 'lucide-react'
+import { IconButton } from '@/components/ui/button'
+import { Segmented } from '@/components/ui/segmented'
 import { useUiStore, type ViewMode } from '@/lib/stores/ui-store'
 
 const VIEW_MODES: { value: ViewMode; label: string }[] = [
@@ -8,36 +11,43 @@ const VIEW_MODES: { value: ViewMode; label: string }[] = [
 
 /**
  * The strip under the app bar. It hosts the controls shared by both modes (REPLICA-07) and the Design controls
- * (DSN tickets); those tickets add their buttons here.
+ * (DSN tickets); those tickets add their buttons here. Nothing floats over it (stage overlays sit below it).
  */
 export function ToolStrip() {
   const mode = useUiStore((s) => s.mode)
   const viewMode = useUiStore((s) => s.viewMode)
   const setViewMode = useUiStore((s) => s.setViewMode)
+  const panelHidden = useUiStore((s) => s.panelHidden)
+  const setPanelHidden = useUiStore((s) => s.setPanelHidden)
+  const paletteHidden = useUiStore((s) => s.paletteHidden)
+  const setPaletteHidden = useUiStore((s) => s.setPaletteHidden)
 
   return (
     <div
       role="toolbar"
       aria-label="Tools"
-      className="flex items-center gap-2 border-b border-line-soft bg-paper-2 px-4"
+      className="relative z-strip flex items-center gap-2 border-b border-line-soft bg-paper-2 px-4"
     >
       {mode === 'design' && (
-        <div role="group" aria-label="View" className="inline-flex gap-0.5">
-          {VIEW_MODES.map((v) => (
-            <button
-              key={v.value}
-              type="button"
-              aria-pressed={viewMode === v.value}
-              className={`h-7 rounded-md px-2.5 text-xs font-medium ${
-                viewMode === v.value ? 'bg-ink text-paper' : 'text-ink hover:bg-paper'
-              }`}
-              onClick={() => setViewMode(v.value)}
-            >
-              {v.label}
-            </button>
-          ))}
-        </div>
+        <>
+          <Segmented label="View" value={viewMode} options={VIEW_MODES} onChange={setViewMode} />
+          <IconButton
+            label="Hide palette"
+            pressed={paletteHidden}
+            onClick={() => setPaletteHidden(!paletteHidden)}
+          >
+            <PanelLeft aria-hidden="true" />
+          </IconButton>
+        </>
       )}
+      <IconButton
+        label="Hide panel"
+        pressed={panelHidden}
+        className="ml-auto"
+        onClick={() => setPanelHidden(!panelHidden)}
+      >
+        <PanelRight aria-hidden="true" />
+      </IconButton>
     </div>
   )
 }

@@ -1,17 +1,156 @@
 @import 'tailwindcss';
+@import 'tw-animate-css';
+@import '@fontsource/be-vietnam-pro/latin-700.css';
 
-@theme {
-  --font-sans: 'Be Vietnam Pro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --color-canvas: #e8e5de;
-  --color-paper: #ffffff;
-  --color-paper-2: #f6f4ef;
-  --color-ink: #16181d;
-  --color-muted: #5d616a;
-  --color-line: #cfcbc1;
-  --color-line-soft: #e3e0d8;
-  --color-signal: #0f766e;
-  --color-bad: #b42318;
-  --shadow-card: 0 12px 40px rgb(22 24 29 / 0.16), 0 2px 6px rgb(22 24 29 / 0.08);
+/* The one token file (SETUP-06). Raw colours live here and in the 3D palette file only. */
+:root {
+  /* surfaces and lines */
+  --canvas: #f3efe6;
+  --paper: #fffdf8;
+  --paper-2: #f7f3e8;
+  --line: #ddd6c4;
+  --line-soft: #eee8da;
+  --line-strong: #b9b19c;
+  /* ink and accent */
+  --ink: #12233f;
+  --ink-hover: #1d3358;
+  --muted: #6b7385;
+  --signal: #f2622e;
+  --signal-hover: #e0551f;
+  --signal-soft: rgba(242, 98, 46, 0.12);
+  --on-signal: #ffffff;
+  /* status */
+  --ok: #2f8f6b;
+  --warn: #e8a317;
+  --bad: #c8423b;
+  --info: #2b5cb0;
+  --off: #8a8f98;
+  --synthetic-fg: #8a5a00;
+  --synthetic-bg: #fbebc8;
+  --synthetic-bd: #ebcf8f;
+  --bad-soft: #f6dad7;
+  --warn-soft: #fff4db;
+  --warn-soft-fg: #7a5200;
+  --tag-bg: #efe9da;
+  --bar-track: #e9e3d3;
+  /* position accuracy */
+  --acc-surveyed: #2f8f6b;
+  --acc-verified: #3c6fb4;
+  --acc-operator: #e8a317;
+  --acc-approx: #8a8f98;
+  /* editor */
+  --valid: #2f8f6b;
+  --invalid: #c8423b;
+  --select-3d: #5ba8f5;
+  --select-3d-edge: #2f7fd6;
+
+  /* elevation */
+  --shadow: 0 1px 3px rgba(18, 35, 63, 0.14), 0 8px 24px rgba(18, 35, 63, 0.07);
+  --shadow-popover: 0 14px 40px rgba(18, 35, 63, 0.22);
+  --shadow-toast: 0 8px 24px rgba(18, 35, 63, 0.3);
+
+  /* shape */
+  --radius: 12px;
+
+  /* shadcn mapping */
+  --background: var(--canvas);
+  --foreground: var(--ink);
+  --card: var(--paper);
+  --card-foreground: var(--ink);
+  --popover: var(--paper);
+  --popover-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: var(--paper);
+  --secondary: var(--paper-2);
+  --secondary-foreground: var(--ink);
+  --muted-bg: var(--paper-2);
+  --muted-foreground: var(--muted);
+  --accent: var(--signal-soft);
+  --accent-foreground: var(--ink);
+  --destructive: var(--bad);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--signal);
+}
+
+@theme inline {
+  --font-brand: 'Be Vietnam Pro', system-ui, sans-serif;
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+
+  --color-canvas: var(--canvas);
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-hover: var(--ink-hover);
+  --color-muted: var(--muted);
+  --color-signal: var(--signal);
+  --color-signal-hover: var(--signal-hover);
+  --color-signal-soft: var(--signal-soft);
+  --color-on-signal: var(--on-signal);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+  --color-info: var(--info);
+  --color-off: var(--off);
+  --color-synthetic-fg: var(--synthetic-fg);
+  --color-synthetic-bg: var(--synthetic-bg);
+  --color-synthetic-bd: var(--synthetic-bd);
+  --color-bad-soft: var(--bad-soft);
+  --color-warn-soft: var(--warn-soft);
+  --color-warn-soft-fg: var(--warn-soft-fg);
+  --color-tag-bg: var(--tag-bg);
+  --color-bar-track: var(--bar-track);
+  --color-acc-surveyed: var(--acc-surveyed);
+  --color-acc-verified: var(--acc-verified);
+  --color-acc-operator: var(--acc-operator);
+  --color-acc-approx: var(--acc-approx);
+  --color-valid: var(--valid);
+  --color-invalid: var(--invalid);
+  --color-select-3d: var(--select-3d);
+  --color-select-3d-edge: var(--select-3d-edge);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --shadow-card: var(--shadow);
+  --shadow-popover: var(--shadow-popover);
+  --shadow-toast: var(--shadow-toast);
+
+  --radius-sm: 5px;
+  --radius-md: 8px;
+  --radius-lg: var(--radius);
+  --radius-xl: 14px;
+  --radius-2xl: 18px;
+
+  /* z-order: stage overlays 5, popovers 8, narrow notice 9, strip and drawer 20, menus and loading 30,
+     app bar 40, toasts 60, login 70, drag chip 90 */
+  --z-index-overlay: 5;
+  --z-index-popover: 8;
+  --z-index-notice: 9;
+  --z-index-strip: 20;
+  --z-index-menu: 30;
+  --z-index-appbar: 40;
+  --z-index-toast: 60;
+  --z-index-login: 70;
+  --z-index-drag: 90;
 }
 
 html,
@@ -23,13 +162,49 @@ body,
 body {
   margin: 0;
   overflow: hidden;
-  background: var(--color-canvas);
-  color: var(--color-ink);
+  background: var(--canvas);
+  color: var(--ink);
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: 13px;
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
 }
 
-:where(button, input, select, [tabindex]):focus-visible {
-  outline: 2px solid var(--color-signal);
-  outline-offset: 2px;
+code,
+kbd,
+samp {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+kbd {
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--paper-2);
+  padding: 0 4px;
+}
+
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--signal);
+}
+
+::selection {
+  background: var(--signal-soft);
+}
+
+:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

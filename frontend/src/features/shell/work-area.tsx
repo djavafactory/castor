@@ -1,3 +1,4 @@
+import { Tabs } from '@/components/ui/tabs'
 import { useUiStore, type Mode, type RightTab } from '@/lib/stores/ui-store'
 
 const TABS: Record<Mode, { value: RightTab; label: string }[]> = {
@@ -19,21 +20,33 @@ const TABS: Record<Mode, { value: RightTab; label: string }[]> = {
 export function WorkArea() {
   const mode = useUiStore((s) => s.mode)
   const viewMode = useUiStore((s) => s.viewMode)
+  const panelHidden = useUiStore((s) => s.panelHidden)
+  const paletteHidden = useUiStore((s) => s.paletteHidden)
   return (
-    <div className="flex min-h-0">
+    <div className="flex min-h-0 flex-col">
+      <div className="flex min-h-0 flex-1">
+        {mode === 'design' && !paletteHidden && (
+          <aside
+            aria-label="Asset palette"
+            className="w-[260px] shrink-0 border-r border-line-soft bg-paper p-3.5"
+          >
+            <h2 className="font-brand text-[11px] font-bold tracking-[0.07em] text-muted uppercase">
+              Assets
+            </h2>
+          </aside>
+        )}
+        <main
+          aria-label={mode === 'design' ? `Design stage, ${viewMode}` : 'Port stage'}
+          className="relative min-w-0 flex-1 bg-canvas"
+        />
+        {!panelHidden && <RightPanel mode={mode} />}
+      </div>
       {mode === 'design' && (
-        <aside
-          aria-label="Asset palette"
-          className="w-60 shrink-0 border-r border-line-soft bg-paper p-3"
-        >
-          <h2 className="text-xs font-semibold tracking-wide text-muted uppercase">Assets</h2>
-        </aside>
+        <footer
+          aria-label="Status"
+          className="flex h-8 shrink-0 items-center gap-3 border-t border-line-soft bg-paper px-4 font-mono text-xs text-muted"
+        />
       )}
-      <main
-        aria-label={mode === 'design' ? `Design stage, ${viewMode}` : 'Port stage'}
-        className="min-w-0 flex-1 bg-canvas"
-      />
-      <RightPanel mode={mode} />
     </div>
   )
 }
@@ -50,45 +63,13 @@ function RightPanel({ mode }: { mode: Mode }) {
       aria-label="Right panel"
       className="flex w-[348px] shrink-0 flex-col border-l border-line-soft bg-paper"
     >
-      <div
-        role="tablist"
-        aria-label="Panel"
-        className="flex gap-1 border-b border-line-soft px-3 pt-2"
-      >
-        {tabs.map((t) => (
-          <button
-            key={t.value}
-            id={`tab-${t.value}`}
-            type="button"
-            role="tab"
-            aria-selected={active === t.value}
-            aria-controls={`tabpanel-${t.value}`}
-            tabIndex={active === t.value ? 0 : -1}
-            className={`h-8 rounded-t-md px-3 text-sm font-medium ${
-              active === t.value ? 'border-b-2 border-signal text-ink' : 'text-muted hover:text-ink'
-            }`}
-            onClick={() => setRightTab(t.value)}
-            onKeyDown={(e) => {
-              const delta = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
-              if (!delta) return
-              const next =
-                tabs[
-                  (tabs.findIndex((x) => x.value === t.value) + delta + tabs.length) % tabs.length
-                ]
-              setRightTab(next.value)
-              document.getElementById(`tab-${next.value}`)?.focus()
-            }}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Tabs panel label="Panel" value={active} tabs={tabs} onChange={setRightTab} />
       <div
         role="tabpanel"
         id={`tabpanel-${active}`}
         aria-labelledby={`tab-${active}`}
         tabIndex={0}
-        className="min-h-0 flex-1 overflow-auto p-3"
+        className="min-h-0 flex-1 overflow-auto p-3.5"
       />
     </aside>
   )

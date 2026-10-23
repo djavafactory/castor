@@ -1,7 +1,8 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { RouterProvider } from 'react-router'
-import { Toaster } from 'sonner'
+import { Toaster } from '@/components/ui/toaster'
+import { TooltipProvider } from '@/components/ui/overlays'
 import { setUnauthorizedHandler } from '@/lib/api-client'
 import { queryClient } from './query-client'
 import { router } from './router'
@@ -17,18 +18,10 @@ export function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-      <Toaster
-        position="bottom-center"
-        offset={68}
-        duration={3000}
-        toastOptions={{
-          classNames: {
-            toast:
-              '!rounded-full !bg-ink !px-4 !py-2 !text-sm !font-medium !text-paper !border-0 !shadow-card',
-          },
-        }}
-      />
+      <TooltipProvider delayDuration={300}>
+        <RouterProvider router={router} />
+      </TooltipProvider>
+      <Toaster />
     </QueryClientProvider>
   )
 }
