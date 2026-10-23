@@ -1,22 +1,57 @@
 version: 2
+
+# Quarkus-managed libraries (Hibernate, Flyway, JDBC, REST Assured) are bumped
+# only through the Quarkus BOM, never individually.
+# HELD (SETUP-02): react < 19.4 (react-three-fiber 9.8), typescript < 6.1 (typescript-eslint 8.72).
 updates:
   - package-ecosystem: maven
     directory: /backend
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: "org.hibernate.orm:*"
+      - dependency-name: "org.flywaydb:*"
+      - dependency-name: "org.postgresql:postgresql"
+      - dependency-name: "io.rest-assured:*"
+    groups:
+      maven-minor-patch:
+        update-types: [minor, patch]
   - package-ecosystem: npm
     directory: /frontend
     schedule:
       interval: weekly
-  - package-ecosystem: github-actions
-    directory: /
-    schedule:
-      interval: weekly
+    ignore:
+      - dependency-name: react
+        versions: [">=19.4.0"]
+      - dependency-name: react-dom
+        versions: [">=19.4.0"]
+      - dependency-name: "@types/react"
+        versions: [">=19.4.0"]
+      - dependency-name: "@types/react-dom"
+        versions: [">=19.4.0"]
+      - dependency-name: typescript
+        versions: [">=6.1.0"]
+    groups:
+      npm-minor-patch:
+        update-types: [minor, patch]
   - package-ecosystem: docker
     directory: /backend
     schedule:
       interval: weekly
+    groups:
+      docker-backend-minor-patch:
+        update-types: [minor, patch]
   - package-ecosystem: docker
     directory: /frontend
     schedule:
       interval: weekly
+    groups:
+      docker-frontend-minor-patch:
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions-minor-patch:
+        update-types: [minor, patch]
