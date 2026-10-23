@@ -5,15 +5,19 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.junit.TestProfile;
 import io.quarkus.test.security.TestSecurity;
 import org.junit.jupiter.api.Test;
+
+import it.replica8.castor.core.support.SecuredOpenApiProfile;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 
-/** The test profile behaves like an environment outside local and dev. */
+/** Runs with the prod rule: OpenAPI and Swagger UI need the ADMIN role. */
 @QuarkusTest
+@TestProfile(SecuredOpenApiProfile.class)
 class OpenApiSecurityIT {
 
     @Test

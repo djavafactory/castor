@@ -27,13 +27,26 @@ Errors use RFC 9457 Problem Details (`application/problem+json`). API base path 
 
 ## Run and test
 
-Requires Java 25 and Docker (Dev Services starts PostGIS, no manual database setup).
+Requires Java 25 and Docker running. Nothing else: no database to install, no schema or data to load. Dev Services starts a throwaway `postgis/postgis:18-3.6` container (Testcontainers) for `quarkus:dev` and for every test, and Flyway applies all migrations to it at start-up. Everyone who runs the commands below gets the same database. The first run pulls the image and is slower.
+
+Reference data and later seed data must also come from migrations (or test fixtures), never from a manual import, so this stays true.
 
 ```
-./mvnw -pl castor-core quarkus:dev -Dquarkus.profile=local   # run locally
+./mvnw -pl castor-core quarkus:dev                     # run locally
 ./mvnw -B spotless:check verify                              # format, unit (*Test), integration (*IT), coverage
 ./mvnw spotless:apply                                        # format
 ```
+
+Which database each kind of run uses:
+
+| Run | Database | Roles |
+| --- | --- | --- |
+| `quarkus:dev` and every `@QuarkusTest` (all run in profile `dev`) | Dev Services container, started and removed automatically | one superuser for the app and Flyway |
+| `DatabaseBaselineIT` | its own Testcontainers container, prepared with `db/init/01-roles.sql` | the real `castor_flyway` and `castor_app`, to prove least privilege |
+
+Dev Services data is lost when `quarkus:dev` stops. To keep data between runs use the Docker database of the `local` profile: `docker compose --profile local up -d --wait`, then `./mvnw -pl castor-core quarkus:dev -Dquarkus.profile=local` (see the root README).
+
+Run one test class: `./mvnw -pl castor-core verify "-Dit.test=DatabaseBaselineIT"` (integration) or `./mvnw -pl castor-core test "-Dtest=ConfigurationTest"` (unit).
 
 | What | Where |
 | --- | --- |
@@ -44,18 +57,21 @@ Requires Java 25 and Docker (Dev Services starts PostGIS, no manual database set
 
 | Profile | Use | Database | Logs |
 | --- | --- | --- | --- |
-| `local` (`dev` inherits it) | developer machine | Docker PostGIS from `docker compose --profile local up -d` (`application-local.properties`, needs `DB_PASSWORD`) | plain text, DEBUG for `it.replica8.castor` |
-| `dev-env` | shared dev environment | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | JSON |
-| `test` | automated tests | Dev Services | plain text |
-| `prod` | placeholder, finished later | same variables as `dev-env` | JSON |
+| `dev` (`quarkus:dev` and all automated tests) | developer machine | Dev Services, or set `QUARKUS_DATASOURCE_JDBC_URL` | plain text, DEBUG for `it.replica8.castor` |
+| `local` (`-Dquarkus.profile=local`, inherits `dev`) | developer machine, persistent data | Docker PostGIS on `localhost:${LOCAL_DB_PORT}` (`application-local.properties`) | same as `dev` |
+| `prod` (every deployed environment, shared dev included) | deployed | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` for the app; `DB_FLYWAY_USERNAME`, `DB_FLYWAY_PASSWORD` for migrations | JSON |
 
-`CASTOR_ENV` (local, dev or test) and the `castor.*` settings are bound in `CastorConfig`; `ConfigGuard` refuses unsafe values and reset-on-start outside dev/test (see the root README). Outside local and test, `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` and `CASTOR_CORS_ORIGINS` are required. A missing one stops start-up with a message naming the variable. `CASTOR_CORS_ORIGINS` is a comma separated list; `*` is refused.
+Tests run in `dev` through `quarkus.test.profile=dev` in the pom. A test that needs prod behaviour sets it with a `QuarkusTestProfile` (see `SecuredOpenApiProfile`).
+
+In `prod`, `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `DB_FLYWAY_USERNAME`, `DB_FLYWAY_PASSWORD` and `CASTOR_CORS_ORIGINS` are required. A missing one stops start-up with a message naming the variable. `CASTOR_CORS_ORIGINS` is a comma separated list; `*` is refused.
+
+The environment is named by `CASTOR_ENV` (local, dev or test), independent of the Quarkus profile. The `castor.*` settings are bound in `CastorConfig`. `ConfigGuard` stops start-up for demo login, placeholders, short admin passwords or open CORS when `CASTOR_ENV` is anything else, and refuses `CASTOR_RESET_ON_START=true` outside dev and test. With the flag on, every start drops and recreates the schemas (Flyway clean, enabled only then) and runs the `DataSeedStep` beans.
 
 ### Behaviour worth knowing
 
 - Migrations run at start (`quarkus.flyway.migrate-at-start`). If the database is down at start the process exits instead of reporting DOWN. After start, `/q/health/ready` goes DOWN when the database is lost or a migration is pending. `/q/health/live` only reports the JVM.
 - Errors are RFC 9457 `application/problem+json`. Each response has an `X-Request-Id` header (a safe client value is reused). Non-500 bodies carry `requestId`; a 500 body carries only `errorId`, and the stack trace is in the log under that id.
 - Bodies over 1 MB are refused with 413 (10 MB on `/api/v1/layouts/{id}/import`). Writes accept `application/json` and `application/geo+json` only.
-- OpenAPI and Swagger UI need the `ADMIN` role except in `local`, `dev` and `dev-env`.
+- OpenAPI and Swagger UI need the `ADMIN` role except in `dev`.
 - Custom metrics: `castor_validation_duration`, `castor_publish_count`, `castor_import_count`, `castor_spatial_query_duration`. Use the `OperationMetrics` port from use cases.
 - Coverage gate is `jacoco.line.minimum` / `jacoco.branch.minimum` in `pom.xml` (0 until SETUP-09).

@@ -28,7 +28,7 @@ class DataResetIT {
     public static class ResetOnStart implements QuarkusTestProfile {
         @Override
         public Map<String, String> getConfigOverrides() {
-            return Map.of("castor.data.reset-on-start", "true");
+            return Map.of("castor.env", "test", "castor.data.reset-on-start", "true");
         }
     }
 

@@ -14,7 +14,7 @@ Reusable port digital twin for conventional cargo ports. The first port is Westp
 castor/
   backend/                  Maven multi-module (Quarkus), see backend/README.md
   frontend/                 React + Vite + Three.js, see frontend/README.md
-  compose.yaml              local and dev profiles (SETUP-08)
+  compose.yaml              local database (SETUP-08)
   .env.example              placeholders only (SETUP-08)
   .github/                  ci.yml (SETUP-10), dependabot.yml, CODEOWNERS, pull_request_template.md
   .gitignore  .editorconfig  README.md  CHANGELOG.md  VERSION
@@ -26,13 +26,37 @@ Data flow (Phase 1): browser frontend <-> backend (REST) -> PostgreSQL + PostGIS
 
 ## Run locally
 
+### New to the project: no manual setup
+
+Install Docker, Java 25 and Node 24, then run these. There is no database to install, no schema to load and no data to import by hand: the backend starts its own PostGIS container (Quarkus Dev Services, Testcontainers underneath) and Flyway builds the whole schema from `backend/castor-core/src/main/resources/db/migration`. Every developer therefore gets the same database.
+
+```
+# terminal 1: backend on :8081 (health and metrics on :9000)
+cd backend && ./mvnw -pl castor-core quarkus:dev
+
+# terminal 2: frontend on :5173
+cd frontend && cp .env.example .env.local && npm ci && npm run dev
+```
+
+Run all checks the same way on any machine (this is what CI will run):
+
+```
+cd backend  && ./mvnw -B spotless:check verify    # unit + integration tests on a throwaway PostGIS container
+cd frontend && npm ci && npm run lint && npm run typecheck && npm test
+```
+
+Details and limits: [backend/README.md](backend/README.md#run-and-test) and [frontend/README.md](frontend/README.md#run-and-test). For a long-lived local database with the real `castor_app` and `castor_flyway` roles from `db/init/01-roles.sql`, use the Docker database below.
+
+There is no gateway in Phase 1 (see above), so it has no run instructions yet; it gets its own README when Phase 2 starts.
+
+### With a persistent Docker database
+
 The database runs in Docker; backend and frontend run on your machine with hot reload. Data survives restarts.
 
 ```
 cp .env.example .env                       # then replace every CHANGE_ME value
 docker compose --profile local up -d --wait   # PostGIS only, 127.0.0.1:${LOCAL_DB_PORT:-5432}
-set -a; . ./.env; set +a                   # export .env to the shell (the backend reads DB_PASSWORD etc.)
-cd backend && ./mvnw -pl castor-core quarkus:dev -Dquarkus.profile=local
+cd backend && ./mvnw -pl castor-core quarkus:dev -Dquarkus.profile=local   # local = dev settings + the Docker database
 cd frontend && cp .env.example .env.local && npm ci && npm run dev
 ```
 
@@ -274,7 +298,7 @@ Implemented by CORE-04 and DESIGNER-01..04.
 6. Coordinates are WGS84 `[lon, lat]`, 7 decimals, written only by the shared GeoJSON mapper (CORE-04).
 7. Computed values (`areaM2`, `perimeterM`, `lengthM`) are returned, never stored.
 8. Roles: VIEWER reads; EDITOR edits drafts; PUBLISHER publishes, restores and discards; ADMIN everything.
-9. OpenAPI 3.1 is generated from the code at `/q/openapi` (ADMIN only outside local/dev) and describes every Phase 1 endpoint. A snapshot is committed at `backend/castor-core/src/main/resources/openapi/castor-api-v1.yaml`; CI fails when code and snapshot differ (contract test).
+9. OpenAPI 3.1 is generated from the code at `/q/openapi` (ADMIN only outside dev) and describes every Phase 1 endpoint. A snapshot is committed at `backend/castor-core/src/main/resources/openapi/castor-api-v1.yaml`; CI fails when code and snapshot differ (contract test).
 10. Versioning: additive changes only inside v1; breaking changes need `/api/v2`.
 11. **Phase 2 live-record envelope (reserved now, not used in Phase 1):** `eventId`, `sourceSystem`, `sourceEventId`, `occurredAt`, `receivedAt`, `quality` (`OBSERVED` | `INFERRED` | `SIMULATED`), `version`, `stale`. Phase 1 layout data uses the provenance fields of section 3 instead (`source`, `accuracy`, `capturedOn`, `note`).
 
