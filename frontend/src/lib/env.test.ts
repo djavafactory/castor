@@ -21,6 +21,19 @@ describe('parseEnv', () => {
     })
   })
 
+  it('keeps demo login off outside local and dev even when the flag is true', () => {
+    for (const VITE_APP_ENV of ['test', 'staging', 'prod']) {
+      expect(parseEnv({ ...valid, VITE_APP_ENV, VITE_DEMO_LOGIN: 'true' })).toMatchObject({
+        ok: true,
+        env: { VITE_DEMO_LOGIN: false },
+      })
+    }
+    expect(parseEnv({ ...valid, VITE_APP_ENV: 'dev', VITE_DEMO_LOGIN: 'true' })).toMatchObject({
+      ok: true,
+      env: { VITE_DEMO_LOGIN: true },
+    })
+  })
+
   it('reports every invalid value', () => {
     const result = parseEnv({
       ...valid,

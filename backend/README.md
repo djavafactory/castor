@@ -44,12 +44,12 @@ Requires Java 25 and Docker (Dev Services starts PostGIS, no manual database set
 
 | Profile | Use | Database | Logs |
 | --- | --- | --- | --- |
-| `local` (`dev` inherits it) | developer machine | Dev Services, or set `QUARKUS_DATASOURCE_JDBC_URL` | plain text, DEBUG for `it.replica8.castor` |
+| `local` (`dev` inherits it) | developer machine | Docker PostGIS from `docker compose --profile local up -d` (`application-local.properties`, needs `DB_PASSWORD`) | plain text, DEBUG for `it.replica8.castor` |
 | `dev-env` | shared dev environment | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | JSON |
 | `test` | automated tests | Dev Services | plain text |
 | `prod` | placeholder, finished later | same variables as `dev-env` | JSON |
 
-Outside local and test, `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` and `CASTOR_CORS_ORIGINS` are required. A missing one stops start-up with a message naming the variable. `CASTOR_CORS_ORIGINS` is a comma separated list; `*` is refused.
+`CASTOR_ENV` (local, dev or test) and the `castor.*` settings are bound in `CastorConfig`; `ConfigGuard` refuses unsafe values and reset-on-start outside dev/test (see the root README). Outside local and test, `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` and `CASTOR_CORS_ORIGINS` are required. A missing one stops start-up with a message naming the variable. `CASTOR_CORS_ORIGINS` is a comma separated list; `*` is refused.
 
 ### Behaviour worth knowing
 

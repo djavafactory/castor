@@ -24,16 +24,48 @@ Each app owns its Dockerfile (`backend/Dockerfile`, `frontend/Dockerfile`). Ther
 
 Data flow (Phase 1): browser frontend <-> backend (REST) -> PostgreSQL + PostGIS. Phase 2 adds Westports systems -> gateway -> Kafka -> backend and a WebSocket to the frontend; see [Target architecture](#target-architecture).
 
-## How to run
+## Run locally
 
-Local and dev profiles are defined in `compose.yaml` (SETUP-08):
+The database runs in Docker; backend and frontend run on your machine with hot reload. Data survives restarts.
 
 ```
-cp .env.example .env
-docker compose --profile local up
+cp .env.example .env                       # then replace every CHANGE_ME value
+docker compose --profile local up -d --wait   # PostGIS only, 127.0.0.1:${LOCAL_DB_PORT:-5432}
+set -a; . ./.env; set +a                   # export .env to the shell (the backend reads DB_PASSWORD etc.)
+cd backend && ./mvnw -pl castor-core quarkus:dev -Dquarkus.profile=local
+cd frontend && cp .env.example .env.local && npm ci && npm run dev
 ```
 
-Run the apps individually as described in [backend/README.md](backend/README.md) and [frontend/README.md](frontend/README.md).
+| What | URL |
+| --- | --- |
+| Frontend | http://localhost:5173 |
+| API, Swagger UI | http://localhost:8081, http://localhost:8081/q/swagger-ui |
+| Health (management port) | http://localhost:9000/q/health/ready |
+
+Reset local to the seeded layout (wipes the local database volume only):
+
+```
+docker compose --profile local down -v && docker compose --profile local up -d
+```
+
+## Run the dev environment
+
+The whole built app in containers (`castor-dev-db`, `castor-dev-backend`, `castor-dev-frontend`). Only the frontend port is published; the database and `/q/*` management endpoints are not reachable from the host. Runs side by side with local.
+
+```
+docker compose --profile dev up -d --build --wait   # app at http://localhost:${DEV_WEB_PORT:-8080}
+docker compose --profile dev down
+```
+
+Every backend start in dev wipes and reseeds the data (`CASTOR_RESET_ON_START=true`, set by `compose.yaml`).
+
+## Environment configuration
+
+Each environment is a set of variables; see `.env.example` and `frontend/.env.example`. Secrets never go to git (`.env` and `.env.local` are ignored). `VITE_*` values are bundled into the browser: no secrets there.
+
+- `CASTOR_ENV` is `local`, `dev` or `test`. Demo login (`CASTOR_DEMO_LOGIN`, `VITE_DEMO_LOGIN`) defaults to off and works only when set to true in local or dev.
+- The backend refuses to start when `CASTOR_ENV` is anything else and demo login is on, a value contains `CHANGE_ME`, the admin password has fewer than 14 characters, or CORS origins are empty or `*`.
+- `CASTOR_RESET_ON_START=true` is allowed only in dev or test, otherwise start-up fails with "Refusing to wipe data: reset-on-start is only allowed in dev or test".
 
 ## Git rules
 

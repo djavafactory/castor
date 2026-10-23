@@ -1,0 +1,104 @@
+# Castor environments. Variables come from the root .env (copy .env.example).
+#   local: docker compose --profile local up -d --wait     (database only, apps run on the host)
+#   dev:   docker compose --profile dev up -d --build --wait   (database, backend, frontend in containers)
+# Container, network and volume names are fixed per environment so local and dev never collide.
+name: castor
+
+services:
+  castor-local-db:
+    profiles: [local]
+    image: postgis/postgis:18-3.6
+    container_name: castor-local-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-castor}
+      POSTGRES_USER: ${POSTGRES_USER:-castor}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      CASTOR_ROLE_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    volumes:
+      - castor-local-pgdata:/var/lib/postgresql
+      - ./db/init/01-roles.sh:/docker-entrypoint-initdb.d/01-roles.sh:ro
+    ports:
+      - "127.0.0.1:${LOCAL_DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+    restart: unless-stopped
+
+  castor-dev-db:
+    profiles: [dev]
+    image: postgis/postgis:18-3.6
+    container_name: castor-dev-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-castor}
+      POSTGRES_USER: ${POSTGRES_USER:-castor}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      CASTOR_ROLE_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    volumes:
+      - castor-dev-pgdata:/var/lib/postgresql
+      - ./db/init/01-roles.sh:/docker-entrypoint-initdb.d/01-roles.sh:ro
+    networks: [castor-dev-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+    restart: unless-stopped
+
+  castor-dev-backend:
+    profiles: [dev]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: castor-dev-backend:local
+    container_name: castor-dev-backend
+    depends_on:
+      castor-dev-db:
+        condition: service_healthy
+    environment:
+      QUARKUS_PROFILE: dev-env
+      CASTOR_ENV: dev
+      CASTOR_DEMO_LOGIN: "true"
+      CASTOR_RESET_ON_START: "true"
+      CASTOR_PORT_CODE: ${CASTOR_PORT_CODE:-westports}
+      CASTOR_ADMIN_USERNAME: ${CASTOR_ADMIN_USERNAME:-admin}
+      CASTOR_ADMIN_PASSWORD: ${CASTOR_ADMIN_PASSWORD:?set CASTOR_ADMIN_PASSWORD in .env}
+      CASTOR_CORS_ORIGINS: http://localhost:${DEV_WEB_PORT:-8080}
+      DB_URL: jdbc:postgresql://castor-dev-db:5432/${POSTGRES_DB:-castor}
+      DB_USERNAME: ${DB_USERNAME:-castor_app}
+      DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    networks: [castor-dev-net]
+    expose: ["8081", "9000"]
+    restart: unless-stopped
+
+  castor-dev-frontend:
+    profiles: [dev]
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_PORT_CODE: ${CASTOR_PORT_CODE:-westports}
+        VITE_DEMO_LOGIN: "true"
+        VITE_SATELLITE_TILE_URL: ${VITE_SATELLITE_TILE_URL:-https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/{z}/{y}/{x}.jpg}
+    image: castor-dev-frontend:local
+    container_name: castor-dev-frontend
+    depends_on:
+      castor-dev-backend:
+        condition: service_healthy
+    networks: [castor-dev-net]
+    ports:
+      - "${DEV_WEB_PORT:-8080}:8080"
+    restart: unless-stopped
+
+networks:
+  castor-dev-net:
+    name: castor-dev-net
+
+volumes:
+  castor-local-pgdata:
+    name: castor-local-pgdata
+  castor-dev-pgdata:
+    name: castor-dev-pgdata
