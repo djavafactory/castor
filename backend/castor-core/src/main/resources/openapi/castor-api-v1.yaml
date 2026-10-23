@@ -1,0 +1,45 @@
+openapi: 3.1.0
+info:
+  title: Castor API
+  version: 1.0.0
+# Placeholder snapshot created by SETUP-05 so the frontend type generation has an input.
+# SETUP-04 replaces it with the snapshot generated from the backend code.
+paths: {}
+components:
+  schemas:
+    Role:
+      type: string
+      enum: [VIEWER, EDITOR, PUBLISHER, ADMIN]
+    ProblemDetails:
+      type: object
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+          format: int32
+        detail:
+          type: string
+        instance:
+          type: string
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProblemError'
+    ProblemError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        pointer:
+          type: string
+        assetId:
+          type: string
+          format: uuid
+        message:
+          type: string

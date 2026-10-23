@@ -21,12 +21,20 @@ Features must not import from each other; share code through `src/lib` and `src/
 
 ## Run and test
 
-Requires Node 24. The commands below apply once SETUP-05 adds the project.
+Requires Node 24 (`.nvmrc`). Copy `.env.example` to `.env.local` first; an invalid or missing value shows a full-page configuration error.
 
 ```
 npm ci
-npm run dev        # dev server
-npm run lint
-npm test           # Vitest
-npx playwright test
+npm run dev           # dev server on PORT (default 5173, strict)
+npm run lint && npm run format:check && npm run typecheck
+npm test              # Vitest (MSW for the API); npm run test:coverage
+npm run test:e2e      # Playwright (builds and previews the app)
+npm run api:generate  # regenerate src/types/api.ts from the OpenAPI snapshot
+npm run api:check     # CI: fails when src/types/api.ts is out of date
 ```
+
+## API client and stores
+
+- Every request goes through `src/lib/api-client.ts`. `VITE_API_URL` is the API root (`/api` in containers) and callers pass paths below it, for example `/v1/ports/WESTPORTS/layouts/current`.
+- API types come only from `src/types/api.ts` (generated from `backend/castor-core/src/main/resources/openapi/castor-api-v1.yaml`); never hand-write them.
+- Stores live in `src/lib/stores`. The auth store is memory only. 3D code reads stores with `getState()` or transient subscriptions; panels use selectors with `useShallow`.
