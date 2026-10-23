@@ -3,7 +3,7 @@ info:
   title: Castor API
   version: 1.0.0
 # Placeholder snapshot created by SETUP-05 so the frontend type generation has an input.
-# SETUP-04 replaces it with the snapshot generated from the backend code.
+# Replace with the snapshot generated from the backend code (/q/openapi) once the contract test exists.
 paths: {}
 components:
   schemas:
@@ -25,6 +25,10 @@ components:
         detail:
           type: string
         instance:
+          type: string
+        requestId:
+          type: string
+        errorId:
           type: string
         errors:
           type: array
