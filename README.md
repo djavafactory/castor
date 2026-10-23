@@ -61,5 +61,142 @@ No conventional-cargo-only assumption may be hard-coded into the asset registry,
 
 Record decisions and behaviour changes here, newest first.
 
-- _No decisions recorded yet._
+#### SETUP-03: Architecture decisions
+
+##### 1. Coordinate system, port origin and quay frame
+
+A measured 470 m berth gave: ellipsoid 470.405 m, EPSG:3380 470.405 m, EPSG:3375 (Peninsula RSO) 470.467 m. EPSG:3380 is therefore the measurement CRS.
+
+1. **Storage CRS:** WGS84 EPSG:4326, GeoJSON axis order `[longitude, latitude]`, 7 decimals (about 1 cm).
+2. **Measurement CRS:** EPSG:3380 (GDM2000 / Selangor Grid). The backend uses PostGIS `ST_Transform` for lengths, areas and distances.
+3. **Port origin:** lon 101.3066304, lat 2.9534057 (near the conventional terminal main gate).
+4. **Quay frame:** local tangent plane at the origin, turned so local +X runs along the quay. Frame rotation `rotDeg` = -120.299 deg (angle of local +X, counter-clockwise from east). Local +X points to heading 210.3 deg true (along the quay towards the container terminals); local +Y points to heading 120.3 deg true (inland). Quay edge is local y = 0; water is y < 0.
+5. **Conversion formulas** (backend seed/import code and the frontend geo module CORE-01 use exactly these):
+
+```
+rad = pi / 180
+mLat = 111132.92 - 559.82*cos(2*lat0*rad) + 1.175*cos(4*lat0*rad)   (m per degree latitude)
+mLon = 111412.84*cos(lat0*rad) - 93.5*cos(3*lat0*rad)               (m per degree longitude)
+a = rotDeg*rad; c = cos(a); s = sin(a)
+local -> WGS84: lon = lon0 + (x*c - y*s) / mLon ; lat = lat0 + (x*s + y*c) / mLat
+WGS84 -> local: e = (lon - lon0)*mLon ; n = (lat - lat0)*mLat ; x = e*c + n*s ; y = -e*s + n*c
+heading (deg true, clockwise from north) of local rotation r (deg, counter-clockwise from local +X):
+  heading = (90 - r - rotDeg) mod 360 ; r = 90 - heading - rotDeg, normalised to -180..180
+```
+
+6. **3D scene axes:** scene X = local x, scene Y = up (ground y = 0), scene Z = -local y.
+7. **Port extent:** lon 101.26 to 101.36, lat 2.90 to 3.02 (polygon in `ref.port.extent`).
+8. **Control points** (APPROXIMATE until Westports supplies a survey; used for round-trip tests; formulas reproduce them within 0.1 m):
+
+| Point | lon | lat | local x | local y |
+|---|---|---|---|---|
+| Main gate | 101.3093602 | 2.9518844 | -7.9 | 346.9 |
+| Coastline point 0 | 101.3094176 | 2.9579603 | -591.2 | 13.4 |
+| Coastline point 40 | 101.2950289 | 2.9335530 | 2546.1 | -6.1 |
+| Coastline point 80 | 101.2796057 | 2.9065244 | 5991.7 | 21.3 |
+
+9. **Height datum:** not set in Phase 1. Elevation is 0 (flat ground); heights are metres above ground. _Open item for Westports sign-off._
+
+Values are seeded in `ref.port` (CORE-02) and used by CORE-01 (frontend geo module) and the backend seed/import code. Survey work is out of scope.
+
+##### 2. Data sources, basemap licences and tracing rules
+
+Seeded as `ref.data_source` (CORE-02):
+
+| code | name | licence | may_persist | may_trace |
+|---|---|---|---|---|
+| OSM | OpenStreetMap | ODbL-1.0 (attribution) | true | n/a (vector import) |
+| SYNTHETIC | Castor synthetic layout | internal | true | n/a |
+| OPERATOR | Operator-entered in the designer | internal | true | n/a |
+| SENTINEL2_EOX | Sentinel-2 cloudless by EOX | CC BY-NC-SA 4.0 | false | true (result APPROXIMATE) |
+| LICENSED_BASEMAP | Licensed basemap (to be chosen) | commercial licence | false | true |
+| SURVEY | Survey / GIS import | customer agreement | true | n/a |
+| WESTPORTS_GIS | Westports GIS/CAD (future) | customer agreement | true | n/a |
+| GOOGLE | Google Maps | Google Maps Platform terms | false | false |
+
+1. Basemaps offered in the designer: "Sentinel-2 (EOX)" (default), "None (grid)", "Google Maps (lookup only)". On Google, drawing and placing catalogue assets are blocked with: "Google Maps (lookup / reference only): tracing into stored geometry is not allowed. Switch the basemap first."
+2. Shapes traced on Sentinel-2 get source `SENTINEL2_EOX` (traced), accuracy `APPROXIMATE`, note "Traced from 10 m satellite imagery: approximate, not a survey".
+3. Satellite tile URL (EOX WMTS, Web Mercator), max useful zoom 14: `https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/{z}/{y}/{x}.jpg`
+4. Attribution text (login card, Help popover and app footer): "Imagery: Sentinel-2 cloudless by EOX IT Services GmbH (CC BY-NC-SA 4.0), modified Copernicus Sentinel data 2024. Outlines: (c) OpenStreetMap contributors (ODbL)."
+5. Sentinel-2 imagery is non-commercial: the Phase 1 demo is treated as non-commercial. A licensed basemap must be chosen before commercial use. _Open item for sign-off._
+6. `GOOGLE` has `may_persist = false` and `may_trace = false`. Import jobs and the asset API refuse geometry whose source has `may_persist = false` (tested in DESIGNER-04).
+
+##### 3. Accuracy labels and provenance rules
+
+| class (`ref.accuracy_class`) | label | colour | meaning |
+|---|---|---|---|
+| SURVEYED | Surveyed | #2F8F6B | backed by a survey |
+| VERIFIED | Imported verified | #3C6FB4 | imported GIS data checked against control points |
+| OPERATOR | Operator-entered | #E8A317 | typed or placed by a person |
+| APPROXIMATE | Approximate | #8A8F98 | traced from imagery or synthetic |
+
+1. Every asset revision stores: source code, accuracy class, captured date, free-text note.
+2. Defaults: placed in the designer -> source OPERATOR, accuracy APPROXIMATE, note "Placed in the layout designer"; drawn on Sentinel-2 -> see section 2; GeoJSON import without provenance -> SURVEY / VERIFIED; seed data -> SYNTHETIC / APPROXIMATE; OSM -> OSM / APPROXIMATE.
+3. Wording mapping used by other documents: surveyed -> SURVEYED; imported -> VERIFIED (after the control-point check) or OPERATOR; traced -> APPROXIMATE; approximate -> APPROXIMATE.
+4. UI: an approximate shape shows a "NO SURVEY" badge in the inspector (tooltip "Only a rough imagery-based or synthetic position exists") and a dashed outline when accuracy colouring is on.
+5. Help text with the accuracy field: "False accuracy is worse than an honest approximate label: only mark a shape Surveyed when a survey backs it."
+6. A shape whose source is "Traced from unlicensed imagery" blocks publishing (error), see DESIGNER-03.
+
+##### 4. Layout versioning model and stable asset IDs
+
+1. A port has layout versions with status `DRAFT`, `PUBLISHED`, `SUPERSEDED`, `DISCARDED`. At most one DRAFT and one PUBLISHED version per port (partial unique indexes).
+2. Asset identity (`layout.asset`: id UUID, port, code, type) is permanent and never deleted. Everything that can change lives in `layout.asset_revision`, one row per (asset, layout version).
+3. Creating a draft copies every revision row of the version it is based on (published version, an older version for restore, or nothing for a blank layout). Deleting an asset in a draft removes its revision row only; the identity stays.
+4. Edits are saved immediately, one asset at a time (POST/PATCH/DELETE), with optimistic concurrency (`row_version`, ETag / If-Match). Only DRAFT rows can change; a trigger rejects changes to other versions.
+5. Publish validates the draft; with zero errors the draft becomes PUBLISHED and the previous PUBLISHED becomes SUPERSEDED. Published versions are immutable.
+6. Restore = create a new draft from an older version (same asset IDs), then publish as usual.
+7. Monitor always shows the PUBLISHED version; Design always edits the DRAFT.
+8. Every create, update, delete, publish, restore and discard writes an audit row (who, when, before, after).
+
+Implemented by CORE-04 and DESIGNER-01..04.
+
+##### 5. REST API conventions
+
+1. Base path `/api/v1`; JSON only (`Content-Type: application/json`, else 415); GeoJSON responses use `application/geo+json`.
+2. Port-scoped paths `/api/v1/ports/{portCode}/...`; layout-scoped paths `/api/v1/layouts/{layoutId}/...`.
+3. PRD contracts kept exactly:
+   - `GET /api/v1/ports/{portCode}/layouts/current`: published layout and asset geometry
+   - `POST /api/v1/layouts/{layoutId}/assets`: create asset in a draft with optimistic revision
+   - `POST /api/v1/layouts/{layoutId}/publish`: validate and publish an immutable version
+4. Errors are RFC 9457 Problem Details with `type` `https://replica8.it/problems/<slug>`, `title`, `status`, `detail`, `instance`, optional `errors: [{code, pointer, assetId, message}]`. 400 validation, 401 unauthenticated, 403 wrong role, 404 not found, 409 conflict (stale If-Match, draft already exists), 412 missing If-Match on a write, 415 media type, 422 business rule failed. 500 returns only an error id, never stack traces or SQL. SETUP-04 implements the format.
+5. Concurrency: GET returns `ETag` = row_version; PATCH/DELETE require `If-Match`; stale -> 409.
+6. Coordinates are WGS84 `[lon, lat]`, 7 decimals, written only by the shared GeoJSON mapper (CORE-04).
+7. Computed values (`areaM2`, `perimeterM`, `lengthM`) are returned, never stored.
+8. Roles: VIEWER reads; EDITOR edits drafts; PUBLISHER publishes, restores and discards; ADMIN everything.
+9. OpenAPI 3.1 is generated from the code at `/q/openapi` (ADMIN only outside local/dev) and describes every Phase 1 endpoint. A snapshot is committed at `backend/castor-core/src/main/resources/openapi/castor-api-v1.yaml`; CI fails when code and snapshot differ (contract test).
+10. Versioning: additive changes only inside v1; breaking changes need `/api/v2`.
+11. **Phase 2 live-record envelope (reserved now, not used in Phase 1):** `eventId`, `sourceSystem`, `sourceEventId`, `occurredAt`, `receivedAt`, `quality` (`OBSERVED` | `INFERRED` | `SIMULATED`), `version`, `stale`. Phase 1 layout data uses the provenance fields of section 3 instead (`source`, `accuracy`, `capturedOn`, `note`).
+
+##### 6. Geometry tolerances and validation rule catalogue
+
+1. Tolerances: save/reload and GeoJSON round trip <= 1 cm (7-decimal rounding); coordinate conversion backend vs frontend <= 1 cm; projection round trip <= 1 mm; control-point check <= 0.1 m against the approximate control points. Tolerance against a real survey: _TBD with Westports_.
+2. Rule catalogue. Errors block publishing; warnings do not.
+
+| code | level | message |
+|---|---|---|
+| GEOM_INVALID | error | "&lt;name&gt; has an invalid shape" |
+| SELF_INTERSECTION | error | "&lt;name&gt; has a self-intersecting outline and cannot be published" |
+| TOO_FEW_POINTS | error | "&lt;name&gt; needs at least three corners" / "needs at least two points" |
+| TOO_SMALL | error | "The outline is smaller than 4 m2" (drawn polygon types only; placed equipment such as a 1.2 m bollard is not checked) |
+| WRONG_GEOMETRY_KIND | error | "&lt;name&gt;: geometry does not match type &lt;type&gt;" |
+| OUT_OF_PORT | error | "&lt;name&gt; lies outside the port extent" |
+| ON_WATER | error | "Extends past the quay edge into the water" |
+| OUTSIDE_LAND | error | "Outside the land area" |
+| IN_EXCLUSION_ZONE | error | "Inside safety exclusion zone &lt;zone&gt;. Move it, or record a documented override in the inspector" |
+| OVERLAP | error | "Overlaps &lt;other name&gt;" |
+| BERTH_OVERLAP | error | "Overlaps &lt;other berth&gt; along the quay" |
+| CRANE_OFF_BERTH | error | "A rail-mounted quay crane must stand on a berth" |
+| DIM_OUT_OF_RANGE | error | "&lt;Label&gt;: enter a number of at least &lt;min&gt;" |
+| UNKNOWN_TYPE | error | "&lt;name&gt;: unknown asset type &lt;type&gt;" |
+| TRACE_SOURCE_NOT_ALLOWED | error | "&lt;name&gt; was traced from unlicensed imagery. Publishing is blocked until its source is replaced with licensed or surveyed data" |
+| ON_ROAD | warning | "&lt;block&gt; sits on road &lt;road&gt;" |
+| PILE_SLOT_TOO_SMALL | warning | "&lt;block&gt;: a &lt;bp&gt; x &lt;rp&gt; m slot is too small to hold a pile" |
+| APPROXIMATE_SOURCE | warning | "&lt;n&gt; shapes have no survey" |
+
+3. Placement and drag checks use the same rules as publish (no rule is an error in one place and a warning in another).
+4. Placement check order (first failure wins): ON_WATER, OUTSIDE_LAND, IN_EXCLUSION_ZONE, OVERLAP. Berths: BERTH_OVERLAP. Rail quay cranes: CRANE_OFF_BERTH.
+5. Overlap applies to solid types (storage pads, buildings, warehouses, solid assets, mobile equipment); lines, roads, areas and terminal boundaries are not overlap-checked.
+6. Exclusion zones list allowed types (default for an exclusion zone: liquid tank, pipeline, pump station, exclusion zone). An override needs a written reason, is shown in the inspector and is audited.
+
+DESIGNER-03 implements the catalogue; the frontend uses the same codes.
 
