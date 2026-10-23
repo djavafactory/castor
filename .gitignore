@@ -26,3 +26,15 @@ hack/
 # Prototype tooling
 .expo
 .rork
+
+# Local-only material (never committed)
+docs/
+mockup/
+castor project realtime 3d port for.txt
+
+# Env
+.env.local
+
+# Test output
+playwright-report/
+test-results/
