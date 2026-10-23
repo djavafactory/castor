@@ -12,7 +12,8 @@ ENV VITE_APP_ENV=dev \
     VITE_PORT_CODE=$VITE_PORT_CODE \
     VITE_DEMO_LOGIN=$VITE_DEMO_LOGIN \
     VITE_SATELLITE_TILE_URL=$VITE_SATELLITE_TILE_URL
-RUN npm run build
+# Types are checked by CI (npm run typecheck); tests import the shared fixtures/ folder, which is outside this build context
+RUN npx vite build
 
 FROM nginxinc/nginx-unprivileged:1.31.7-alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf

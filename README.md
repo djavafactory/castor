@@ -14,6 +14,8 @@ Reusable port digital twin for conventional cargo ports. The first port is Westp
 castor/
   backend/                  Maven multi-module (Quarkus), see backend/README.md
   frontend/                 React + Vite + Three.js, see frontend/README.md
+  fixtures/                 coordinates.json shared by backend and frontend coordinate tests (CORE-01)
+  scripts/                  generate-coordinate-fixtures.mjs
   compose.yaml              local database (SETUP-08)
   .env.example              placeholders only (SETUP-08)
   .github/                  ci.yml (SETUP-10), dependabot.yml, CODEOWNERS, pull_request_template.md
