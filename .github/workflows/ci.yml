@@ -100,9 +100,8 @@ jobs:
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
-      - name: Install Playwright Chromium
-        working-directory: frontend
-        run: npx playwright install --with-deps chromium
+      # Runs in the official Playwright image matching the installed version, so screenshots render with the same
+      # fonts and libraries as the *-linux.png baselines (regenerate them with the command in frontend/README.md).
       - name: Run end-to-end tests
         working-directory: frontend
         run: |
@@ -110,7 +109,10 @@ jobs:
           . ../.env
           set +a
           export E2E_USERNAME="$CASTOR_ADMIN_USERNAME" E2E_PASSWORD="$CASTOR_ADMIN_PASSWORD"
-          npm run test:e2e
+          PW_VERSION=$(node -p "require('@playwright/test/package.json').version")
+          docker run --rm --ipc=host --network host -v "$GITHUB_WORKSPACE":/work -w /work/frontend \
+            -e CI -e E2E_BASE_URL -e E2E_USERNAME -e E2E_PASSWORD \
+            "mcr.microsoft.com/playwright:v$PW_VERSION-noble" npm run test:e2e
       - name: Compose logs
         if: failure()
         run: docker compose --profile dev logs --no-color
