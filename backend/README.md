@@ -41,7 +41,7 @@ Which database each kind of run uses:
 
 | Run | Database | Roles |
 | --- | --- | --- |
-| `quarkus:dev` and every `@QuarkusTest` (all run in profile `dev`) | Dev Services container, started and removed automatically | one superuser for the app and Flyway |
+| `quarkus:dev` and every `@QuarkusTest` (tests run in profile `test`, which inherits `dev`) | Dev Services container, started and removed automatically | one superuser for the app and Flyway |
 | `DatabaseBaselineIT` | its own Testcontainers container, prepared with `db/init/01-roles.sql` | the real `castor_flyway` and `castor_app`, to prove least privilege |
 
 Dev Services data is lost when `quarkus:dev` stops. To keep data between runs use the Docker database of the `local` profile: `docker compose --profile local up -d --wait`, then `./mvnw -pl castor-core quarkus:dev -Dquarkus.profile=local` (see the root README).
@@ -57,11 +57,11 @@ Run one test class: `./mvnw -pl castor-core verify "-Dit.test=DatabaseBaselineIT
 
 | Profile | Use | Database | Logs |
 | --- | --- | --- | --- |
-| `dev` (`quarkus:dev` and all automated tests) | developer machine | Dev Services, or set `QUARKUS_DATASOURCE_JDBC_URL` | plain text, DEBUG for `it.replica8.castor` |
+| `dev` (`quarkus:dev`; profile `test` inherits it for all automated tests) | developer machine | Dev Services, or set `QUARKUS_DATASOURCE_JDBC_URL` | plain text, DEBUG for `it.replica8.castor` |
 | `local` (`-Dquarkus.profile=local`, inherits `dev`) | developer machine, persistent data | Docker PostGIS on `localhost:${LOCAL_DB_PORT}` (`application-local.properties`) | same as `dev` |
 | `prod` (every deployed environment, shared dev included) | deployed | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` for the app; `DB_FLYWAY_USERNAME`, `DB_FLYWAY_PASSWORD` for migrations | JSON |
 
-Tests run in `dev` through `quarkus.test.profile=dev` in the pom. A test that needs prod behaviour sets it with a `QuarkusTestProfile` (see `SecuredOpenApiProfile`).
+Tests run in the Quarkus profile `test`, which inherits `dev` (`%test.quarkus.config.profile.parent=dev`); each test JVM gets its own fresh PostGIS container (`TestDatabase.reset()` truncates every table between test classes, Flyway migrates once per JVM). No test connects to the local or dev databases. A test that needs prod behaviour sets it with a `QuarkusTestProfile` (see `SecuredOpenApiProfile`).
 
 In `prod`, `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `DB_FLYWAY_USERNAME`, `DB_FLYWAY_PASSWORD` and `CASTOR_CORS_ORIGINS` are required. A missing one stops start-up with a message naming the variable. `CASTOR_CORS_ORIGINS` is a comma separated list; `*` is refused.
 
@@ -75,3 +75,13 @@ The environment is named by `CASTOR_ENV` (local, dev or test), independent of th
 - OpenAPI and Swagger UI need the `ADMIN` role except in `dev`.
 - Custom metrics: `castor_validation_duration`, `castor_publish_count`, `castor_import_count`, `castor_spatial_query_duration`. Use the `OperationMetrics` port from use cases.
 - Coverage gate is `jacoco.line.minimum` / `jacoco.branch.minimum` in `pom.xml` (0 until SETUP-09).
+## Tests and coverage gates
+
+| Type | Naming | Runs in | Tools |
+|---|---|---|---|
+| Unit (domain rules, geo, mappers) | `*Test` | surefire | JUnit 5 |
+| Component | `*Test` with `@QuarkusTest` | surefire | REST Assured, `@TestSecurity` |
+| Integration | `*IT` | failsafe | Testcontainers `postgis/postgis:18-3.6`, one container per JVM |
+| Architecture | `ArchitectureTest` | surefire | ArchUnit |
+
+`./mvnw verify` runs all of them and fails when JaCoCo (merged from every run) shows less than 85% line coverage in any `*.domain` package or less than 70% overall. Database rules are in `DatabaseRulesIT`; fixture layouts live in `src/test/resources/fixtures/`.

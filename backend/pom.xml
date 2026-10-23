@@ -36,9 +36,9 @@
     <jacoco-plugin.version>0.8.15</jacoco-plugin.version>
     <spotless-plugin.version>3.10.4</spotless-plugin.version>
 
-    <!-- Coverage gate; the real numbers are set in SETUP-09 -->
-    <jacoco.line.minimum>0.00</jacoco.line.minimum>
-    <jacoco.branch.minimum>0.00</jacoco.branch.minimum>
+    <!-- Coverage gates (SETUP-09): domain packages and whole service, measured over unit, component and IT runs -->
+    <jacoco.domain.line.minimum>0.85</jacoco.domain.line.minimum>
+    <jacoco.line.minimum>0.70</jacoco.line.minimum>
   </properties>
 
   <dependencyManagement>
@@ -105,7 +105,6 @@
             <systemPropertyVariables>
               <castor.version>${project.version}</castor.version>
               <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
-              <quarkus.test.profile>dev</quarkus.test.profile>
               <maven.home>${maven.home}</maven.home>
             </systemPropertyVariables>
           </configuration>
@@ -119,7 +118,6 @@
             </includes>
             <systemPropertyVariables>
               <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
-              <quarkus.test.profile>dev</quarkus.test.profile>
               <maven.home>${maven.home}</maven.home>
             </systemPropertyVariables>
           </configuration>

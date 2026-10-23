@@ -1,0 +1,19 @@
+{
+  "type": "FeatureCollection",
+  "name": "small-layout",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "assetType": "BERTH", "code": "B1" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[101.3000, 3.0000], [101.3010, 3.0000], [101.3010, 3.0005], [101.3000, 3.0005], [101.3000, 3.0000]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "assetType": "CRANE", "code": "C1" },
+      "geometry": { "type": "Point", "coordinates": [101.3005, 3.0002] }
+    }
+  ]
+}

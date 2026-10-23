@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseEnv } from './env'
+import { getEnv, parseEnv } from './env'
 
 const valid = {
   VITE_APP_ENV: 'local',
@@ -47,5 +47,11 @@ describe('parseEnv', () => {
       expect(result.issues.join('\n')).toMatch(/VITE_API_URL/)
       expect(result.issues.join('\n')).toMatch(/VITE_PORT_CODE/)
     }
+  })
+})
+
+describe('getEnv', () => {
+  it('returns the validated test environment', () => {
+    expect(getEnv()).toMatchObject({ VITE_APP_ENV: 'test', VITE_PORT_CODE: 'WESTPORTS' })
   })
 })
