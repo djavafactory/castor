@@ -17,6 +17,8 @@ export interface components {
             status: number;
             detail?: string;
             instance?: string;
+            requestId?: string;
+            errorId?: string;
             errors?: components["schemas"]["ProblemError"][];
         };
         ProblemError: {
