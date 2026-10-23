@@ -1,4 +1,28 @@
-node_modules
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+*.iml
+.vscode/
+
+# Env and secrets
 .env
+.env.*
+!.env.example
+
+# Node / frontend
+node_modules/
+dist/
+coverage/
+*.log
+
+# Java / Quarkus / Maven / Gradle
+target/
+build/
+.gradle/
+*.class
+hack/
+
+# Prototype tooling
 .expo
 .rork
