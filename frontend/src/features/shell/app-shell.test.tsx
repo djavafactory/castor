@@ -172,3 +172,25 @@ describe('app shell', () => {
     await waitFor(() => expect(logoutCalled).toBe(true))
   })
 })
+
+describe('layout', () => {
+  it('hides and restores the right panel from the tool strip', async () => {
+    signInAs(['VIEWER'])
+    renderShell()
+    expect(screen.getByLabelText('Right panel')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Hide panel' }))
+    expect(screen.queryByLabelText('Right panel')).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Hide panel' }))
+    expect(screen.getByLabelText('Right panel')).toBeInTheDocument()
+  })
+
+  it('Design adds the palette and the 32 px bottom strip; the palette hides', async () => {
+    signInAs(['EDITOR'])
+    useUiStore.setState({ mode: 'design', panelHidden: false, paletteHidden: false })
+    renderShell()
+    expect(screen.getByLabelText('Status')).toHaveClass('h-8')
+    expect(screen.getByLabelText('Asset palette')).toHaveClass('w-[260px]')
+    await userEvent.click(screen.getByRole('button', { name: 'Hide palette' }))
+    expect(screen.queryByLabelText('Asset palette')).not.toBeInTheDocument()
+  })
+})

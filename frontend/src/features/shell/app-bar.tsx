@@ -8,6 +8,7 @@ import { useEditorStore } from '@/lib/stores/editor-store'
 import { useSelectionStore } from '@/lib/stores/selection-store'
 import { useUiStore, type Mode } from '@/lib/stores/ui-store'
 import { confirmLeaveDesign, MONITOR_RELOADED_MESSAGE, NOT_AN_EDITOR_MESSAGE } from './leave-design'
+import { Badge } from '@/components/ui/badge'
 import { Logo } from '@/components/logo'
 import { usePort } from './use-port'
 import { useMenu } from './use-menu'
@@ -18,21 +19,17 @@ const SYNTHETIC_TIP = 'Synthetic layout: positions are placeholders, not a surve
 export function AppBar() {
   const port = usePort()
   return (
-    <header className="flex items-center gap-3 border-b border-line-soft bg-paper px-4">
+    <header className="relative z-appbar flex items-center gap-3 border-b border-line-soft bg-paper px-4">
       <div className="flex items-center gap-2.5">
         <Logo />
-        <span className="text-lg font-bold">Castor</span>
+        <span className="font-brand text-lg font-bold">Castor</span>
       </div>
       <span aria-hidden="true" className="h-[18px] w-px bg-line" />
       <span className="text-sm font-medium">{port.name}</span>
       {port.synthetic && (
-        <span
-          tabIndex={0}
-          title={SYNTHETIC_TIP}
-          className="rounded-full bg-paper-2 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-muted ring-1 ring-line"
-        >
+        <Badge variant="synthetic" tabIndex={0} title={SYNTHETIC_TIP}>
           SYNTHETIC
-        </span>
+        </Badge>
       )}
       <ModeSwitch />
       <div className="ml-auto flex items-center gap-3">
@@ -65,14 +62,14 @@ function ModeSwitch() {
     toast(MONITOR_RELOADED_MESSAGE)
   }
 
-  const base = 'h-7 rounded-md px-3 text-sm font-medium'
+  const base = 'h-6 rounded-full px-3 text-[13px] font-medium'
   const on = 'bg-ink text-paper'
   const off = 'text-ink hover:bg-paper'
   return (
     <div
       role="group"
       aria-label="Mode"
-      className="ml-2 inline-flex gap-0.5 rounded-lg bg-paper-2 p-0.5 ring-1 ring-line-soft"
+      className="ml-2 inline-flex gap-0.5 rounded-full bg-paper-2 p-0.5 ring-1 ring-line-soft"
     >
       <button
         type="button"
@@ -137,7 +134,7 @@ function UserMenu() {
       {open && (
         <div
           aria-label="User menu"
-          className="absolute top-full right-0 z-20 mt-1 w-56 rounded-xl bg-paper p-3 shadow-card ring-1 ring-line-soft"
+          className="absolute top-full right-0 z-menu mt-1 w-56 rounded-xl bg-paper p-3 shadow-popover ring-1 ring-line-soft"
         >
           <p className="text-sm font-semibold">{username}</p>
           {displayName && displayName !== username && (

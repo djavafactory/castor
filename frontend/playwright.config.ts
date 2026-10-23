@@ -41,7 +41,7 @@ export default defineConfig({
         timeout: 120_000,
         env: {
           PORT: String(PORT),
-          VITE_APP_ENV: 'test',
+          VITE_APP_ENV: 'local',
           VITE_API_URL: '/api',
           VITE_PORT_CODE: 'WESTPORTS',
           VITE_SATELLITE_TILE_URL: 'https://tiles.example.test/{z}/{y}/{x}.jpg',

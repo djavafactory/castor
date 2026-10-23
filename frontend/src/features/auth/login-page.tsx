@@ -68,12 +68,12 @@ export function LoginPage() {
     'h-9 w-full rounded-lg border border-line bg-paper px-3 text-sm text-ink placeholder:text-muted'
 
   return (
-    <main className="grid h-full place-items-center bg-canvas p-4">
+    <main className="relative z-login grid h-full place-items-center bg-canvas p-4">
       <div className="w-[360px] max-w-full overflow-hidden rounded-[14px] bg-paper shadow-card">
         <form className="flex flex-col gap-3 p-6" onSubmit={submit} noValidate>
           <div className="flex items-center gap-2.5">
             <Logo />
-            <span className="text-lg font-bold">Castor</span>
+            <span className="font-brand text-lg font-bold">Castor</span>
           </div>
           <p className="-mt-1 text-sm text-muted">Westports digital twin</p>
 
@@ -162,7 +162,7 @@ export function LoginPage() {
           )}
           <p className="text-[10px] leading-snug text-muted">{ATTRIBUTION}</p>
         </form>
-        <div className="border-t border-line-soft bg-paper-2 px-6 py-2 text-center text-[11px] text-muted">
+        <div className="border-t border-line-soft bg-paper px-6 py-2 text-center text-[11px] text-muted">
           {versionLine(env.VITE_APP_ENV)}
         </div>
       </div>
