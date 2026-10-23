@@ -1,0 +1,174 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { http, HttpResponse } from 'msw'
+import { MemoryRouter, Route, Routes } from 'react-router'
+import { toast } from 'sonner'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { basicCredential, useAuthStore, type Role } from '@/lib/stores/auth-store'
+import { useEditorStore } from '@/lib/stores/editor-store'
+import { useUiStore } from '@/lib/stores/ui-store'
+import { server } from '@/test/setup'
+import { AppShell } from './app-shell'
+import { MONITOR_RELOADED_MESSAGE, NOT_AN_EDITOR_MESSAGE, SAVE_FAILED_PROMPT } from './leave-design'
+
+vi.mock('sonner', () => ({
+  toast: Object.assign(vi.fn(), { error: vi.fn(), loading: vi.fn(() => 'id'), dismiss: vi.fn() }),
+}))
+
+const BASE = 'http://api.test/api'
+
+function signInAs(roles: Role[], username = 'ada') {
+  useAuthStore.getState().signIn({
+    username,
+    displayName: 'Ada Lovelace',
+    roles,
+    credential: basicCredential(username, 'secret'),
+  })
+}
+
+function renderShell() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  server.use(
+    http.get(`${BASE}/v1/port`, () => HttpResponse.json({ name: 'Westports', synthetic: true })),
+  )
+  return render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route path="/" element={<AppShell />} />
+          <Route path="/login" element={<p>login page</p>} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+}
+
+beforeEach(() => {
+  vi.mocked(toast).mockClear()
+  useAuthStore.getState().clearSession()
+  useEditorStore.getState().reset()
+  useUiStore.setState({ mode: 'monitor', openMenu: null, rightTab: 'details' })
+})
+
+describe('app shell', () => {
+  it('shows the port, the SYNTHETIC badge, the toolbar and the Monitor panel tabs', async () => {
+    signInAs(['VIEWER'])
+    renderShell()
+
+    expect(await screen.findByText('SYNTHETIC')).toHaveAttribute(
+      'title',
+      'Synthetic layout: positions are placeholders, not a survey of Westports',
+    )
+    expect(screen.getByText('Westports')).toBeInTheDocument()
+    expect(screen.getByRole('toolbar', { name: 'Tools' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Mode' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Monitor' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Details', 'Catalogue'])
+  })
+
+  it('tells a viewer that Design is for editors and stays in Monitor', async () => {
+    signInAs(['VIEWER'])
+    renderShell()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Design' }))
+
+    expect(toast).toHaveBeenCalledWith(NOT_AN_EDITOR_MESSAGE)
+    expect(screen.getByRole('button', { name: 'Monitor' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('switches an editor to Design with its panel tabs, without leaving the page', async () => {
+    signInAs(['EDITOR', 'VIEWER'])
+    renderShell()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Design' }))
+
+    expect(screen.getByRole('button', { name: 'Design' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual([
+      'Inspector',
+      'Issues',
+      'Versions',
+    ])
+    expect(screen.getByLabelText('Asset palette')).toBeInTheDocument()
+  })
+
+  it('leaves Design without a question when nothing is pending, then reloads Monitor', async () => {
+    signInAs(['EDITOR'])
+    useUiStore.setState({ mode: 'design' })
+    const confirm = vi.spyOn(window, 'confirm')
+    renderShell()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Monitor' }))
+
+    await waitFor(() => expect(toast).toHaveBeenCalledWith(MONITOR_RELOADED_MESSAGE))
+    expect(confirm).not.toHaveBeenCalled()
+    expect(useUiStore.getState().mode).toBe('monitor')
+  })
+
+  it('asks before leaving Design when a save failed, and stays when declined', async () => {
+    signInAs(['EDITOR'])
+    useUiStore.setState({ mode: 'design' })
+    useEditorStore.getState().beginSave('a1')
+    useEditorStore.getState().failSave('a1')
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    renderShell()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Monitor' }))
+
+    await waitFor(() => expect(confirm).toHaveBeenCalledWith(SAVE_FAILED_PROMPT))
+    expect(useUiStore.getState().mode).toBe('design')
+  })
+
+  it('waits for pending saves and shows "Saving changes..."', async () => {
+    signInAs(['EDITOR'])
+    useUiStore.setState({ mode: 'design' })
+    useEditorStore.getState().beginSave('a1')
+    const confirm = vi.spyOn(window, 'confirm')
+    renderShell()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Monitor' }))
+    expect(toast.loading).toHaveBeenCalledWith('Saving changes...')
+    expect(useUiStore.getState().mode).toBe('design')
+
+    useEditorStore.getState().endSave('a1')
+
+    await waitFor(() => expect(useUiStore.getState().mode).toBe('monitor'))
+    expect(confirm).not.toHaveBeenCalled()
+  })
+
+  it('opens the user menu with the role tag and closes it on Esc and outside click', async () => {
+    signInAs(['EDITOR', 'VIEWER'])
+    renderShell()
+    const user = userEvent.setup()
+
+    await user.click(screen.getByRole('button', { name: /ada/ }))
+    expect(screen.getByLabelText('User menu')).toHaveTextContent('EDITOR')
+
+    await user.keyboard('{Escape}')
+    expect(screen.queryByLabelText('User menu')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /ada/ }))
+    await user.click(document.body)
+    expect(screen.queryByLabelText('User menu')).not.toBeInTheDocument()
+  })
+
+  it('signs out: clears memory and the query cache and returns to the login page', async () => {
+    let logoutCalled = false
+    server.use(
+      http.post(`${BASE}/v1/auth/logout`, () => {
+        logoutCalled = true
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    signInAs(['VIEWER'])
+    renderShell()
+    const user = userEvent.setup()
+
+    await user.click(screen.getByRole('button', { name: /ada/ }))
+    await user.click(screen.getByRole('button', { name: 'Sign out' }))
+
+    expect(await screen.findByText('login page')).toBeInTheDocument()
+    expect(useAuthStore.getState().credential).toBeNull()
+    await waitFor(() => expect(logoutCalled).toBe(true))
+  })
+})

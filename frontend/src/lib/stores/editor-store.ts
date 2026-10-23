@@ -30,6 +30,8 @@ interface EditorState {
   redoStack: HistoryEntry[]
   /** Asset ids with a save in flight. */
   pendingSaves: string[]
+  /** Asset ids whose last save failed and was not retried yet. */
+  failedSaves: string[]
   lastValidation: ValidationResult | null
   setTool: (kind: ToolKind, typeCode?: string) => void
   clearTool: () => void
@@ -45,6 +47,8 @@ interface EditorState {
   clearHistory: () => void
   beginSave: (assetId: string) => void
   endSave: (assetId: string) => void
+  /** Ends a save that failed: the asset moves from pending to failed. */
+  failSave: (assetId: string) => void
   setValidation: (result: ValidationResult | null) => void
   reset: () => void
 }
@@ -54,6 +58,7 @@ const initial = {
   undoStack: [],
   redoStack: [],
   pendingSaves: [],
+  failedSaves: [],
   lastValidation: null,
 }
 
@@ -100,13 +105,24 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
     return entry
   },
   clearHistory: () => set({ undoStack: [], redoStack: [] }),
-  beginSave: (assetId) => set((state) => ({ pendingSaves: [...state.pendingSaves, assetId] })),
+  beginSave: (assetId) =>
+    set((state) => ({
+      pendingSaves: [...state.pendingSaves, assetId],
+      failedSaves: state.failedSaves.filter((id) => id !== assetId),
+    })),
   endSave: (assetId) =>
     set((state) => {
       const index = state.pendingSaves.indexOf(assetId)
       if (index < 0) return state
       return { pendingSaves: state.pendingSaves.filter((_, i) => i !== index) }
     }),
+  failSave: (assetId) =>
+    set((state) => ({
+      pendingSaves: state.pendingSaves.filter((id) => id !== assetId),
+      failedSaves: state.failedSaves.includes(assetId)
+        ? state.failedSaves
+        : [...state.failedSaves, assetId],
+    })),
   setValidation: (lastValidation) => set({ lastValidation }),
   reset: () => set({ ...initial }),
 }))

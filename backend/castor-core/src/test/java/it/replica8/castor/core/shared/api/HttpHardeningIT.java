@@ -3,6 +3,7 @@ package it.replica8.castor.core.shared.api;
 import java.io.ByteArrayInputStream;
 
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.security.TestSecurity;
 import io.restassured.http.ContentType;
 import io.restassured.response.ValidatableResponse;
 import org.junit.jupiter.api.Test;
@@ -15,6 +16,7 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 
 @QuarkusTest
+@TestSecurity(user = "viewer", roles = "VIEWER")
 class HttpHardeningIT {
 
     private static final String ALLOWED = "http://localhost:5173";

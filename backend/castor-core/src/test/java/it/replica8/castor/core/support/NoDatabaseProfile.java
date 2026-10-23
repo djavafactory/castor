@@ -19,6 +19,7 @@ public class NoDatabaseProfile implements QuarkusTestProfile {
                 "quarkus.datasource.password", "nothing",
                 "quarkus.datasource.jdbc.acquisition-timeout", "2S",
                 "quarkus.hibernate-orm.active", "false",
-                "quarkus.flyway.migrate-at-start", "false");
+                "quarkus.flyway.migrate-at-start", "false",
+                "castor.security.bootstrap-accounts", "false");
     }
 }

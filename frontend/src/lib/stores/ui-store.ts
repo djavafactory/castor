@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 
 export type Mode = 'monitor' | 'design'
-export type RightTab = 'inspector' | 'versions' | 'details'
+export type RightTab = 'details' | 'catalogue' | 'inspector' | 'issues' | 'versions'
 export type ViewMode = '2d' | '3d' | 'split'
 export type Basemap = 'sentinel2' | 'none' | 'google'
 
@@ -21,6 +21,8 @@ interface UiState {
   accuracyColouring: boolean
   envelope: boolean
   basemap: Basemap
+  /** Id of the one open header or strip menu; opening one closes the other. */
+  openMenu: string | null
   setMode: (mode: Mode) => void
   setRightTab: (tab: RightTab) => void
   setPanelHidden: (hidden: boolean) => void
@@ -33,6 +35,7 @@ interface UiState {
   setAccuracyColouring: (on: boolean) => void
   setEnvelope: (on: boolean) => void
   setBasemap: (basemap: Basemap) => void
+  setOpenMenu: (menu: string | null) => void
 }
 
 /** Only UI preferences are kept in sessionStorage; never credentials or layout data. */
@@ -53,6 +56,7 @@ export const useUiStore = create<UiState>()(
       accuracyColouring: false,
       envelope: false,
       basemap: 'sentinel2',
+      openMenu: null,
       setMode: (mode) => set({ mode }),
       setRightTab: (rightTab) => set({ rightTab }),
       setPanelHidden: (panelHidden) => set({ panelHidden }),
@@ -66,6 +70,7 @@ export const useUiStore = create<UiState>()(
       setAccuracyColouring: (accuracyColouring) => set({ accuracyColouring }),
       setEnvelope: (envelope) => set({ envelope }),
       setBasemap: (basemap) => set({ basemap }),
+      setOpenMenu: (openMenu) => set({ openMenu }),
     }),
     {
       name: UI_STORAGE_KEY,
