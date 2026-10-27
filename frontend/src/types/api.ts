@@ -106,6 +106,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ports/{portCode}/layouts/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The published layout version of a port as GeoJSON
+         * @description ETag is the version id with the row versions of the version and its revisions; If-None-Match gives 304.
+         */
+        get: operations["getCurrentLayout"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ports/{portCode}/layouts/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The open draft of a port (EDITOR and above) */
+        get: operations["getDraftLayout"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/layouts/{layoutId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Any layout version as GeoJSON (drafts and discarded versions need EDITOR) */
+        get: operations["getLayout"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/layouts/{layoutId}/assets/{assetId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One asset of one version; the ETag is its row version */
+        get: operations["getLayoutAsset"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -216,6 +287,109 @@ export interface components {
             features: components["schemas"]["ReferenceFeature"][];
         };
         /** @enum {string} */
+        LayoutStatus: "DRAFT" | "PUBLISHED" | "SUPERSEDED" | "DISCARDED";
+        LayoutHeader: {
+            /** Format: uuid */
+            id: string;
+            versionNo: number;
+            status: components["schemas"]["LayoutStatus"];
+            /** Format: date-time */
+            publishedAt?: string | null;
+            publishedBy?: string | null;
+            note?: string | null;
+        };
+        LayoutLink: {
+            /** @enum {string} */
+            kind: "SERVES" | "FEEDS" | "BELONGS_TO" | "CONNECTS_TO";
+            /** Format: uuid */
+            toAssetId: string;
+        };
+        LayoutProvenance: {
+            source: string;
+            accuracy: string;
+            /** Format: date */
+            capturedOn?: string | null;
+            note?: string | null;
+        };
+        LayoutOverride: {
+            reason: string;
+            by: string;
+            /** Format: date-time */
+            at: string;
+        };
+        /** @description Measured on the port measurement CRS, never stored. Polygons have area and perimeter, lines a length. */
+        LayoutComputed: {
+            areaM2?: number | null;
+            perimeterM?: number | null;
+            lengthM?: number | null;
+            /** @description Anchor in the quay frame, metres */
+            local?: {
+                x?: number;
+                y?: number;
+            };
+            /** @description Berths only, local x of the start and end of the segment */
+            chainage?: {
+                startM?: number;
+                endM?: number;
+            };
+        };
+        /** @description Typed details; a group is present only when the asset type has it. Stock is never part of it in Phase 1. */
+        LayoutDetails: {
+            berth?: Record<string, never>;
+            crane?: Record<string, never>;
+            storage?: Record<string, never>;
+            storagePad?: Record<string, never>;
+            containerYard?: Record<string, never>;
+            warehouse?: Record<string, never>;
+            flow?: Record<string, never>;
+            surface?: Record<string, never>;
+            zone?: Record<string, never>;
+            mobile?: Record<string, never>;
+            equipment?: Record<string, never>;
+        };
+        LayoutFeatureProperties: {
+            code: string;
+            type: string;
+            name: string;
+            /** @description [lon, lat] */
+            anchor: number[];
+            headingDeg?: number | null;
+            lengthM?: number | null;
+            widthM?: number | null;
+            heightM?: number | null;
+            radiusM?: number | null;
+            lineWidthM?: number | null;
+            elevationM?: number | null;
+            storageZoneCode?: string | null;
+            details: components["schemas"]["LayoutDetails"];
+            links: components["schemas"]["LayoutLink"][];
+            provenance: components["schemas"]["LayoutProvenance"];
+            override?: components["schemas"]["LayoutOverride"] | null;
+            computed: components["schemas"]["LayoutComputed"];
+            /** Format: int64 */
+            rowVersion: number;
+        };
+        LayoutFeature: {
+            /** @enum {string} */
+            type: "Feature";
+            /**
+             * Format: uuid
+             * @description The permanent asset id
+             */
+            id: string;
+            geometry: components["schemas"]["GeoJsonGeometry"];
+            properties: components["schemas"]["LayoutFeatureProperties"];
+        };
+        LayoutFeatureCollection: {
+            /** @enum {string} */
+            type: "FeatureCollection";
+            features: components["schemas"]["LayoutFeature"][];
+        };
+        LayoutResponse: {
+            layout: components["schemas"]["LayoutHeader"];
+            features: components["schemas"]["LayoutFeatureCollection"];
+        };
+        /** @enum {string} */
         Role: "VIEWER" | "EDITOR" | "PUBLISHER" | "ADMIN";
         ProblemDetails: {
             /** Format: uri */
@@ -239,6 +413,7 @@ export interface components {
     };
     responses: never;
     parameters: {
+        LayoutId: string;
         PortCode: string;
     };
     requestBodies: never;
@@ -401,6 +576,160 @@ export interface operations {
                 content?: never;
             };
             /** @description Unknown port */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getCurrentLayout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                portCode: components["parameters"]["PortCode"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The published version and one feature per asset */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LayoutResponse"];
+                };
+            };
+            /** @description Unchanged since the ETag in If-None-Match */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown port, or the port has no published layout */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getDraftLayout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                portCode: components["parameters"]["PortCode"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The draft and one feature per asset */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LayoutResponse"];
+                };
+            };
+            /** @description Unchanged since the ETag in If-None-Match */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The role is below EDITOR */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown port, or there is no draft */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getLayout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                layoutId: components["parameters"]["LayoutId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The version and one feature per asset */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LayoutResponse"];
+                };
+            };
+            /** @description Unchanged since the ETag in If-None-Match */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown version, or a version the role may not see */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getLayoutAsset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                layoutId: components["parameters"]["LayoutId"];
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The feature */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LayoutFeature"];
+                };
+            };
+            /** @description Unchanged since the ETag in If-None-Match */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown version or asset */
             404: {
                 headers: {
                     [name: string]: unknown;

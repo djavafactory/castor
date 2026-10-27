@@ -40,6 +40,17 @@ public interface CastorConfig {
 
     Reference reference();
 
+    Layout layout();
+
+    interface Layout {
+        /**
+         * Load the Westports demo layout (published version 1) at start when the port has no layout version. Only ever
+         * honoured in local, dev and test; a protected environment never gets demo data.
+         */
+        @WithDefault("true")
+        boolean seedOnStart();
+    }
+
     interface Reference {
         /** Import the committed OpenStreetMap reference file at start (idempotent). */
         @WithDefault("true")

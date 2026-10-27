@@ -101,8 +101,104 @@ paths:
           description: Unknown port
         '400':
           description: Unknown kind or malformed bbox
+  /api/v1/ports/{portCode}/layouts/current:
+    get:
+      operationId: getCurrentLayout
+      summary: The published layout version of a port as GeoJSON
+      description: ETag is the version id with the row versions of the version and its revisions; If-None-Match gives 304.
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/PortCode'
+      responses:
+        '200':
+          description: The published version and one feature per asset
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LayoutResponse'
+        '304':
+          description: Unchanged since the ETag in If-None-Match
+        '404':
+          description: Unknown port, or the port has no published layout
+  /api/v1/ports/{portCode}/layouts/draft:
+    get:
+      operationId: getDraftLayout
+      summary: The open draft of a port (EDITOR and above)
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/PortCode'
+      responses:
+        '200':
+          description: The draft and one feature per asset
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LayoutResponse'
+        '304':
+          description: Unchanged since the ETag in If-None-Match
+        '403':
+          description: The role is below EDITOR
+        '404':
+          description: Unknown port, or there is no draft
+  /api/v1/layouts/{layoutId}:
+    get:
+      operationId: getLayout
+      summary: Any layout version as GeoJSON (drafts and discarded versions need EDITOR)
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/LayoutId'
+      responses:
+        '200':
+          description: The version and one feature per asset
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LayoutResponse'
+        '304':
+          description: Unchanged since the ETag in If-None-Match
+        '404':
+          description: Unknown version, or a version the role may not see
+  /api/v1/layouts/{layoutId}/assets/{assetId}:
+    get:
+      operationId: getLayoutAsset
+      summary: One asset of one version; the ETag is its row version
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/LayoutId'
+        - name: assetId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The feature
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LayoutFeature'
+        '304':
+          description: Unchanged since the ETag in If-None-Match
+        '404':
+          description: Unknown version or asset
 components:
   parameters:
+    LayoutId:
+      name: layoutId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     PortCode:
       name: portCode
       in: path
@@ -295,6 +391,178 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ReferenceFeature'
+    LayoutStatus:
+      type: string
+      enum: [DRAFT, PUBLISHED, SUPERSEDED, DISCARDED]
+    LayoutHeader:
+      type: object
+      required: [id, versionNo, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        versionNo:
+          type: integer
+        status:
+          $ref: '#/components/schemas/LayoutStatus'
+        publishedAt:
+          type: [string, 'null']
+          format: date-time
+        publishedBy:
+          type: [string, 'null']
+        note:
+          type: [string, 'null']
+    LayoutLink:
+      type: object
+      required: [kind, toAssetId]
+      properties:
+        kind:
+          type: string
+          enum: [SERVES, FEEDS, BELONGS_TO, CONNECTS_TO]
+        toAssetId:
+          type: string
+          format: uuid
+    LayoutProvenance:
+      type: object
+      required: [source, accuracy]
+      properties:
+        source:
+          type: string
+        accuracy:
+          type: string
+        capturedOn:
+          type: [string, 'null']
+          format: date
+        note:
+          type: [string, 'null']
+    LayoutOverride:
+      type: object
+      required: [reason, by, at]
+      properties:
+        reason:
+          type: string
+        by:
+          type: string
+        at:
+          type: string
+          format: date-time
+    LayoutComputed:
+      type: object
+      description: Measured on the port measurement CRS, never stored. Polygons have area and perimeter, lines a length.
+      properties:
+        areaM2:
+          type: [number, 'null']
+        perimeterM:
+          type: [number, 'null']
+        lengthM:
+          type: [number, 'null']
+        local:
+          type: object
+          description: Anchor in the quay frame, metres
+          properties:
+            x:
+              type: number
+            y:
+              type: number
+        chainage:
+          type: object
+          description: Berths only, local x of the start and end of the segment
+          properties:
+            startM:
+              type: number
+            endM:
+              type: number
+    LayoutDetails:
+      type: object
+      description: Typed details; a group is present only when the asset type has it. Stock is never part of it in Phase 1.
+      properties:
+        berth: {type: object}
+        crane: {type: object}
+        storage: {type: object}
+        storagePad: {type: object}
+        containerYard: {type: object}
+        warehouse: {type: object}
+        flow: {type: object}
+        surface: {type: object}
+        zone: {type: object}
+        mobile: {type: object}
+        equipment: {type: object}
+    LayoutFeatureProperties:
+      type: object
+      required: [code, type, name, anchor, details, links, provenance, computed, rowVersion]
+      properties:
+        code:
+          type: string
+        type:
+          type: string
+        name:
+          type: string
+        anchor:
+          type: array
+          description: '[lon, lat]'
+          items:
+            type: number
+          minItems: 2
+          maxItems: 2
+        headingDeg: {type: [number, 'null']}
+        lengthM: {type: [number, 'null']}
+        widthM: {type: [number, 'null']}
+        heightM: {type: [number, 'null']}
+        radiusM: {type: [number, 'null']}
+        lineWidthM: {type: [number, 'null']}
+        elevationM: {type: [number, 'null']}
+        storageZoneCode: {type: [string, 'null']}
+        details:
+          $ref: '#/components/schemas/LayoutDetails'
+        links:
+          type: array
+          items:
+            $ref: '#/components/schemas/LayoutLink'
+        provenance:
+          $ref: '#/components/schemas/LayoutProvenance'
+        override:
+          oneOf:
+            - $ref: '#/components/schemas/LayoutOverride'
+            - type: 'null'
+        computed:
+          $ref: '#/components/schemas/LayoutComputed'
+        rowVersion:
+          type: integer
+          format: int64
+    LayoutFeature:
+      type: object
+      required: [type, id, geometry, properties]
+      properties:
+        type:
+          type: string
+          enum: [Feature]
+        id:
+          type: string
+          format: uuid
+          description: The permanent asset id
+        geometry:
+          $ref: '#/components/schemas/GeoJsonGeometry'
+        properties:
+          $ref: '#/components/schemas/LayoutFeatureProperties'
+    LayoutFeatureCollection:
+      type: object
+      required: [type, features]
+      properties:
+        type:
+          type: string
+          enum: [FeatureCollection]
+        features:
+          type: array
+          items:
+            $ref: '#/components/schemas/LayoutFeature'
+    LayoutResponse:
+      type: object
+      required: [layout, features]
+      properties:
+        layout:
+          $ref: '#/components/schemas/LayoutHeader'
+        features:
+          $ref: '#/components/schemas/LayoutFeatureCollection'
     Role:
       type: string
       enum: [VIEWER, EDITOR, PUBLISHER, ADMIN]

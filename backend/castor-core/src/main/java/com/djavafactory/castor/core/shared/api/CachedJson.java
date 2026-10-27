@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.function.Supplier;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.ws.rs.core.EntityTag;
@@ -33,6 +34,27 @@ public class CachedJson {
     public Response of(String ifNoneMatch, Object body) {
         try {
             return raw(ifNoneMatch, mapper.writeValueAsString(body));
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Could not serialise the response", e);
+        }
+    }
+
+    /**
+     * Answers with an ETag the caller already knows (a version id and row version, not a body hash), so a matching
+     * If-None-Match costs no body at all. The client must revalidate on every use ("no-cache").
+     */
+    public Response tagged(String ifNoneMatch, String etag, Supplier<?> body) {
+        EntityTag tag = new EntityTag(etag);
+        if (matches(ifNoneMatch, etag)) {
+            return Response.notModified(tag)
+                    .header(HttpHeaders.CACHE_CONTROL, "private, no-cache")
+                    .build();
+        }
+        try {
+            return Response.ok(mapper.writeValueAsBytes(body.get()), MediaType.APPLICATION_JSON_TYPE)
+                    .tag(tag)
+                    .header(HttpHeaders.CACHE_CONTROL, "private, no-cache")
+                    .build();
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Could not serialise the response", e);
         }

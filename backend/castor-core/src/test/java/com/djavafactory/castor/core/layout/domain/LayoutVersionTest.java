@@ -1,5 +1,6 @@
 package com.djavafactory.castor.core.layout.domain;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -11,16 +12,30 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class LayoutVersionTest {
 
+    private static LayoutVersion version(int no) {
+        return new LayoutVersion(
+                UUID.randomUUID(),
+                "westports",
+                no,
+                LayoutStatus.DRAFT,
+                null,
+                "seed",
+                Instant.now(),
+                null,
+                null,
+                null,
+                0);
+    }
+
     @Test
     void versionNumberStartsAtOne() {
-        var e = assertThrows(
-                RuleViolationException.class, () -> new LayoutVersion(UUID.randomUUID(), UUID.randomUUID(), 0));
+        var e = assertThrows(RuleViolationException.class, () -> version(0));
 
         assertEquals("VERSION_NUMBER", e.violations().get(0).code());
     }
 
     @Test
     void acceptsPositiveNumbers() {
-        assertEquals(1, new LayoutVersion(UUID.randomUUID(), UUID.randomUUID(), 1).number());
+        assertEquals(1, version(1).versionNo());
     }
 }

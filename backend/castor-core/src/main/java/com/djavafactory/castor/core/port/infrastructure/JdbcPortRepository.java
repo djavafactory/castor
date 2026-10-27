@@ -78,8 +78,12 @@ public class JdbcPortRepository implements PortRepository {
         if (port.publishedLayoutVersionId() == null) {
             return 0;
         }
-        // The layout tables arrive with CORE-04, which replaces this with a count of the BERTH assets of the version.
-        throw new IllegalStateException("A published layout is set but the layout schema has no assets yet");
+        return db.query(
+                        "select count(*) from layout.asset_revision r join layout.asset a on a.id = r.asset_id "
+                                + "where r.layout_version_id = ? and a.type_code = 'BERTH'",
+                        ps -> ps.setObject(1, port.publishedLayoutVersionId()),
+                        rs -> rs.getInt(1))
+                .get(0);
     }
 
     @Override
