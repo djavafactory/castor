@@ -1,3 +1,4 @@
+import { containersEnabled } from '@/lib/features'
 import { useUiStore } from '@/lib/stores/ui-store'
 
 export interface LayerDef {
@@ -6,9 +7,15 @@ export interface LayerDef {
 }
 
 export const BUILDINGS_LAYER = 'buildings-osm'
+export const CONTAINERS_LAYER = 'containers'
 
-/** The layers listed in "All layers". Each replica ticket adds its own. */
-export const LAYERS: LayerDef[] = [{ key: BUILDINGS_LAYER, label: 'Buildings (OSM)' }]
+/** The layers listed in "All layers". Each replica ticket adds its own; the container one needs its feature. */
+export function layers(): LayerDef[] {
+  return [
+    { key: BUILDINGS_LAYER, label: 'Buildings (OSM)' },
+    ...(containersEnabled() ? [{ key: CONTAINERS_LAYER, label: 'Containers' }] : []),
+  ]
+}
 
 /** A layer shows unless it is switched off, or another layer is isolated. */
 export function useLayerVisible(key: string): boolean {

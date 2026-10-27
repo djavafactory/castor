@@ -63,6 +63,7 @@ services:
     environment:
       CASTOR_ENV: dev
       CASTOR_DEMO_LOGIN: "true"
+      CASTOR_FEATURE_CONTAINERS: ${CASTOR_FEATURE_CONTAINERS:-true}
       CASTOR_RESET_ON_START: "true"
       CASTOR_PORT_CODE: ${CASTOR_PORT_CODE:-westports}
       CASTOR_ADMIN_USERNAME: ${CASTOR_ADMIN_USERNAME:-admin}
@@ -89,6 +90,7 @@ services:
         BUILD_TIME: ${BUILD_TIME:-}
         VITE_PORT_CODE: ${CASTOR_PORT_CODE:-westports}
         VITE_DEMO_LOGIN: "true"
+        VITE_FEATURE_CONTAINERS: ${CASTOR_FEATURE_CONTAINERS:-true}
         VITE_SATELLITE_TILE_URL: ${VITE_SATELLITE_TILE_URL:-https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/{z}/{y}/{x}.jpg}
     image: castor-dev-frontend:local
     container_name: castor-dev-frontend

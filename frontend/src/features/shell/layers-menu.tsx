@@ -1,6 +1,6 @@
 import { Layers } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/overlays'
-import { LAYERS } from '@/components/scene/layers'
+import { layers } from '@/components/scene/layers'
 import { useUiStore } from '@/lib/stores/ui-store'
 
 /** "All layers": one switch per layer of the stage. A missing key means the layer is visible. */
@@ -21,7 +21,7 @@ export function LayersMenu() {
       </PopoverTrigger>
       <PopoverContent heading="All layers" align="start" className="w-64">
         <ul className="flex flex-col gap-1.5">
-          {LAYERS.map((layer) => (
+          {layers().map((layer) => (
             <li key={layer.key}>
               <label className="flex cursor-pointer items-center gap-2">
                 <input
