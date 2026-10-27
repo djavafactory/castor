@@ -4,9 +4,13 @@ const PORT = 4173
 // E2E_BASE_URL points at a running stack (the dev compose stack, which resets on start). Without it the built app is
 // served locally by vite preview and the API calls are expected to be mocked by the test.
 const externalBaseURL = process.env.E2E_BASE_URL
+// Specs that need the real backend and seed data: with E2E_BASE_URL only these run, without it they are left out.
+// The other specs mock the API and keep their screenshot baselines from the locally served build.
+const STACK_SPECS = ['**/osm-buildings.spec.ts']
 
 export default defineConfig({
   testDir: './e2e',
+  ...(externalBaseURL ? { testMatch: STACK_SPECS } : { testIgnore: STACK_SPECS }),
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
