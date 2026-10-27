@@ -9,6 +9,7 @@ import java.util.List;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
+import com.djavafactory.castor.core.port.domain.AccuracyClass;
 import com.djavafactory.castor.core.port.domain.DataSourceCode;
 import com.djavafactory.castor.core.port.domain.ReferenceFeature;
 import com.djavafactory.castor.core.port.domain.ReferenceKind;
@@ -45,6 +46,7 @@ class OsmFeatureParserTest {
         assertEquals(12, shed.heightM().intValue());
         assertEquals(DataSourceCode.OSM, shed.source());
         assertNull(features.get(1).name());
+        assertEquals(AccuracyClass.APPROXIMATE, shed.accuracy());
         assertEquals(10, features.get(2).widthM().intValue());
     }
 
@@ -74,5 +76,29 @@ class OsmFeatureParserTest {
                 IOException.class,
                 () -> parser.parse(
                         bytes(file("{\"kind\":\"BUILDING\",\"osmRef\":\"way/1\",\"source\":\"NOPE\"}")), "westports"));
+    }
+
+    @Test
+    void aGenericBuildingNameIsNotStoredAsAName() throws IOException {
+        var generic = parser.parse(
+                bytes(file("{\"kind\":\"BUILDING\",\"osmRef\":\"way/7\",\"name\":\"Building 7\",\"source\":\"OSM\"}")),
+                "westports");
+        var mapped = parser.parse(
+                bytes(file("{\"kind\":\"BUILDING\",\"osmRef\":\"way/8\",\"name\":\"Gate House\",\"source\":\"OSM\"}")),
+                "westports");
+
+        assertNull(generic.get(0).name());
+        assertEquals("Gate House", mapped.get(0).name());
+    }
+
+    @Test
+    void anUnknownAccuracyIsRefused() {
+        assertThrows(
+                IOException.class,
+                () -> parser.parse(
+                        bytes(
+                                file(
+                                        "{\"kind\":\"BUILDING\",\"osmRef\":\"way/9\",\"source\":\"OSM\",\"accuracy\":\"GUESS\"}")),
+                        "westports"));
     }
 }

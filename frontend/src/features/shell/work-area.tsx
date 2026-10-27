@@ -1,4 +1,7 @@
 import { Tabs } from '@/components/ui/tabs'
+import { BuildingDetails } from '@/components/scene/buildings/building-details'
+import { ModelPalette } from '@/components/scene/models/model-palette'
+import { PortScene } from '@/components/scene/port-scene'
 import { useUiStore, type Mode, type RightTab } from '@/lib/stores/ui-store'
 
 const TABS: Record<Mode, { value: RightTab; label: string }[]> = {
@@ -22,23 +25,28 @@ export function WorkArea() {
   const viewMode = useUiStore((s) => s.viewMode)
   const panelHidden = useUiStore((s) => s.panelHidden)
   const paletteHidden = useUiStore((s) => s.paletteHidden)
+  // Monitor is always the 3D replica; Design shows it in the 3D and Split views (the 2D map is a DSN ticket).
+  const showScene = mode === 'monitor' || viewMode !== '2d'
   return (
     <div className="flex min-h-0 flex-col">
       <div className="flex min-h-0 flex-1">
         {mode === 'design' && !paletteHidden && (
           <aside
             aria-label="Asset palette"
-            className="w-[260px] shrink-0 border-r border-line-soft bg-paper p-3.5"
+            className="w-[260px] shrink-0 overflow-auto border-r border-line-soft bg-paper p-3.5"
           >
             <h2 className="font-brand text-[11px] font-bold tracking-[0.07em] text-muted uppercase">
               Assets
             </h2>
+            <ModelPalette />
           </aside>
         )}
         <main
           aria-label={mode === 'design' ? `Design stage, ${viewMode}` : 'Port stage'}
           className="relative min-w-0 flex-1 bg-canvas"
-        />
+        >
+          {showScene && <PortScene />}
+        </main>
         {!panelHidden && <RightPanel mode={mode} />}
       </div>
       {mode === 'design' && (
@@ -70,7 +78,9 @@ function RightPanel({ mode }: { mode: Mode }) {
         aria-labelledby={`tab-${active}`}
         tabIndex={0}
         className="min-h-0 flex-1 overflow-auto p-3.5"
-      />
+      >
+        {(active === 'details' || active === 'inspector') && <BuildingDetails />}
+      </div>
     </aside>
   )
 }

@@ -147,6 +147,7 @@ CREATE TABLE ref.reference_feature (
     tags            jsonb       NOT NULL DEFAULT '{}',
     geom            geometry(Geometry, 4326) NOT NULL CHECK (ST_IsValid(geom)),
     source_code     varchar(32) NOT NULL REFERENCES ref.data_source (code),
+    accuracy_code   varchar(16) NOT NULL DEFAULT 'APPROXIMATE' REFERENCES ref.accuracy_class (code),
     import_batch_id bigint      NOT NULL REFERENCES ref.import_batch (id),
     UNIQUE (port_id, osm_ref)
 );
@@ -244,28 +245,28 @@ INSERT INTO ref.ship_class (code, name, kind, loa_m, beam_m, draft_m, dwt_t) VAL
     ('CONT_L', 'Container ship (Neo-Panamax)', 'CONTAINER', 366, 48.8, 15.2, 140000);
 
 -- ---------------------------------------------------------------------------------------------------------------
--- Seed: Westports and its frame (SETUP-03). Land, quay line and control points are computed with the SETUP-03
--- formulas: land = local x -1500..5900, y 0..1200; quay line = local y 0 (water is y < 0).
+-- Seed: Westports and its frame (SETUP-03). Land area and quay line (local y = 0, water is y < 0) and the control points
+-- are the values of the committed Westports seed.
 -- ---------------------------------------------------------------------------------------------------------------
 
 INSERT INTO ref.port (code, name, city, time_zone, origin, measure_srid, frame_rot_deg, extent, land_extent,
                       quay_line, synthetic)
-VALUES ('westports', 'Westports', 'Port Klang', 'Asia/Kuala_Lumpur',
+VALUES ('westports', 'Westports Malaysia', 'Port Klang', 'Asia/Kuala_Lumpur',
         ST_SetSRID(ST_MakePoint(101.3066304, 2.9534057), 4326), 3380, -120.299,
         ST_GeomFromText('POLYGON((101.26 2.90, 101.36 2.90, 101.36 3.02, 101.26 3.02, 101.26 2.90))', 4326),
-        ST_GeomFromText('POLYGON((101.3134376 2.9651179, 101.2798556 2.9073376, 101.2891752 2.9018625, '
-                        '101.3227572 2.9596429, 101.3134376 2.9651179))', 4326),
-        ST_GeomFromText('LINESTRING(101.3134376 2.9651179, 101.3066304 2.9534057, 101.2975542 2.9377894, '
-                        '101.2884780 2.9221731, 101.2798556 2.9073376)', 4326),
+        ST_GeomFromText('POLYGON((101.3225138 2.9807343, 101.2794018 2.9065568, 101.2902746 2.9001692, '
+                        '101.3333867 2.9743467, 101.3225138 2.9807343))', 4326),
+        ST_GeomFromText('LINESTRING(101.3225138 2.9807343, 101.2794018 2.9065568)', 4326),
         true);
 
 INSERT INTO ref.control_point (port_id, code, name, geom, expected_local_x, expected_local_y, accuracy_code,
                                source_code)
-SELECT p.id, c.code, c.name, ST_SetSRID(ST_MakePoint(c.lon, c.lat), 4326), c.x, c.y, 'APPROXIMATE', 'SYNTHETIC'
+SELECT p.id, c.code, c.name, ST_SetSRID(ST_MakePoint(c.lon, c.lat), 4326), c.x, c.y, 'APPROXIMATE', c.source
 FROM ref.port p,
-     (VALUES ('main-gate', 'Main gate', 101.3093602, 2.9518844, -7.9, 346.9),
-             ('coastline-0', 'Coastline point 0', 101.3094176, 2.9579603, -591.2, 13.4),
-             ('coastline-40', 'Coastline point 40', 101.2950289, 2.9335530, 2546.1, -6.1),
-             ('coastline-80', 'Coastline point 80', 101.2796057, 2.9065244, 5991.7, 21.3))
-         AS c(code, name, lon, lat, x, y)
+     (VALUES ('CP-MAIN-GATE', 'Westport Conventional Main Gate (map listing)', 101.3093602, 2.9518844, -7.9, 346.9,
+              'SYNTHETIC'),
+             ('CP-COAST-00', 'Coastline (OSM) 0', 101.3094176, 2.9579603, -591.2, 13.4, 'OSM'),
+             ('CP-COAST-40', 'Coastline (OSM) 40', 101.2950289, 2.9335530, 2546.1, -6.1, 'OSM'),
+             ('CP-COAST-80', 'Coastline (OSM) 80', 101.2796057, 2.9065244, 5991.7, 21.3, 'OSM'))
+         AS c(code, name, lon, lat, x, y, source)
 WHERE p.code = 'westports';

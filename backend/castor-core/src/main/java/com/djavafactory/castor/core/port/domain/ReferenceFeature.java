@@ -7,6 +7,7 @@ import java.math.BigDecimal;
  *
  * @param geometryJson GeoJSON geometry text, WGS84
  * @param tagsJson     source tags as a JSON object
+ * @param accuracy     how far to trust the position (OpenStreetMap shapes are APPROXIMATE)
  */
 public record ReferenceFeature(
         ReferenceKind kind,
@@ -16,4 +17,5 @@ public record ReferenceFeature(
         BigDecimal widthM,
         String geometryJson,
         String tagsJson,
-        DataSourceCode source) {}
+        DataSourceCode source,
+        AccuracyClass accuracy) {}

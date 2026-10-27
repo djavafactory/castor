@@ -9,8 +9,27 @@ async function signIn(page: Page) {
     }),
   )
   await page.route('**/api/v1/auth/demo-users', (route) => route.fulfill({ json: [] }))
-  await page.route('**/api/v1/port', (route) =>
-    route.fulfill({ json: { name: 'Westports', synthetic: true } }),
+  await page.route('**/api/v1/ports/*', (route) =>
+    route.fulfill({
+      json: {
+        code: 'westports',
+        name: 'Westports',
+        city: 'Port Klang',
+        timeZone: 'Asia/Kuala_Lumpur',
+        utcOffset: '+08:00',
+        origin: { lon: 101.3066304, lat: 2.9534057 },
+        measureSrid: 3380,
+        frameRotDeg: -120.299,
+        extent: { type: 'Polygon', coordinates: [] },
+        landExtent: null,
+        quayLine: null,
+        synthetic: true,
+        publishedLayoutVersionId: null,
+        berthCount: 0,
+        attribution: '',
+        dataSources: [],
+      },
+    }),
   )
   await page.goto('/login')
   await page.getByLabel('Username').fill('ada')

@@ -39,11 +39,12 @@ public class OsmImportJob {
     private static final Logger LOG = Logger.getLogger(OsmImportJob.class);
 
     private static final String UPSERT = "insert into ref.reference_feature (port_id, kind, osm_ref, name, height_m, "
-            + "width_m, tags, geom, source_code, import_batch_id) values (?, ?, ?, ?, ?, ?, ?::jsonb, "
-            + "ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON(?), 4326)), ?, ?) "
+            + "width_m, tags, geom, source_code, accuracy_code, import_batch_id) values (?, ?, ?, ?, ?, ?, ?::jsonb, "
+            + "ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON(?), 4326)), ?, ?, ?) "
             + "on conflict (port_id, osm_ref) do update set kind = excluded.kind, name = excluded.name, "
             + "height_m = excluded.height_m, width_m = excluded.width_m, tags = excluded.tags, "
-            + "geom = excluded.geom, source_code = excluded.source_code, import_batch_id = excluded.import_batch_id";
+            + "geom = excluded.geom, source_code = excluded.source_code, accuracy_code = excluded.accuracy_code, "
+            + "import_batch_id = excluded.import_batch_id";
 
     /** @param skipped true when the same file (same checksum) was already imported successfully */
     public record ImportResult(long batchId, int rowCount, String checksum, boolean skipped) {}
@@ -108,7 +109,8 @@ public class OsmImportJob {
                     ps.setString(7, f.tagsJson());
                     ps.setString(8, f.geometryJson());
                     ps.setString(9, f.source().name());
-                    ps.setLong(10, batchId);
+                    ps.setString(10, f.accuracy().name());
+                    ps.setLong(11, batchId);
                     ps.addBatch();
                 }
                 ps.executeBatch();

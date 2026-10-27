@@ -72,6 +72,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ports/{portCode}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A port with its quay frame and measurement CRS */
+        get: operations["getPort"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ports/{portCode}/reference-features": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read-only OpenStreetMap features of a port as GeoJSON (there is no write endpoint) */
+        get: operations["listReferenceFeatures"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -97,6 +131,90 @@ export interface components {
             username: string;
             label: string;
         };
+        LonLat: {
+            /** Format: double */
+            lon: number;
+            /** Format: double */
+            lat: number;
+        };
+        Port: {
+            code: string;
+            name: string;
+            city: string;
+            /** @description IANA time zone name, for example Asia/Kuala_Lumpur */
+            timeZone: string;
+            /** @description UTC offset derived from the time zone, never stored, for example +08:00 */
+            utcOffset: string;
+            origin: components["schemas"]["LonLat"];
+            /** Format: int32 */
+            measureSrid: number;
+            /**
+             * Format: double
+             * @description Angle of local +X, degrees counter-clockwise from east
+             */
+            frameRotDeg: number;
+            extent: components["schemas"]["GeoJsonGeometry"];
+            landExtent?: components["schemas"]["GeoJsonGeometry"] | null;
+            quayLine?: components["schemas"]["GeoJsonGeometry"] | null;
+            synthetic: boolean;
+            /** Format: uuid */
+            publishedLayoutVersionId?: string | null;
+            /**
+             * Format: int32
+             * @description Berths in the published layout, derived, never typed in
+             */
+            berthCount: number;
+            attribution: string;
+            dataSources: components["schemas"]["DataSource"][];
+        };
+        DataSource: {
+            code: string;
+            name: string;
+            licence: string;
+            mayTrace: boolean;
+            mayPersist: boolean;
+        };
+        GeoJsonGeometry: {
+            type: string;
+            coordinates: unknown[];
+        };
+        /** @enum {string} */
+        ReferenceFeatureKind: "BUILDING" | "ROAD" | "RAIL" | "COASTLINE" | "JETTY" | "WATER" | "LANDUSE";
+        ReferenceFeatureProperties: {
+            kind: components["schemas"]["ReferenceFeatureKind"];
+            /** @description OpenStreetMap reference such as way/1300405460 */
+            osm_ref: string;
+            /** @description The mapped name; null when OpenStreetMap has none */
+            name?: string | null;
+            /** Format: double */
+            height_m?: number | null;
+            /** Format: double */
+            width_m?: number | null;
+            /**
+             * Format: double
+             * @description Footprint area measured in the port measurement CRS; null for lines
+             */
+            area_m2?: number | null;
+            source: string;
+            /** @enum {string} */
+            accuracy: "SURVEYED" | "VERIFIED" | "OPERATOR" | "APPROXIMATE";
+        };
+        ReferenceFeature: {
+            /** @enum {string} */
+            type: "Feature";
+            id: string;
+            /** @description GeoJSON geometry in WGS84 */
+            geometry: {
+                type: string;
+                coordinates: unknown[];
+            };
+            properties: components["schemas"]["ReferenceFeatureProperties"];
+        };
+        ReferenceFeatureCollection: {
+            /** @enum {string} */
+            type: "FeatureCollection";
+            features: components["schemas"]["ReferenceFeature"][];
+        };
         /** @enum {string} */
         Role: "VIEWER" | "EDITOR" | "PUBLISHER" | "ADMIN";
         ProblemDetails: {
@@ -120,7 +238,9 @@ export interface components {
         };
     };
     responses: never;
-    parameters: never;
+    parameters: {
+        PortCode: string;
+    };
     requestBodies: never;
     headers: never;
     pathItems: never;
@@ -212,6 +332,76 @@ export interface operations {
         responses: {
             /** @description Recorded */
             204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getPort: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                portCode: components["parameters"]["PortCode"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The port record */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Port"];
+                };
+            };
+            /** @description Unknown port */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listReferenceFeatures: {
+        parameters: {
+            query?: {
+                /** @description Comma separated kinds, for example BUILDING,ROAD; all kinds when absent */
+                kind?: string;
+                /** @description minLon,minLat,maxLon,maxLat (WGS84) */
+                bbox?: string;
+            };
+            header?: never;
+            path: {
+                portCode: components["parameters"]["PortCode"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The features, ordered by OpenStreetMap reference */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferenceFeatureCollection"];
+                };
+            };
+            /** @description Unknown kind or malformed bbox */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown port */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -88,6 +88,10 @@ export const referenceFeaturesSchema = featureCollection(
     name: z.string().nullable(),
     height_m: z.number().nullable(),
     width_m: z.number().nullable(),
+    /** Footprint area in the port measurement CRS; null for lines. */
+    area_m2: z.number().nullable(),
+    source: z.string(),
+    accuracy: accuracyCodeSchema,
   }),
 )
 

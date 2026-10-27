@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
@@ -39,7 +40,8 @@ class PortResourceIT {
     DataSource dataSource;
 
     @BeforeEach
-    void importSample() {
+    void importSample() throws SQLException {
+        clean();
         importJob.run("westports", DataSourceCode.OSM, "fixtures/osm-sample.geojson", false);
     }
 
@@ -59,7 +61,7 @@ class PortResourceIT {
                 .statusCode(200)
                 .contentType(ContentType.JSON)
                 .body("code", equalTo(java.util.List.of("westports")))
-                .body("[0].name", equalTo("Westports"))
+                .body("[0].name", equalTo("Westports Malaysia"))
                 .body("[0].size()", equalTo(2));
     }
 
@@ -72,7 +74,7 @@ class PortResourceIT {
                 .header("Cache-Control", equalTo("private, max-age=300"))
                 .header("ETag", notNullValue())
                 .body("code", equalTo("westports"))
-                .body("name", equalTo("Westports"))
+                .body("name", equalTo("Westports Malaysia"))
                 .body("city", equalTo("Port Klang"))
                 .body("timeZone", equalTo("Asia/Kuala_Lumpur"))
                 .body("utcOffset", equalTo("+08:00"))
@@ -145,13 +147,19 @@ class PortResourceIT {
                 .body("type", equalTo("FeatureCollection"))
                 .body("features", hasSize(4))
                 .body("features[0].geometry.type", equalTo("Point"))
-                .body("features.properties.code", hasItem("main-gate"))
-                .body("features.find { it.properties.code == 'main-gate' }.properties.expected_local_x", equalTo(-7.9f))
+                .body("features.properties.code", hasItem("CP-MAIN-GATE"))
                 .body(
-                        "features.find { it.properties.code == 'main-gate' }.properties.expected_local_y",
+                        "features.find { it.properties.code == 'CP-MAIN-GATE' }.properties.expected_local_x",
+                        equalTo(-7.9f))
+                .body(
+                        "features.find { it.properties.code == 'CP-MAIN-GATE' }.properties.expected_local_y",
                         equalTo(346.9f))
-                .body("features.find { it.properties.code == 'main-gate' }.properties.accuracy", equalTo("APPROXIMATE"))
-                .body("features.find { it.properties.code == 'main-gate' }.properties.name", equalTo("Main gate"));
+                .body(
+                        "features.find { it.properties.code == 'CP-MAIN-GATE' }.properties.accuracy",
+                        equalTo("APPROXIMATE"))
+                .body(
+                        "features.find { it.properties.code == 'CP-MAIN-GATE' }.properties.name",
+                        equalTo("Westport Conventional Main Gate (map listing)"));
     }
 
     @Test
@@ -172,7 +180,10 @@ class PortResourceIT {
                 .body("features[0].properties.kind", equalTo("BUILDING"))
                 .body("features[0].properties.name", equalTo("Shed A"))
                 .body("features[0].properties.height_m", equalTo(12.0f))
-                .body("features[0].properties.width_m", nullValue());
+                .body("features[0].properties.width_m", nullValue())
+                .body("features[0].properties.area_m2", greaterThan(0f))
+                .body("features[0].properties.source", equalTo("OSM"))
+                .body("features[0].properties.accuracy", equalTo("APPROXIMATE"));
         given().queryParam("kind", "ROAD")
                 .when()
                 .get("/api/v1/ports/westports/reference-features")

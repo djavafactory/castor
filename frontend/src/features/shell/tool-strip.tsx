@@ -2,6 +2,7 @@ import { PanelRight, PanelLeft } from 'lucide-react'
 import { IconButton } from '@/components/ui/button'
 import { Segmented } from '@/components/ui/segmented'
 import { useUiStore, type ViewMode } from '@/lib/stores/ui-store'
+import { LayersMenu } from './layers-menu'
 
 const VIEW_MODES: { value: ViewMode; label: string }[] = [
   { value: '2d', label: '2D' },
@@ -40,6 +41,7 @@ export function ToolStrip() {
           </IconButton>
         </>
       )}
+      <LayersMenu />
       <IconButton
         label="Hide panel"
         pressed={panelHidden}

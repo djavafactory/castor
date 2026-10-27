@@ -8,6 +8,7 @@ import java.util.List;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import com.djavafactory.castor.core.port.domain.AccuracyClass;
 import com.djavafactory.castor.core.port.domain.DataSourceCode;
 import com.djavafactory.castor.core.port.domain.ReferenceFeature;
 import com.djavafactory.castor.core.port.domain.ReferenceKind;
@@ -19,6 +20,7 @@ import com.djavafactory.castor.core.port.domain.ReferenceKind;
 final class OsmFeatureParser {
 
     static final String HEADER_KIND = "reference-features";
+    private static final String GENERIC_NAME_PREFIX = "Building ";
 
     private final ObjectMapper mapper;
 
@@ -61,13 +63,14 @@ final class OsmFeatureParser {
         return new ReferenceFeature(
                 kind(props, at),
                 osmRef,
-                text(props, "name"),
+                name(props),
                 number(props, "heightM"),
                 number(props, "widthM"),
                 mapper.writeValueAsString(geometry),
                 mapper.writeValueAsString(
                         props.path("tags").isObject() ? props.get("tags") : mapper.createObjectNode()),
-                source(props, at));
+                source(props, at),
+                accuracy(props, at));
     }
 
     private static ReferenceKind kind(JsonNode props, String at) throws IOException {
@@ -86,6 +89,24 @@ final class OsmFeatureParser {
             throw new IOException(
                     at + " has unknown source '" + props.path("source").asText("") + "'");
         }
+    }
+
+    private static AccuracyClass accuracy(JsonNode props, String at) throws IOException {
+        if (!props.hasNonNull("accuracy")) {
+            return AccuracyClass.APPROXIMATE;
+        }
+        try {
+            return AccuracyClass.valueOf(props.get("accuracy").asText());
+        } catch (IllegalArgumentException e) {
+            throw new IOException(
+                    at + " has unknown accuracy '" + props.get("accuracy").asText() + "'");
+        }
+    }
+
+    /** The extract names unnamed buildings "Building <id>"; that is not a mapped name, so it is not stored. */
+    private static String name(JsonNode props) {
+        String name = text(props, "name");
+        return name == null || name.startsWith(GENERIC_NAME_PREFIX) ? null : name;
     }
 
     private static String text(JsonNode props, String field) {

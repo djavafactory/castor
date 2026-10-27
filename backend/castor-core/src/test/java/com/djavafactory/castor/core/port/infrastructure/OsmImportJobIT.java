@@ -13,6 +13,7 @@ import jakarta.inject.Inject;
 
 import io.quarkus.test.junit.QuarkusTest;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.djavafactory.castor.core.port.domain.DataSourceCode;
@@ -34,6 +35,7 @@ class OsmImportJobIT {
     @Inject
     DataSource dataSource;
 
+    @BeforeEach
     @AfterEach
     void clean() throws SQLException {
         try (Connection c = dataSource.getConnection()) {

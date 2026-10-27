@@ -55,7 +55,60 @@ paths:
       responses:
         '204':
           description: Recorded
+  /api/v1/ports/{portCode}:
+    get:
+      operationId: getPort
+      summary: A port with its quay frame and measurement CRS
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/PortCode'
+      responses:
+        '200':
+          description: The port record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Port'
+        '404':
+          description: Unknown port
+  /api/v1/ports/{portCode}/reference-features:
+    get:
+      operationId: listReferenceFeatures
+      summary: Read-only OpenStreetMap features of a port as GeoJSON (there is no write endpoint)
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/PortCode'
+        - name: kind
+          in: query
+          required: false
+          description: Comma separated kinds, for example BUILDING,ROAD; all kinds when absent
+          schema:
+            type: string
+        - name: bbox
+          in: query
+          required: false
+          description: minLon,minLat,maxLon,maxLat (WGS84)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The features, ordered by OpenStreetMap reference
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReferenceFeatureCollection'
+        '404':
+          description: Unknown port
+        '400':
+          description: Unknown kind or malformed bbox
 components:
+  parameters:
+    PortCode:
+      name: portCode
+      in: path
+      required: true
+      schema:
+        type: string
   securitySchemes:
     basicAuth:
       type: http
@@ -97,6 +150,151 @@ components:
           type: string
         label:
           type: string
+    LonLat:
+      type: object
+      required: [lon, lat]
+      properties:
+        lon:
+          type: number
+          format: double
+        lat:
+          type: number
+          format: double
+    Port:
+      type: object
+      required: [code, name, city, timeZone, utcOffset, origin, measureSrid, frameRotDeg, extent, synthetic, berthCount, attribution, dataSources]
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        city:
+          type: string
+        timeZone:
+          type: string
+          description: IANA time zone name, for example Asia/Kuala_Lumpur
+        utcOffset:
+          type: string
+          description: UTC offset derived from the time zone, never stored, for example +08:00
+        origin:
+          $ref: '#/components/schemas/LonLat'
+        measureSrid:
+          type: integer
+          format: int32
+        frameRotDeg:
+          type: number
+          format: double
+          description: Angle of local +X, degrees counter-clockwise from east
+        extent:
+          $ref: '#/components/schemas/GeoJsonGeometry'
+        landExtent:
+          oneOf:
+            - $ref: '#/components/schemas/GeoJsonGeometry'
+            - type: 'null'
+        quayLine:
+          oneOf:
+            - $ref: '#/components/schemas/GeoJsonGeometry'
+            - type: 'null'
+        synthetic:
+          type: boolean
+        publishedLayoutVersionId:
+          type: [string, 'null']
+          format: uuid
+        berthCount:
+          type: integer
+          format: int32
+          description: Berths in the published layout, derived, never typed in
+        attribution:
+          type: string
+        dataSources:
+          type: array
+          items:
+            $ref: '#/components/schemas/DataSource'
+    DataSource:
+      type: object
+      required: [code, name, licence, mayTrace, mayPersist]
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        licence:
+          type: string
+        mayTrace:
+          type: boolean
+        mayPersist:
+          type: boolean
+    GeoJsonGeometry:
+      type: object
+      required: [type, coordinates]
+      properties:
+        type:
+          type: string
+        coordinates:
+          type: array
+          items: {}
+    ReferenceFeatureKind:
+      type: string
+      enum: [BUILDING, ROAD, RAIL, COASTLINE, JETTY, WATER, LANDUSE]
+    ReferenceFeatureProperties:
+      type: object
+      required: [kind, osm_ref, source, accuracy]
+      properties:
+        kind:
+          $ref: '#/components/schemas/ReferenceFeatureKind'
+        osm_ref:
+          type: string
+          description: OpenStreetMap reference such as way/1300405460
+        name:
+          type: [string, 'null']
+          description: The mapped name; null when OpenStreetMap has none
+        height_m:
+          type: [number, 'null']
+          format: double
+        width_m:
+          type: [number, 'null']
+          format: double
+        area_m2:
+          type: [number, 'null']
+          format: double
+          description: Footprint area measured in the port measurement CRS; null for lines
+        source:
+          type: string
+        accuracy:
+          type: string
+          enum: [SURVEYED, VERIFIED, OPERATOR, APPROXIMATE]
+    ReferenceFeature:
+      type: object
+      required: [type, id, geometry, properties]
+      properties:
+        type:
+          type: string
+          enum: [Feature]
+        id:
+          type: string
+        geometry:
+          type: object
+          description: GeoJSON geometry in WGS84
+          required: [type, coordinates]
+          properties:
+            type:
+              type: string
+            coordinates:
+              type: array
+              items: {}
+        properties:
+          $ref: '#/components/schemas/ReferenceFeatureProperties'
+    ReferenceFeatureCollection:
+      type: object
+      required: [type, features]
+      properties:
+        type:
+          type: string
+          enum: [FeatureCollection]
+        features:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReferenceFeature'
     Role:
       type: string
       enum: [VIEWER, EDITOR, PUBLISHER, ADMIN]

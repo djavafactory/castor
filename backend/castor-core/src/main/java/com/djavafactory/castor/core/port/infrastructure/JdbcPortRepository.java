@@ -37,9 +37,12 @@ public class JdbcPortRepository implements PortRepository {
     private static final String FEATURES_SQL = "select jsonb_build_object('type', 'FeatureCollection', "
             + "'features', coalesce(jsonb_agg(jsonb_build_object('type', 'Feature', 'id', rf.osm_ref, "
             + "'geometry', ST_AsGeoJSON(rf.geom, 7)::jsonb, 'properties', jsonb_build_object('kind', rf.kind, "
-            + "'osm_ref', rf.osm_ref, 'name', rf.name, 'height_m', rf.height_m, 'width_m', rf.width_m)) "
+            + "'osm_ref', rf.osm_ref, 'name', rf.name, 'height_m', rf.height_m, 'width_m', rf.width_m, "
+            + "'area_m2', case when ST_GeometryType(rf.geom) in ('ST_Polygon', 'ST_MultiPolygon') "
+            + "then round(ST_Area(ST_Transform(rf.geom, p.measure_srid))::numeric, 2) end, "
+            + "'source', rf.source_code, 'accuracy', rf.accuracy_code)) "
             + "order by rf.id), '[]'::jsonb))::text from ref.reference_feature rf "
-            + "where rf.port_id = ? and rf.kind = any(?)";
+            + "join ref.port p on p.id = rf.port_id where rf.port_id = ? and rf.kind = any(?)";
 
     private final JdbcQueries db;
 

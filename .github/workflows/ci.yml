@@ -109,6 +109,7 @@ jobs:
           . ../.env
           set +a
           export E2E_USERNAME="$CASTOR_ADMIN_USERNAME" E2E_PASSWORD="$CASTOR_ADMIN_PASSWORD"
+          export E2E_BASE_URL="http://localhost:${DEV_WEB_PORT:-8080}"
           PW_VERSION=$(node -p "require('@playwright/test/package.json').version")
           docker run --rm --ipc=host --network host -v "$GITHUB_WORKSPACE":/work -w /work/frontend \
             -e CI -e E2E_BASE_URL -e E2E_USERNAME -e E2E_PASSWORD \
