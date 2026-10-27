@@ -17,7 +17,12 @@ interface UiState {
   layerVisibility: Record<string, boolean>
   /** When set, only this layer is shown. */
   isolatedLayer: string | null
+  /** Layer key -> locked (Design): no handles, no edits. */
+  lockedLayers: Record<string, boolean>
   labels: boolean
+  /** Static cargo fill of pads, stacks and coils. */
+  cargo: boolean
+  helpOpen: boolean
   accuracyColouring: boolean
   envelope: boolean
   basemap: Basemap
@@ -33,6 +38,11 @@ interface UiState {
   setCameraPreset: (preset: string) => void
   setLayerVisible: (layer: string, visible: boolean) => void
   isolateLayer: (layer: string | null) => void
+  /** Shows every layer again: clears the switches and the isolation (locks stay). */
+  showAllLayers: () => void
+  setLayerLocked: (layer: string, locked: boolean) => void
+  setCargo: (on: boolean) => void
+  setHelpOpen: (open: boolean) => void
   setLabels: (on: boolean) => void
   setAccuracyColouring: (on: boolean) => void
   setEnvelope: (on: boolean) => void
@@ -55,7 +65,10 @@ export const useUiStore = create<UiState>()(
       cameraPreset: 'overview',
       layerVisibility: {},
       isolatedLayer: null,
+      lockedLayers: {},
       labels: true,
+      cargo: true,
+      helpOpen: false,
       accuracyColouring: false,
       envelope: false,
       basemap: 'sentinel2',
@@ -70,6 +83,11 @@ export const useUiStore = create<UiState>()(
       setLayerVisible: (layer, visible) =>
         set((state) => ({ layerVisibility: { ...state.layerVisibility, [layer]: visible } })),
       isolateLayer: (isolatedLayer) => set({ isolatedLayer }),
+      showAllLayers: () => set({ layerVisibility: {}, isolatedLayer: null }),
+      setLayerLocked: (layer, locked) =>
+        set((state) => ({ lockedLayers: { ...state.lockedLayers, [layer]: locked } })),
+      setCargo: (cargo) => set({ cargo }),
+      setHelpOpen: (helpOpen) => set({ helpOpen }),
       setLabels: (labels) => set({ labels }),
       setAccuracyColouring: (accuracyColouring) => set({ accuracyColouring }),
       setEnvelope: (envelope) => set({ envelope }),

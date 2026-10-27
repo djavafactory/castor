@@ -5,6 +5,7 @@ import { BuildingDetails } from '@/components/scene/buildings/building-details'
 import { ModelPalette } from '@/components/scene/models/model-palette'
 import { PortScene } from '@/components/scene/port-scene'
 import { CatalogueTab } from './catalogue-tab'
+import { DebugSwitches } from './more-menu'
 import { PortDetails } from './port-details'
 import { useSceneKeys } from './use-scene-keys'
 import { useEffect } from 'react'
@@ -63,6 +64,9 @@ export function WorkArea() {
           className="flex h-8 shrink-0 items-center gap-3 border-t border-line-soft bg-paper px-4 font-mono text-xs text-muted"
         >
           <DraftSummary />
+          <span className="ml-auto flex items-center gap-2 font-sans text-[13px] text-ink">
+            <DebugSwitches compact />
+          </span>
         </footer>
       )}
     </div>

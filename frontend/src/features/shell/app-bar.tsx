@@ -14,13 +14,13 @@ import { LayoutStatusBadge } from '@/features/design/layout-status-badge'
 import { ApiError } from '@/lib/api-client'
 import { getEnv } from '@/lib/env'
 import { Logo } from '@/components/logo'
+import { SYNTHETIC_EXPLANATION } from './help-content'
 import { PublishedVersion } from './published-version'
-import { HelpPopover } from './help-popover'
 import { usePort } from './use-port'
 import { useMenu } from './use-menu'
 
 const ROLE_ORDER: Role[] = ['ADMIN', 'PUBLISHER', 'EDITOR', 'VIEWER']
-const SYNTHETIC_TIP = 'Synthetic layout: positions are placeholders, not a survey of Westports'
+const SYNTHETIC_TIP = SYNTHETIC_EXPLANATION
 
 export function AppBar() {
   const port = usePort()
@@ -42,7 +42,6 @@ export function AppBar() {
       <ModeSwitch />
       <LayoutStatusBadge />
       <div className="ml-auto flex items-center gap-3">
-        <HelpPopover />
         <UserMenu />
       </div>
     </header>

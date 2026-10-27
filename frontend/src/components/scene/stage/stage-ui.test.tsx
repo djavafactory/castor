@@ -3,75 +3,16 @@ import type { Mesh } from 'three'
 import ReactThreeTestRenderer from '@react-three/test-renderer'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { HelpPopover } from '@/features/shell/help-popover'
+import { MoreMenu } from '@/features/shell/more-menu'
 import { LayersMenu } from '@/features/shell/layers-menu'
 import { clearActiveFrame, setActiveFrame } from '@/lib/geo'
 import { useUiStore } from '@/lib/stores/ui-store'
 import { wrapperFor } from '@/test/query-wrapper'
-import { CameraControls } from './camera-controls'
 import { FlatLayers } from './flat-layers'
 import { roadSegment, osmRoad } from './flat-geometry'
 import { LAYERS } from './layer-heights'
 import { stageExtent } from './stage-extent'
-import { useCameraStore } from './view-state'
 import { Water } from './water'
-
-describe('camera controls', () => {
-  beforeEach(() => {
-    useCameraStore.setState({ autoRotate: false, command: null })
-    useUiStore.setState({ cameraPreset: 'overview' })
-  })
-
-  it('offers the five presets, Whole port, zoom, rotate and reset', () => {
-    render(<CameraControls />)
-    for (const name of ['Overview', 'Top', 'Yard', 'Quay', 'Ship', 'Whole port']) {
-      expect(screen.getByRole('button', { name })).toBeInTheDocument()
-    }
-    for (const name of ['Zoom in', 'Zoom out', 'Rotate', 'Reset view']) {
-      expect(screen.getByRole('button', { name })).toBeInTheDocument()
-    }
-    expect(screen.getByRole('button', { name: 'Overview' })).toHaveAttribute('aria-pressed', 'true')
-  })
-
-  it('sends commands from the buttons', async () => {
-    render(<CameraControls />)
-    await userEvent.click(screen.getByRole('button', { name: 'Quay' }))
-    expect(useCameraStore.getState().command).toMatchObject({ type: 'preset', key: 'quay' })
-    await userEvent.click(screen.getByRole('button', { name: 'Whole port' }))
-    expect(useCameraStore.getState().command).toMatchObject({ type: 'whole' })
-    await userEvent.click(screen.getByRole('button', { name: 'Zoom in' }))
-    expect(useCameraStore.getState().command).toMatchObject({ type: 'zoom' })
-    await userEvent.click(screen.getByRole('button', { name: 'Rotate' }))
-    expect(useCameraStore.getState().autoRotate).toBe(true)
-    expect(screen.getByRole('button', { name: 'Rotate' })).toHaveAttribute('aria-pressed', 'true')
-    await userEvent.click(screen.getByRole('button', { name: 'Reset view' }))
-    expect(useCameraStore.getState()).toMatchObject({
-      autoRotate: false,
-      command: { type: 'preset', key: 'overview' },
-    })
-  })
-
-  it('flies to a preset on keys 1-5, but not while typing', async () => {
-    render(
-      <>
-        <CameraControls />
-        <input aria-label="Search" />
-      </>,
-    )
-    await userEvent.keyboard('4')
-    expect(useCameraStore.getState().command).toMatchObject({ type: 'preset', key: 'quay' })
-    await userEvent.keyboard('5')
-    expect(useCameraStore.getState().command).toMatchObject({ key: 'ship' })
-    const before = useCameraStore.getState().command
-    await userEvent.keyboard('9')
-    expect(useCameraStore.getState().command).toBe(before)
-    await userEvent.click(screen.getByRole('textbox', { name: 'Search' }))
-    await userEvent.keyboard('1')
-    expect(useCameraStore.getState().command).toBe(before)
-    await userEvent.keyboard('{Control>}2{/Control}')
-    expect(useCameraStore.getState().command).toBe(before)
-  })
-})
 
 describe('basemap and imagery note', () => {
   beforeEach(() => useUiStore.setState({ basemap: 'sentinel2', imageryFailed: false }))
@@ -90,14 +31,15 @@ describe('basemap and imagery note', () => {
   it('lists the OSM roads layer', async () => {
     render(<LayersMenu />)
     await userEvent.click(screen.getByRole('button', { name: 'All layers' }))
-    expect(screen.getByRole('checkbox', { name: 'Roads (OSM)' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Show Roads (OSM)' })).toBeChecked()
   })
 
   it('notes failed tiles quietly in Help, without a dialog', async () => {
     const Wrapper = wrapperFor()
     useUiStore.setState({ imageryFailed: true })
-    render(<HelpPopover />, { wrapper: Wrapper })
-    await userEvent.click(screen.getByRole('button', { name: 'Help' }))
+    render(<MoreMenu />, { wrapper: Wrapper })
+    await userEvent.click(screen.getByRole('button', { name: 'More' }))
+    await userEvent.click(screen.getByRole('button', { name: /Help and legend/ }))
     expect(screen.getByText(/Satellite imagery could not be loaded/)).toBeInTheDocument()
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   })

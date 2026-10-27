@@ -8,7 +8,7 @@ export const COLOUR = {
   ORANGE: hex(palette.signal),
   WHITE: 0xffffff,
   BOOM: 0xe9e5dc,
-  BLUE: 0x3c6fb4,
+  BLUE: hex(palette.blue),
   AMBER: hex(palette.amber),
   GLASS: 0x9db7cc,
   COIL: 0xb8c0c8,

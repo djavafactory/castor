@@ -60,7 +60,7 @@ test('Buildings (OSM) is a layer in All layers and can be switched off', async (
   const at = await hoverABuilding(page)
 
   await page.getByRole('button', { name: 'All layers' }).click()
-  const layer = page.getByRole('checkbox', { name: 'Buildings (OSM)' })
+  const layer = page.getByRole('checkbox', { name: 'Show Buildings (OSM)' })
   await expect(layer).toBeChecked()
   await layer.uncheck()
   await page.keyboard.press('Escape')

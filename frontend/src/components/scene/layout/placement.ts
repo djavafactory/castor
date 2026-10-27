@@ -4,6 +4,7 @@ import type { PlacedCrane, PlacedYard } from '../containers/container-terminal-l
 import type { Pt } from '../models/box-batch'
 import type { ModelDetails, ModelSize } from '../models/model-spec'
 import type { LayoutAsset } from '../models/layout-batch'
+import { envelopeSize } from '../models/envelope'
 import { getModelSpec } from '../models/registry'
 
 const DEG = Math.PI / 180
@@ -24,6 +25,15 @@ export interface PickBox {
   size: ModelSize
 }
 
+/** The footprint of an asset on the ground in scene metres (x, z), drawn in its accuracy colour. */
+export interface AccuracyOutline {
+  assetId: string
+  accuracy: string
+  /** A line (path) asset is an open polyline; a footprint is closed. */
+  closed: boolean
+  points: [x: number, z: number][]
+}
+
 export interface PlacedLayout {
   /** Assets drawn by the model library, merged per material. */
   assets: { id: string; asset: LayoutAsset }[]
@@ -32,6 +42,9 @@ export interface PlacedLayout {
   yards: PlacedYard[]
   cranes: PlacedCrane[]
   picks: PickBox[]
+  /** The boxes of the envelope layer: footprint x drawn height, at least 0.3 m high, turned with the asset. */
+  envelopes: PickBox[]
+  outlines: AccuracyOutline[]
 }
 
 /** Scene offset (x, z) -> model space of an asset turned by rotationY about Y. */
@@ -94,7 +107,15 @@ function details(feature: LayoutFeature): ModelDetails {
  * drawn footprint or path relative to the anchor. Needs the port frame (usePortFrame) to be active.
  */
 export function placeLayout(features: readonly LayoutFeature[]): PlacedLayout {
-  const out: PlacedLayout = { assets: [], unknown: [], yards: [], cranes: [], picks: [] }
+  const out: PlacedLayout = {
+    assets: [],
+    unknown: [],
+    yards: [],
+    cranes: [],
+    picks: [],
+    envelopes: [],
+    outlines: [],
+  }
 
   for (const feature of features) {
     const p = feature.properties
@@ -158,6 +179,36 @@ export function placeLayout(features: readonly LayoutFeature[]): PlacedLayout {
         size: { ...size, height: Math.max(size.height, 0.5) },
       })
     }
+
+    // The envelope follows the drawn model: its footprint box (or one box per path segment) and its drawn height
+    const envelope = envelopeSize(spec, size)
+    for (const pick of out.picks.filter((b) => b.assetId === id)) {
+      out.envelopes.push({
+        ...pick,
+        position: [pick.position[0], position[1] + envelope.height / 2, pick.position[2]],
+        size: { ...pick.size, height: envelope.height },
+      })
+    }
+    const ring: Pt[] =
+      path && path.length > 1
+        ? path
+        : footprint && footprint.length > 2
+          ? footprint
+          : [
+              [-size.length / 2, -size.width / 2],
+              [size.length / 2, -size.width / 2],
+              [size.length / 2, size.width / 2],
+              [-size.length / 2, size.width / 2],
+            ]
+    out.outlines.push({
+      assetId: id,
+      accuracy: p.provenance.accuracy,
+      closed: !(path && path.length > 1),
+      points: ring.map(([mx, mz]) => {
+        const [dx, dz] = toSceneOffset(mx, mz, rotationY)
+        return [ax + dx, az + dz]
+      }),
+    })
 
     if (p.type === YARD_TYPE) {
       const yard = p.details.containerYard

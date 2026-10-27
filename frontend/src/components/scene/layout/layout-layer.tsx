@@ -5,7 +5,6 @@ import {
   BoxGeometry,
   EdgesGeometry,
   PlaneGeometry,
-  type Mesh,
   type MeshBasicMaterial,
   type Sprite,
   type Sphere,
@@ -17,8 +16,10 @@ import { useUiStore } from '@/lib/stores/ui-store'
 import { ContainerTerminalLayer } from '../containers/container-terminal-layer'
 import { CONTAINERS_LAYER, useLayerVisible } from '../layers'
 import { AssetVisual, CAPTION_PX, labelTexture } from '../models/asset-visual'
-import { buildLayoutMeshes } from '../models/layout-batch'
 import { COLOUR, HOVER_LABEL } from '../models/model-spec'
+import { hex } from '@/features/scene/palette'
+import { AccuracyOutlines, EnvelopeLayer } from './debug-layers'
+import { buildLayoutLod, updateLod } from './layout-lod'
 import { buildPickGeometry } from './pick-geometry'
 import { placeLayout, type PickBox } from './placement'
 
@@ -40,8 +41,13 @@ export interface LayoutHover {
   y: number
 }
 
+/** Models whose static cargo (pile, stack, coils) the "Cargo" switch hides. */
+const CARGO_MODELS = new Set(['STORAGE_PAD', 'LAYDOWN_YARD', 'QUAY_STAGING', 'STOCKPILE_BAY'])
+
 interface LayoutLayerProps {
   features: readonly LayoutFeature[]
+  /** Colour of the plain box of each asset type (asset_type.colour_hex), for the far level of detail. */
+  typeColours?: ReadonlyMap<string, string>
   onHover?: (hover: LayoutHover | null) => void
   /** Receives the bounding sphere of the drawn layout (for framing the camera). */
   onBuilt?: (bounds: Sphere | null) => void
@@ -51,23 +57,42 @@ interface LayoutLayerProps {
  * The published layout, read-only: every asset through the model library, merged per material, plus the
  * container terminal. Clicking selects an asset; nothing here can move, resize or delete one.
  */
-export function LayoutLayer({ features, onHover, onBuilt }: LayoutLayerProps) {
+export function LayoutLayer({ features, typeColours, onHover, onBuilt }: LayoutLayerProps) {
   const placed = useMemo(() => placeLayout(features), [features])
   const labels = useUiStore((s) => s.labels)
+  const cargo = useUiStore((s) => s.cargo)
+  const envelope = useUiStore((s) => s.envelope)
+  const accuracyColouring = useUiStore((s) => s.accuracyColouring)
+  const invalidate = useThree((s) => s.invalidate)
   const containersVisible = useLayerVisible(CONTAINERS_LAYER) && containersEnabled()
   const hover = useSelectionStore((s) => s.hoveredAssetId)
   const setHover = useSelectionStore((s) => s.hover)
   const select = useSelectionStore((s) => s.select)
   const selected = useSelectionStore((s) => s.selectedAssetId)
 
-  const meshes = useMemo(
-    () => buildLayoutMeshes(placed.assets.map((a) => ({ ...a.asset, id: a.id }))),
-    [placed],
+  const lod = useMemo(
+    () =>
+      buildLayoutLod(
+        placed.assets.map((a) => {
+          const colour = typeColours?.get(a.asset.modelKey)
+          return {
+            ...a.asset,
+            id: a.id,
+            details:
+              !cargo && CARGO_MODELS.has(a.asset.modelKey)
+                ? { ...a.asset.details, designFill: 0 }
+                : a.asset.details,
+            colour: colour ? hex(colour) : undefined,
+          }
+        }),
+      ),
+    [placed, cargo, typeColours],
   )
-  useEffect(
-    () => () => meshes.group.children.forEach((m) => (m as Mesh).geometry.dispose()),
-    [meshes],
-  )
+  useEffect(() => () => lod.dispose(), [lod])
+  // Plain boxes beyond 1,500 m, detailed models near: decided on every drawn frame
+  useFrame(({ camera }) => {
+    if (updateLod(lod, camera.position)) invalidate()
+  })
 
   // Yards and cranes belong to the container layer: with it off they cannot be hit either
   const pickable = useMemo(() => {
@@ -81,15 +106,13 @@ export function LayoutLayer({ features, onHover, onBuilt }: LayoutLayerProps) {
 
   const captions = useMemo(
     () =>
-      labels
-        ? meshes.captions.map((c) => ({ ...c, texture: labelTexture(c.text, CAPTION_PX) }))
-        : [],
-    [labels, meshes],
+      labels ? lod.captions.map((c) => ({ ...c, texture: labelTexture(c.text, CAPTION_PX) })) : [],
+    [labels, lod],
   )
   useEffect(() => () => captions.forEach((c) => c.texture?.dispose()), [captions])
   const hoverCaption = useMemo(
-    () => (hover ? meshes.captions.find((c) => c.assetId === hover) : undefined),
-    [hover, meshes],
+    () => (hover ? lod.captions.find((c) => c.assetId === hover) : undefined),
+    [hover, lod],
   )
   const hoverTexture = useMemo(
     () => (hoverCaption ? labelTexture(hoverCaption.text, CAPTION_PX, HOVER_LABEL) : null),
@@ -118,7 +141,7 @@ export function LayoutLayer({ features, onHover, onBuilt }: LayoutLayerProps) {
 
   return (
     <group name="layout">
-      <primitive object={meshes.group} />
+      <primitive object={lod.group} />
       {captions.map(
         (c, i) =>
           c.texture &&
@@ -164,6 +187,8 @@ export function LayoutLayer({ features, onHover, onBuilt }: LayoutLayerProps) {
       {hover && hover !== selected && (
         <HoverGlow boxes={pickable.filter((b) => b.assetId === hover)} />
       )}
+      {envelope && <EnvelopeLayer boxes={placed.envelopes} />}
+      {accuracyColouring && <AccuracyOutlines outlines={placed.outlines} />}
       {selected && <SelectionOutline boxes={pickable.filter((b) => b.assetId === selected)} />}
     </group>
   )

@@ -103,7 +103,12 @@ function coilYard(b: BoxBatch, p: ModelParams) {
       if (insideRing(ring, [x, z]) && edgeDistance(ring, [x, z]) >= COIL_RADIUS) places.push([x, z])
     }
   }
-  for (const [x, z] of places.slice(0, filledCount(places.length, p.details.designFill, 0.6))) {
+  // A coil stands PAD_TOP + COIL_HEIGHT high: a lower yard is drawn without coils, inside its envelope
+  const coilRoom = p.size.height >= PAD_TOP + COIL_HEIGHT
+  for (const [x, z] of places.slice(
+    0,
+    coilRoom ? filledCount(places.length, p.details.designFill, 0.6) : 0,
+  )) {
     b.cylinder(COIL, 'y', [x, PAD_TOP + COIL_HEIGHT / 2, z], COIL_RADIUS, COIL_HEIGHT, 10)
   }
 }

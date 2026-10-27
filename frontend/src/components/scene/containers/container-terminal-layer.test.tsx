@@ -20,7 +20,7 @@ describe('Containers switch and feature flag', () => {
   it('lists "Containers" in All layers when the feature is on, switchable', async () => {
     render(<LayersMenu />)
     await userEvent.click(screen.getByRole('button', { name: 'All layers' }))
-    const box = screen.getByRole('checkbox', { name: 'Containers' })
+    const box = screen.getByRole('checkbox', { name: 'Show Container terminal' })
     expect(box).toBeChecked()
     await userEvent.click(box)
     expect(useUiStore.getState().layerVisibility[CONTAINERS_LAYER]).toBe(false)
@@ -31,8 +31,8 @@ describe('Containers switch and feature flag', () => {
     expect(layers().map((l) => l.key)).not.toContain(CONTAINERS_LAYER)
     render(<LayersMenu />)
     await userEvent.click(screen.getByRole('button', { name: 'All layers' }))
-    expect(screen.queryByRole('checkbox', { name: 'Containers' })).toBeNull()
-    expect(screen.getByRole('checkbox', { name: 'Buildings (OSM)' })).toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: 'Show Container terminal' })).toBeNull()
+    expect(screen.getByRole('checkbox', { name: 'Show Buildings (OSM)' })).toBeInTheDocument()
   })
 
   const yard = {

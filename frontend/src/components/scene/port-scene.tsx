@@ -9,7 +9,6 @@ import { useSelectionStore } from '@/lib/stores/selection-store'
 import { buildingHoverText, buildingTitle } from './buildings/building-text'
 import { useUiStore } from '@/lib/stores/ui-store'
 import { BuildingsLayer, type BuildingHover } from './buildings/buildings-layer'
-import { CameraControls } from './stage/camera-controls'
 import { CameraRig } from './stage/camera-rig'
 import { footprintOf } from './stage/footprint'
 import { Ground } from './stage/ground'
@@ -20,7 +19,12 @@ import { landSceneBox, stageExtent } from './stage/stage-extent'
 import { StageCanvas } from './stage/stage-canvas'
 import { Water } from './stage/water'
 import { LayoutLayer, type LayoutHover } from './layout/layout-layer'
-import { BUILDINGS_LAYER, useLayerVisible, ROADS_LAYER } from './layers'
+import {
+  BUILDINGS_LAYER,
+  useLayerVisible,
+  visibleFeatures,
+  ROADS_LAYER,
+} from './layers'
 import { hoverLines, humanKey } from './layout/asset-rows'
 import { SceneTooltip } from './scene-tooltip'
 import { webglAvailable } from './webgl'
@@ -52,7 +56,20 @@ function Scene() {
   const selectedRef = useSelectionStore((s) => s.selectedReferenceId)
   const layout = useCurrentLayout()
   const assetTypes = useAssetTypes()
-  const features = layout.data?.data.features.features
+  const allFeatures = layout.data?.data.features.features
+  const layerVisibility = useUiStore((s) => s.layerVisibility)
+  const isolatedLayer = useUiStore((s) => s.isolatedLayer)
+  // Each asset sits on the layer of its type (asset_type.category); a hidden layer is not drawn or picked
+  const features = useMemo(
+    () =>
+      allFeatures &&
+      visibleFeatures(allFeatures, assetTypes.data, { layerVisibility, isolatedLayer }),
+    [allFeatures, assetTypes.data, layerVisibility, isolatedLayer],
+  )
+  const typeColours = useMemo(
+    () => new Map((assetTypes.data ?? []).map((t) => [t.code, t.colourHex])),
+    [assetTypes.data],
+  )
   const [hover, setHover] = useState<BuildingHover | null>(null)
   const [assetHover, setAssetHover] = useState<LayoutHover | null>(null)
 
@@ -93,7 +110,9 @@ function Scene() {
         {frameReady && buildings.data && showBuildings && (
           <BuildingsLayer buildings={buildings.data} onHover={setHover} />
         )}
-        {frameReady && features && <LayoutLayer features={features} onHover={setAssetHover} />}
+        {frameReady && features && (
+          <LayoutLayer features={features} typeColours={typeColours} onHover={setAssetHover} />
+        )}
         {selected && <MonitorSelection ring={selected.ring} height={selected.height} />}
       </StageCanvas>
       {layout.isError && (
@@ -105,7 +124,6 @@ function Scene() {
           />
         </div>
       )}
-      <CameraControls />
       {buildings.isError && (
         <div className="absolute top-3 left-3 z-menu w-72">
           <ErrorCard

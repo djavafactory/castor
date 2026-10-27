@@ -195,7 +195,7 @@ describe('layout', () => {
     expect(screen.getByLabelText('Right panel')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Hide panel' }))
     expect(screen.queryByLabelText('Right panel')).not.toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Hide panel' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Show panel' }))
     expect(screen.getByLabelText('Right panel')).toBeInTheDocument()
   })
 
@@ -225,7 +225,8 @@ describe('help popover', () => {
     signInAs(['VIEWER'])
     renderShell()
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Help' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'More' }))
+    await userEvent.click(screen.getByRole('button', { name: /Help and legend/ }))
 
     expect(
       await screen.findByText(`Castor v${__APP_VERSION__} (server v9.9.9)`),

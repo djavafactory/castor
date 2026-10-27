@@ -47,6 +47,8 @@ export function Button({
 type IconButtonProps = ComponentProps<'button'> & {
   /** Required: an icon button has no visible text. */
   label: string
+  /** The tooltip, when it says more than the label. */
+  tip?: string
   pressed?: boolean
 }
 
@@ -54,6 +56,7 @@ type IconButtonProps = ComponentProps<'button'> & {
 export function IconButton({
   className,
   label,
+  tip,
   pressed,
   type = 'button',
   ...props
@@ -62,7 +65,7 @@ export function IconButton({
     <button
       type={type}
       aria-label={label}
-      title={label}
+      title={tip ?? label}
       aria-pressed={pressed}
       className={cn(
         'inline-flex size-7 items-center justify-center rounded-md border border-transparent text-ink transition-colors hover:bg-paper-2 disabled:pointer-events-none disabled:opacity-40 [&_svg]:size-4',

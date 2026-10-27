@@ -165,18 +165,22 @@ const parkingYard: ModelSpec = {
       for (let i = 0; i < bays; i++) slots.push([-l / 2 + BAY_WIDTH * (i + 0.5), zc])
     }
     const colours = [WHITE, CAR_RED, STEEL, BLUE]
-    slots.slice(0, filledCount(slots.length, p.details.designFill, 0.5)).forEach(([x, z], n) => {
-      b.block(
-        colours[n % colours.length]!,
-        x - 0.85,
-        x + 0.85,
-        TARMAC + 0.25,
-        TARMAC + 0.85,
-        z - 2.1,
-        z + 2.1,
-      )
-      b.block(GLASS, x - 0.75, x + 0.75, TARMAC + 0.85, TARMAC + 1.35, z - 1.1, z + 0.9)
-    })
+    // Cars are 1.35 m high: a lower parking yard is drawn empty rather than poking out of its envelope
+    const carRoom = p.size.height >= TARMAC + 1.35
+    slots
+      .slice(0, carRoom ? filledCount(slots.length, p.details.designFill, 0.5) : 0)
+      .forEach(([x, z], n) => {
+        b.block(
+          colours[n % colours.length]!,
+          x - 0.85,
+          x + 0.85,
+          TARMAC + 0.25,
+          TARMAC + 0.85,
+          z - 2.1,
+          z + 2.1,
+        )
+        b.block(GLASS, x - 0.75, x + 0.75, TARMAC + 0.85, TARMAC + 1.35, z - 1.1, z + 0.9)
+      })
     return {}
   },
 }

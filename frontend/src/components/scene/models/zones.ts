@@ -16,7 +16,8 @@ const exclusionZone: ModelSpec = {
     const ring = ringOf(p)
     b.prism(tint(ZONE_RED, 20), ring, 0, 0.05) // translucent fill
     b.ribbon(ZONE_RED, ring, 0.4, 0, 0.1, true) // outline
-    for (const [x, z] of ring) b.block(ZONE_RED, x - 0.15, x + 0.15, 0, 1.8, z - 0.15, z + 0.15) // corner posts
+    for (const [x, z] of ring)
+      b.block(ZONE_RED, x - 0.15, x + 0.15, 0, Math.min(1.8, p.size.height), z - 0.15, z + 0.15) // corner posts
     return {}
   },
 }

@@ -54,11 +54,12 @@ const pumpStation: ModelSpec = {
     b.block(PAD, -l / 2, l / 2, 0, 0.2, -w / 2, w / 2)
     b.block(NEUTRAL, -l / 2, -l / 2 + 4, 0.2, h - 0.3, -w / 2, w / 2) // pump house
     b.block(ROOF, -l / 2, -l / 2 + 4, h - 0.3, h, -w / 2, w / 2)
+    const top = Math.min(2.6, h - 0.25) // the pipes stay inside the declared height
     for (const z of [-w / 4, w / 4]) {
       b.cylinder(BLUE, 'x', [l / 2 - 2.2, 0.9, z], 0.6, 2.2, 10) // pump motors
-      b.tube(PIPE, [l / 2 - 1, 0.9, z], [l / 2 - 1, 2.6, z], 0.25) // risers
+      b.tube(PIPE, [l / 2 - 1, 0.9, z], [l / 2 - 1, top, z], 0.25) // risers
     }
-    b.tube(PIPE, [l / 2 - 1, 2.6, -w / 4], [l / 2 - 1, 2.6, w / 4], 0.25)
+    b.tube(PIPE, [l / 2 - 1, top, -w / 4], [l / 2 - 1, top, w / 4], 0.25)
     return {}
   },
 }

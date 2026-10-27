@@ -14,6 +14,7 @@ export const palette = {
   amber: '#E8A317',
   brick: '#C8423B',
   steel: '#2B3442',
+  blue: '#3C6FB4',
   white: '#F4F1EA',
   tree: '#6E9B6B',
   treeDark: '#4E7A5A',
@@ -39,6 +40,13 @@ export const palette = {
   fireAccessFill: '#D9A29B',
   terminalT1: '#E3D9BC',
   terminalT6: '#D6D4CC',
+  /** Accuracy classes of a shape (SETUP-03): outline colours and the legend swatches. */
+  accuracy: {
+    SURVEYED: '#2F8F6B',
+    VERIFIED: '#3C6FB4',
+    OPERATOR: '#E8A317',
+    APPROXIMATE: '#8A8F98',
+  },
   /** Hover label and selection. */
   select: {
     shells: ['#F2622E', '#FF8A5C', '#FFB08F'],
