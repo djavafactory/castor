@@ -11,6 +11,8 @@ const STACK_SPECS = ['**/osm-buildings.spec.ts', '**/monitor.spec.ts']
 export default defineConfig({
   testDir: './e2e',
   ...(externalBaseURL ? { testMatch: STACK_SPECS } : { testIgnore: STACK_SPECS }),
+  // The stack specs share one backend and its demo accounts, and the 3D scenes are heavy: one at a time
+  workers: externalBaseURL ? 1 : undefined,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',

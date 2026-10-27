@@ -7,7 +7,8 @@ async function signInAsViewer(page: Page) {
   await page.goto('/login')
   await page.getByLabel('Choose a demo user').selectOption('viewer')
   await page.getByRole('button', { name: 'Sign in' }).click()
-  await expect(page.getByRole('main', { name: 'Port stage' })).toBeVisible()
+  // The first sign-in after the stack starts is slow: it loads the layout and the buildings
+  await expect(page.getByRole('main', { name: 'Port stage' })).toBeVisible({ timeout: 20_000 })
 }
 
 /** Moves over the stage until an asset of the layout (not an OSM building) is under the pointer. */

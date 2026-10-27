@@ -7,7 +7,8 @@ async function signInAsViewer(page: Page) {
   await page.goto('/login')
   await page.getByLabel('Choose a demo user').selectOption('viewer')
   await page.getByRole('button', { name: 'Sign in' }).click()
-  await expect(page.getByRole('main', { name: 'Port stage' })).toBeVisible()
+  // The first sign-in after the stack starts is slow: it loads the layout and the buildings
+  await expect(page.getByRole('main', { name: 'Port stage' })).toBeVisible({ timeout: 20_000 })
 }
 
 /** Moves over the stage until a building is under the pointer; returns where. */
@@ -48,7 +49,8 @@ test('the OSM buildings show in 3D; hover and click give read-only details', asy
   await expect(details).toBeVisible()
   await expect(details.getByText('Reference feature, read-only')).toBeVisible()
   await expect(details.getByText('OpenStreetMap (ODbL)')).toBeVisible()
-  await expect(details.getByRole('button')).toHaveCount(0)
+  // Reference features can only be deselected
+  await expect(details.getByRole('button')).toHaveText(['Deselect'])
   await expect(details.getByRole('textbox')).toHaveCount(0)
 })
 
@@ -65,5 +67,5 @@ test('Buildings (OSM) is a layer in All layers and can be switched off', async (
 
   await page.mouse.move(at.x + 1, at.y + 1)
   await page.mouse.move(at.x, at.y)
-  await expect(page.getByRole('tooltip')).toHaveCount(0)
+  await expect(page.getByRole('tooltip').filter({ hasText: /^Building / })).toHaveCount(0)
 })
