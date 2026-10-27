@@ -2,6 +2,47 @@ import { Box3, Vector3 } from 'three'
 import { MODEL_SPECS, buildModel, getModelSpec, modelEnvelopeSize, modelScale } from './registry'
 import { tallest } from './model-spec'
 
+/** Part 2: structures, areas, roads and zones. Their keys, once. */
+const PART2_KEYS = [
+  'WAREHOUSE_POLY',
+  'WAREHOUSE',
+  'TRANSIT_SHED',
+  'COVERED_BAY',
+  'BUILDING',
+  'STORAGE_PAD',
+  'LAYDOWN_YARD',
+  'QUAY_STAGING',
+  'STOCKPILE_BAY',
+  'SILO',
+  'HOPPER',
+  'TRANSFER_TOWER',
+  'CONVEYOR',
+  'LIQUID_TANK',
+  'BUND_WALL',
+  'PUMP_STATION',
+  'PIPELINE',
+  'PIPE_RACK',
+  'LOADING_ARM',
+  'BERTH',
+  'FENDER',
+  'BOLLARD',
+  'RORO_RAMP',
+  'GATE',
+  'WEIGHBRIDGE',
+  'JUNCTION',
+  'TRUCK_HOLDING',
+  'PARKING_YARD',
+  'INSPECTION_BAY',
+  'DISPATCH_LANE',
+  'FIRE_ACCESS',
+  'INTERNAL_ROAD',
+  'EXCLUSION_ZONE',
+  'DRAINAGE_ZONE',
+  'FENCE',
+  'TERMINAL_BOUNDARY',
+  'SURFACE_AREA',
+]
+
 const REQUIRED_KEYS = [
   'MOBILE_HARBOUR_CRANE',
   'LEVEL_LUFFING_CRANE',
@@ -25,48 +66,53 @@ const REQUIRED_KEYS = [
 ]
 
 describe('model registry', () => {
-  it('has a model for every crane, handling machine and vehicle key, once', () => {
+  it('has a model for each of the 56 asset types, once', () => {
     const keys = MODEL_SPECS.map((s) => s.key)
-    expect([...keys].sort()).toEqual([...REQUIRED_KEYS].sort())
+    expect(keys).toHaveLength(56)
+    expect([...keys].sort()).toEqual([...REQUIRED_KEYS, ...PART2_KEYS].sort())
     expect(getModelSpec('NO_SUCH_MODEL')).toBeUndefined()
   })
 
-  describe.each(MODEL_SPECS.map((s) => [s.key, s] as const))('%s', (_key, spec) => {
-    const built = buildModel(spec)
-    const box = new Box3().setFromObject(built.group)
-    const size = box.getSize(new Vector3())
+  describe.each(MODEL_SPECS.filter((s) => !s.parametric).map((s) => [s.key, s] as const))(
+    '%s',
+    (_key, spec) => {
+      const built = buildModel(spec)
+      const box = new Box3().setFromObject(built.group)
+      const size = box.getSize(new Vector3())
 
-    it('uses at most 6 draw calls', () => {
-      expect(built.drawCalls).toBeGreaterThan(0)
-      expect(built.drawCalls).toBeLessThanOrEqual(6)
-    })
+      it('uses at most 6 draw calls', () => {
+        expect(built.drawCalls).toBeGreaterThan(0)
+        expect(built.drawCalls).toBeLessThanOrEqual(6)
+      })
 
-    it('measures its declared size, centred on the footprint at ground', () => {
-      expect(size.x).toBeCloseTo(spec.size.length, 3)
-      expect(size.z).toBeCloseTo(spec.size.width, 3)
-      expect(size.y).toBeCloseTo(tallest(spec), 3)
-      expect(box.min.y).toBeCloseTo(0, 5)
-      expect((box.min.x + box.max.x) / 2).toBeCloseTo(0, 5)
-      expect((box.min.z + box.max.z) / 2).toBeCloseTo(0, 5)
-    })
+      it('measures its declared size, centred on the footprint at ground', () => {
+        expect(size.x).toBeCloseTo(spec.size.length, 3)
+        expect(size.z).toBeCloseTo(spec.size.width, 3)
+        expect(size.y).toBeCloseTo(tallest(spec), 3)
+        expect(box.min.y).toBeCloseTo(0, 5)
+        expect((box.min.x + box.max.x) / 2).toBeCloseTo(0, 5)
+        expect((box.min.z + box.max.z) / 2).toBeCloseTo(0, 5)
+      })
 
-    it('declares pivots inside its own bounds', () => {
-      expect(Object.keys(built.pivots).length).toBeGreaterThan(0)
-      const grown = box.clone().expandByScalar(0.01)
-      for (const point of Object.values(built.pivots)) {
-        expect(grown.containsPoint(new Vector3(...point))).toBe(true)
-      }
-    })
+      it('declares pivots inside its own bounds', () => {
+        expect(Object.keys(built.pivots).length).toBeGreaterThan(0)
+        const grown = box.clone().expandByScalar(0.01)
+        for (const point of Object.values(built.pivots)) {
+          expect(grown.containsPoint(new Vector3(...point))).toBe(true)
+        }
+      })
 
-    it('is matte: no shiny material', () => {
-      for (const mesh of built.group.children) {
-        const material = (mesh as unknown as { material: { roughness: number; metalness: number } })
-          .material
-        expect(material.roughness).toBe(1)
-        expect(material.metalness).toBe(0)
-      }
-    })
-  })
+      it('is matte: no shiny material', () => {
+        for (const mesh of built.group.children) {
+          const material = (
+            mesh as unknown as { material: { roughness: number; metalness: number } }
+          ).material
+          expect(material.roughness).toBe(1)
+          expect(material.metalness).toBe(0)
+        }
+      })
+    },
+  )
 
   it('keeps the shapes the ticket names', () => {
     const colours = (key: string) =>

@@ -50,6 +50,24 @@ describe('AssetVisual', () => {
     await renderer.unmount()
   })
 
+  it('redraws a parametric model true to the new size, unscaled', async () => {
+    const size = { length: 100, width: 30, height: 0.2 }
+    const details = { name: 'Berth 2', depth: 12 }
+    const renderer = await ReactThreeTestRenderer.create(
+      <AssetVisual modelKey="BERTH" size={size} details={details} />,
+    )
+    const before = sizeOf(renderer.scene.findByProps({ name: 'model' }).instance)
+    expect(before.x).toBeCloseTo(100, 3)
+
+    await renderer.update(
+      <AssetVisual modelKey="BERTH" size={{ ...size, length: 150 }} details={details} />,
+    )
+    const after = renderer.scene.findByProps({ name: 'model' }).instance
+    expect(sizeOf(after).x).toBeCloseTo(150, 3)
+    expect(after.scale.toArray()).toEqual([1, 1, 1])
+    await renderer.unmount()
+  })
+
   it('shows a neutral box at the asset size for an unknown model key', async () => {
     const renderer = await ReactThreeTestRenderer.create(
       <AssetVisual

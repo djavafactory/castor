@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
 // Runs against the dev stack (E2E_BASE_URL), which resets and seeds Westports on every start.
+test.skip(!process.env.E2E_BASE_URL, 'needs the running dev stack: set E2E_BASE_URL')
 
 async function signInAsViewer(page: Page) {
   await page.goto('/login')

@@ -1,8 +1,15 @@
 import { useEffect, useMemo } from 'react'
 import { CanvasTexture, SRGBColorSpace } from 'three'
 import { matteMaterial } from './box-batch'
+import type { Pt } from './box-batch'
 import { buildModel, disposeModel, getModelSpec, modelScale } from './registry'
-import { COLOUR, RING_OPACITY, type ModelSize } from './model-spec'
+import {
+  COLOUR,
+  RING_OPACITY,
+  type ModelDetails,
+  type ModelParams,
+  type ModelSize,
+} from './model-spec'
 
 export interface AssetVisualProps {
   /** The asset's model_key. */
@@ -15,15 +22,24 @@ export interface AssetVisualProps {
   positionMode?: string
   /** Position uncertainty in metres: radius of the ring of a parked mobile asset. */
   uncertaintyM?: number
+  /** Drawn polygon of an area asset and polyline of a linear one, around the asset's centre, metres. */
+  footprint?: Pt[]
+  path?: Pt[]
+  /** Asset details the shape depends on: doors, bays, design fill, berth name. */
+  details?: ModelDetails
 }
 
 /** Pixel size of the label texture on an unknown model. */
 const LABEL_PX = 256
 
-function labelTexture(text: string): CanvasTexture | null {
+/** Captions above models (berth and pad names) are wider than the label of an unknown model. */
+const CAPTION_PX = 512
+const CAPTION_SCALE: [number, number, number] = [32, 4, 1]
+
+function labelTexture(text: string, width = LABEL_PX): CanvasTexture | null {
   const canvas = document.createElement('canvas')
-  canvas.width = LABEL_PX
-  canvas.height = LABEL_PX / 4
+  canvas.width = width
+  canvas.height = width / 4
   const context = canvas.getContext('2d')
   if (!context) return null
   context.fillStyle = 'rgb(31, 41, 55)'
@@ -46,6 +62,9 @@ export function AssetVisual({
   size,
   positionMode,
   uncertaintyM,
+  footprint,
+  path,
+  details,
 }: AssetVisualProps) {
   const spec = getModelSpec(modelKey)
   const ringRadius = spec?.mobile && positionMode === 'PARKED' ? (uncertaintyM ?? 0) : 0
@@ -53,7 +72,10 @@ export function AssetVisual({
   return (
     <group name={`asset-visual-${modelKey}`}>
       {spec ? (
-        <KnownModel modelKey={modelKey} size={size} />
+        <KnownModel
+          modelKey={modelKey}
+          params={{ size, footprint, path, details: details ?? {} }}
+        />
       ) : (
         <UnknownModel label={label} size={size} />
       )}
@@ -62,11 +84,34 @@ export function AssetVisual({
   )
 }
 
-function KnownModel({ modelKey, size }: { modelKey: string; size: ModelSize }) {
+function KnownModel({ modelKey, params }: { modelKey: string; params: ModelParams }) {
   const spec = getModelSpec(modelKey)!
-  const built = useMemo(() => buildModel(spec), [spec])
+  const { size } = params
+  // Parametric models are redrawn when anything they depend on changes; the others only rescale
+  const dependsOn = spec.parametric ? JSON.stringify(params) : null
+  const built = useMemo(
+    () => buildModel(spec, spec.parametric ? params : undefined),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [spec, dependsOn],
+  )
   useEffect(() => () => disposeModel(built.group), [built])
-  return <primitive object={built.group} name="model" scale={modelScale(spec, size)} />
+  const caption = spec.caption?.(params)
+  const captionText = caption?.text
+  const texture = useMemo(
+    () => (captionText ? labelTexture(captionText, CAPTION_PX) : null),
+    [captionText],
+  )
+  useEffect(() => () => texture?.dispose(), [texture])
+  return (
+    <>
+      <primitive object={built.group} name="model" scale={modelScale(spec, size)} />
+      {texture && caption && (
+        <sprite name="caption" position={[0, caption.height, 0]} scale={CAPTION_SCALE}>
+          <spriteMaterial map={texture} depthTest={false} transparent />
+        </sprite>
+      )}
+    </>
+  )
 }
 
 function UnknownModel({ label, size }: { label?: string; size: ModelSize }) {
