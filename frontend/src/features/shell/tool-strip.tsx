@@ -18,6 +18,7 @@ import { Button, IconButton } from '@/components/ui/button'
 import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui/overlays'
 import { Segmented } from '@/components/ui/segmented'
 import { CONTAINERS_LAYER } from '@/components/scene/layers'
+import { useMapStore } from '@/components/map/map-store'
 import { PRESETS, presetByKey } from '@/components/scene/stage/camera-presets'
 import { camera, useCameraStore } from '@/components/scene/stage/view-state'
 import { containersEnabled } from '@/lib/features'
@@ -25,6 +26,26 @@ import { useUiStore, type ViewMode } from '@/lib/stores/ui-store'
 import { toggleFullscreen, useFullscreen } from './fullscreen'
 import { LayersMenu } from './layers-menu'
 import { MoreMenu } from './more-menu'
+import { showsMap, showsScene } from './view-modes'
+
+/** The +, - and Reset buttons move whichever views are on screen: the 2D map, the 3D camera, or both. */
+function zoomViews(direction: 'in' | 'out') {
+  const { mode, viewMode } = useUiStore.getState()
+  if (showsMap(mode, viewMode)) {
+    if (direction === 'in') useMapStore.getState().zoomIn()
+    else useMapStore.getState().zoomOut()
+  }
+  if (showsScene(mode, viewMode)) {
+    if (direction === 'in') camera.zoomIn()
+    else camera.zoomOut()
+  }
+}
+
+function resetViews() {
+  const { mode, viewMode } = useUiStore.getState()
+  if (showsMap(mode, viewMode)) useMapStore.getState().reset()
+  if (showsScene(mode, viewMode)) camera.reset()
+}
 
 const VIEW_MODES: { value: ViewMode; label: string }[] = [
   { value: '2d', label: '2D' },
@@ -114,10 +135,10 @@ export function ToolStrip() {
       )}
       <CameraMenu />
       <Group label="Zoom and rotate">
-        <IconButton label="Zoom out" onClick={camera.zoomOut}>
+        <IconButton label="Zoom out" onClick={() => zoomViews('out')}>
           <ZoomOut aria-hidden="true" />
         </IconButton>
-        <IconButton label="Zoom in" onClick={camera.zoomIn}>
+        <IconButton label="Zoom in" onClick={() => zoomViews('in')}>
           <ZoomIn aria-hidden="true" />
         </IconButton>
         <IconButton
@@ -128,7 +149,7 @@ export function ToolStrip() {
         >
           <Orbit aria-hidden="true" />
         </IconButton>
-        <IconButton label="Reset" tip="Back to the overview" onClick={camera.reset}>
+        <IconButton label="Reset" tip="Back to the overview" onClick={resetViews}>
           <RotateCcw aria-hidden="true" />
         </IconButton>
       </Group>

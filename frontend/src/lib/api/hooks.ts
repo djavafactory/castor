@@ -32,7 +32,8 @@ export const queryKeys = {
   versions: (code: string) => ['layout', code, 'versions'] as const,
   assetHistory: (code: string, assetId: string) => ['asset-history', code, assetId] as const,
   accuracyReport: (code: string) => ['accuracy-report', code] as const,
-  search: (code: string, q: string) => ['search', code, q] as const,
+  search: (code: string, q: string, layoutId: string | null) =>
+    ['search', code, q, layoutId] as const,
 }
 
 /** The port of this deployment (VITE_PORT_CODE); hooks accept a code for tests and for other ports. */
@@ -187,14 +188,25 @@ export function useAccuracyReport(code: string = defaultPortCode()) {
   })
 }
 
-/** Search the layout. Nothing is sent until the query has at least 2 characters. */
-export function useSearch(q: string, code: string = defaultPortCode()) {
+/**
+ * Search the port's own data (port, control points, the assets of one layout, map shapes). Nothing is sent until the
+ * text has at least 2 characters, and nothing is kept: the answer is dropped as soon as the box no longer shows it.
+ */
+export function useSearch(
+  q: string,
+  code: string = defaultPortCode(),
+  layoutId: string | null = null,
+) {
   const term = q.trim()
   return useQuery({
-    queryKey: queryKeys.search(code, term),
+    queryKey: queryKeys.search(code, term, layoutId),
     queryFn: ({ signal }) =>
-      getParsed(`${portPath(code)}/search`, searchResultsSchema, { signal, query: { q: term } }),
+      getParsed(`${portPath(code)}/search`, searchResultsSchema, {
+        signal,
+        query: { q: term, layoutId: layoutId ?? undefined },
+      }),
     enabled: term.length >= 2,
-    ...layoutQueryOptions,
+    staleTime: 0,
+    gcTime: 0,
   })
 }

@@ -106,6 +106,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ports/{portCode}/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Finds the port, control points, layout assets and map shapes by name or code (own data only)
+         * @description Case-insensitive substring of name and code, at most 12 results. Nothing typed is stored, logged as data or sent to a third party; the answer is never cached.
+         */
+        get: operations["searchPlaces"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ports/{portCode}/layouts/current": {
         parameters: {
             query?: never;
@@ -446,6 +466,22 @@ export interface components {
             features: components["schemas"]["LayoutFeatureCollection"];
         };
         /** @enum {string} */
+        PlaceKind: "PORT" | "CONTROL_POINT" | "ASSET" | "REFERENCE";
+        PlaceHit: {
+            kind: components["schemas"]["PlaceKind"];
+            /** @description Port code, control point code, asset id or OpenStreetMap reference, by kind */
+            id: string;
+            label: string;
+            /** @description The type of the thing, for example "Berth" */
+            sublabel: string;
+            /** Format: double */
+            lon: number;
+            /** Format: double */
+            lat: number;
+            /** @description minLon, minLat, maxLon, maxLat of the shape; a point has a box of no size */
+            bbox: number[];
+        };
+        /** @enum {string} */
         Role: "VIEWER" | "EDITOR" | "PUBLISHER" | "ADMIN";
         ProblemDetails: {
             /** Format: uri */
@@ -637,6 +673,47 @@ export interface operations {
                 content?: never;
             };
             /** @description Unknown port */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    searchPlaces: {
+        parameters: {
+            query: {
+                /** @description At least 2 characters */
+                q: string;
+                /** @description The layout version whose assets are searched (the draft in Design); the published version when absent. Drafts are for editors and above. */
+                layoutId?: string;
+            };
+            header?: never;
+            path: {
+                portCode: components["parameters"]["PortCode"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The places, best match first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaceHit"][];
+                };
+            };
+            /** @description q is shorter than 2 characters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown port, or a layout version that does not exist for this caller */
             404: {
                 headers: {
                     [name: string]: unknown;

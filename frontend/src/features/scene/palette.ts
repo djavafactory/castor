@@ -47,6 +47,8 @@ export const palette = {
     OPERATOR: '#E8A317',
     APPROXIMATE: '#8A8F98',
   },
+  /** The 2D map (DESIGNER-02): grid lines and the thin outlines of the OpenStreetMap background. */
+  map: { grid: '#D3CCBB', osmOutline: '#9A9EA6' },
   /** Hover label and selection. */
   select: {
     shells: ['#F2622E', '#FF8A5C', '#FFB08F'],

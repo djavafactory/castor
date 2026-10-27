@@ -178,6 +178,45 @@ class LayoutFeatureValidatorTest {
     }
 
     @Test
+    void googleMapsIsALocatorOnlyAndCannotBeTheSourceOfStoredGeometry() {
+        var a = building("WH1", hall(), BigDecimal.valueOf(30));
+        var traced = new LayoutAsset(
+                null,
+                a.code(),
+                a.typeCode(),
+                a.name(),
+                a.geom(),
+                a.anchor(),
+                a.headingDeg(),
+                a.lengthM(),
+                a.widthM(),
+                a.heightM(),
+                null,
+                null,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                1,
+                null,
+                null,
+                null,
+                new LayoutAsset.Provenance("GOOGLE", "APPROXIMATE", null, null),
+                null,
+                AssetDetails.NONE,
+                List.of(),
+                0);
+        var violations = validator.validate(List.of(draft(traced)));
+        assertEquals(1, violations.size());
+        assertEquals("SOURCE_NOT_TRACEABLE", violations.get(0).code());
+        assertEquals("/properties/provenance/source", violations.get(0).pointer());
+    }
+
+    @Test
+    void onlyGoogleIsUntraceableAndStoredSourcesStayValid() {
+        assertEquals(Set.of("GOOGLE"), LayoutFeatureValidator.UNTRACEABLE_SOURCES);
+        assertEquals(Set.of(), codes(draft(building("WH1", hall(), BigDecimal.valueOf(30)))));
+    }
+
+    @Test
     void linksMustResolveAndMayNotPointAtThemselves() {
         var a = building("WH1", hall(), BigDecimal.valueOf(30));
         var found = codes(draft(

@@ -12,6 +12,7 @@ import { BuildingsLayer, type BuildingHover } from './buildings/buildings-layer'
 import { CameraRig } from './stage/camera-rig'
 import { footprintOf } from './stage/footprint'
 import { Ground } from './stage/ground'
+import { GroundCursor } from './stage/ground-cursor'
 import { Lighting } from './stage/lighting'
 import { OsmRoadsLayer } from './stage/osm-roads'
 import { MonitorSelection } from './stage/selection'
@@ -19,12 +20,7 @@ import { landSceneBox, stageExtent } from './stage/stage-extent'
 import { StageCanvas } from './stage/stage-canvas'
 import { Water } from './stage/water'
 import { LayoutLayer, type LayoutHover } from './layout/layout-layer'
-import {
-  BUILDINGS_LAYER,
-  useLayerVisible,
-  visibleFeatures,
-  ROADS_LAYER,
-} from './layers'
+import { BUILDINGS_LAYER, useLayerVisible, visibleFeatures, ROADS_LAYER } from './layers'
 import { hoverLines, humanKey } from './layout/asset-rows'
 import { SceneTooltip } from './scene-tooltip'
 import { webglAvailable } from './webgl'
@@ -114,6 +110,7 @@ function Scene() {
           <LayoutLayer features={features} typeColours={typeColours} onHover={setAssetHover} />
         )}
         {selected && <MonitorSelection ring={selected.ring} height={selected.height} />}
+        {frameReady && <GroundCursor />}
       </StageCanvas>
       {layout.isError && (
         <div className="absolute top-3 right-3 z-menu w-72">

@@ -1,13 +1,17 @@
 import { DraftSummary } from '@/features/design/draft-summary'
+import { CursorReadout } from '@/components/map/cursor-readout'
+import { Map2D } from '@/components/map/map-2d'
 import { Tabs } from '@/components/ui/tabs'
 import { LayoutAssetDetails } from '@/components/scene/layout/asset-details'
 import { BuildingDetails } from '@/components/scene/buildings/building-details'
 import { ModelPalette } from '@/components/scene/models/model-palette'
 import { PortScene } from '@/components/scene/port-scene'
+import { BasemapSelect } from './basemap-select'
 import { CatalogueTab } from './catalogue-tab'
 import { DebugSwitches } from './more-menu'
 import { PortDetails } from './port-details'
 import { useSceneKeys } from './use-scene-keys'
+import { showsMap, showsScene } from './view-modes'
 import { useEffect } from 'react'
 import { useSelectionStore } from '@/lib/stores/selection-store'
 import { useUiStore, type Mode, type RightTab } from '@/lib/stores/ui-store'
@@ -34,8 +38,9 @@ export function WorkArea() {
   const panelHidden = useUiStore((s) => s.panelHidden)
   const paletteHidden = useUiStore((s) => s.paletteHidden)
   useSceneKeys()
-  // Monitor is always the 3D replica; Design shows it in the 3D and Split views (the 2D map is a DSN ticket).
-  const showScene = mode === 'monitor' || viewMode !== '2d'
+  // Monitor is always the 3D replica; Design shows the 2D map in the 2D and Split views and the replica in 3D and Split.
+  const showScene = showsScene(mode, viewMode)
+  const showMap = showsMap(mode, viewMode)
   return (
     <div className="flex min-h-0 flex-col">
       <div className="flex min-h-0 flex-1">
@@ -52,9 +57,22 @@ export function WorkArea() {
         )}
         <main
           aria-label={mode === 'design' ? `Design stage, ${viewMode}` : 'Port stage'}
-          className="relative min-w-0 flex-1 bg-canvas"
+          className="flex min-w-0 flex-1 bg-canvas"
         >
-          {showScene && <PortScene />}
+          {showMap && (
+            <div className="relative min-w-0 flex-1 border-r border-line-soft last:border-r-0">
+              <div className="absolute inset-0">
+                <Map2D />
+              </div>
+            </div>
+          )}
+          {showScene && (
+            <div className="relative min-w-0 flex-1">
+              <div className="absolute inset-0">
+                <PortScene />
+              </div>
+            </div>
+          )}
         </main>
         {!panelHidden && <RightPanel mode={mode} />}
       </div>
@@ -64,7 +82,9 @@ export function WorkArea() {
           className="flex h-8 shrink-0 items-center gap-3 border-t border-line-soft bg-paper px-4 font-mono text-xs text-muted"
         >
           <DraftSummary />
-          <span className="ml-auto flex items-center gap-2 font-sans text-[13px] text-ink">
+          <span className="ml-auto flex items-center gap-3 font-sans text-[13px] text-ink">
+            <CursorReadout />
+            <BasemapSelect />
             <DebugSwitches compact />
           </span>
         </footer>

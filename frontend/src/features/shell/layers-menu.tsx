@@ -4,6 +4,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/overlay
 import { layers } from '@/components/scene/layers'
 import { cn } from '@/lib/utils'
 import { useUiStore } from '@/lib/stores/ui-store'
+import { changeBasemap } from './change-basemap'
 
 /**
  * "All layers": one row per layer with a switch, "Isolate" (only this layer shows) and, in Design, a lock.
@@ -19,7 +20,6 @@ export function LayersMenu() {
   const setLayerLocked = useUiStore((s) => s.setLayerLocked)
   const design = useUiStore((s) => s.mode === 'design')
   const basemap = useUiStore((s) => s.basemap)
-  const setBasemap = useUiStore((s) => s.setBasemap)
 
   return (
     <Popover>
@@ -83,7 +83,7 @@ export function LayersMenu() {
                 type="checkbox"
                 className="size-4 accent-signal"
                 checked={basemap === 'sentinel2'}
-                onChange={(event) => setBasemap(event.target.checked ? 'sentinel2' : 'none')}
+                onChange={(event) => changeBasemap(event.target.checked ? 'sentinel2' : 'none')}
               />
               Satellite imagery (Sentinel-2)
             </label>

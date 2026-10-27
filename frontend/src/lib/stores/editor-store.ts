@@ -1,5 +1,8 @@
+import { toast } from 'sonner'
 import { create } from 'zustand'
+import { GOOGLE_TOAST, mayTraceOn } from '@/lib/basemap'
 import type { components } from '@/types/api'
+import { useUiStore } from './ui-store'
 
 export type ProblemError = components['schemas']['ProblemError']
 
@@ -69,13 +72,19 @@ const initial = {
 
 export const useEditorStore = create<EditorState>()((set, get) => ({
   ...initial,
-  setTool: (kind, typeCode) =>
+  setTool: (kind, typeCode) => {
+    // Google Maps is a locator only: nothing may be placed or drawn over it (measuring stores nothing)
+    if (kind !== 'measure' && !mayTraceOn(useUiStore.getState().basemap)) {
+      toast(GOOGLE_TOAST)
+      return
+    }
     set({
       tool:
         kind === 'measure'
           ? { kind, typeCode: null, rotationDeg: 0, points: [] }
           : { kind, typeCode: typeCode ?? '', rotationDeg: 0, points: [] },
-    }),
+    })
+  },
   clearTool: () => set({ tool: null }),
   setRotation: (rotationDeg) =>
     set((state) => (state.tool ? { tool: { ...state.tool, rotationDeg } } : state)),

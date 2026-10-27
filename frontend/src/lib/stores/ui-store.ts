@@ -1,10 +1,12 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
+import { loadBasemap, saveBasemap, type Basemap } from '@/lib/basemap'
+import { useAuthStore } from './auth-store'
 
 export type Mode = 'monitor' | 'design'
 export type RightTab = 'details' | 'catalogue' | 'inspector' | 'issues' | 'versions'
 export type ViewMode = '2d' | '3d' | 'split'
-export type Basemap = 'sentinel2' | 'none' | 'google'
+export type { Basemap }
 
 interface UiState {
   mode: Mode
@@ -71,7 +73,8 @@ export const useUiStore = create<UiState>()(
       helpOpen: false,
       accuracyColouring: false,
       envelope: false,
-      basemap: 'sentinel2',
+      // The shell loads after the login, so the user is usually already known when this store is made
+      basemap: loadBasemap(useAuthStore.getState().username),
       imageryFailed: false,
       openMenu: null,
       setMode: (mode) => set({ mode }),
@@ -91,7 +94,10 @@ export const useUiStore = create<UiState>()(
       setLabels: (labels) => set({ labels }),
       setAccuracyColouring: (accuracyColouring) => set({ accuracyColouring }),
       setEnvelope: (envelope) => set({ envelope }),
-      setBasemap: (basemap) => set({ basemap }),
+      setBasemap: (basemap) => {
+        set({ basemap })
+        saveBasemap(useAuthStore.getState().username, basemap)
+      },
       setImageryFailed: (imageryFailed) => set({ imageryFailed }),
       setOpenMenu: (openMenu) => set({ openMenu }),
     }),
@@ -106,3 +112,10 @@ export const useUiStore = create<UiState>()(
     },
   ),
 )
+
+/** The basemap is a view preference of the signed-in user: it follows them, not the layout, also at the next sign-in. */
+useAuthStore.subscribe((state, previous) => {
+  if (state.username !== previous.username) {
+    useUiStore.setState({ basemap: loadBasemap(state.username) })
+  }
+})

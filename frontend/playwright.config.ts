@@ -6,7 +6,7 @@ const PORT = 4173
 const externalBaseURL = process.env.E2E_BASE_URL
 // Specs that need the real backend and seed data: with E2E_BASE_URL only these run, without it they are left out.
 // The other specs mock the API and run against the locally served build.
-const STACK_SPECS = ['**/osm-buildings.spec.ts', '**/monitor.spec.ts']
+const STACK_SPECS = ['**/osm-buildings.spec.ts', '**/monitor.spec.ts', '**/map-2d.spec.ts']
 
 export default defineConfig({
   testDir: './e2e',

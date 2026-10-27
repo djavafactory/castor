@@ -101,6 +101,43 @@ paths:
           description: Unknown port
         '400':
           description: Unknown kind or malformed bbox
+  /api/v1/ports/{portCode}/search:
+    get:
+      operationId: searchPlaces
+      summary: Finds the port, control points, layout assets and map shapes by name or code (own data only)
+      description: Case-insensitive substring of name and code, at most 12 results. Nothing typed is stored, logged as data or sent to a third party; the answer is never cached.
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/PortCode'
+        - name: q
+          in: query
+          required: true
+          description: At least 2 characters
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 100
+        - name: layoutId
+          in: query
+          required: false
+          description: The layout version whose assets are searched (the draft in Design); the published version when absent. Drafts are for editors and above.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The places, best match first
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 12
+                items:
+                  $ref: '#/components/schemas/PlaceHit'
+        '400':
+          description: q is shorter than 2 characters
+        '404':
+          description: Unknown port, or a layout version that does not exist for this caller
   /api/v1/ports/{portCode}/layouts/current:
     get:
       operationId: getCurrentLayout
@@ -685,6 +722,37 @@ components:
           $ref: '#/components/schemas/LayoutHeader'
         features:
           $ref: '#/components/schemas/LayoutFeatureCollection'
+    PlaceKind:
+      type: string
+      enum: [PORT, CONTROL_POINT, ASSET, REFERENCE]
+    PlaceHit:
+      type: object
+      required: [kind, id, label, sublabel, lon, lat, bbox]
+      properties:
+        kind:
+          $ref: '#/components/schemas/PlaceKind'
+        id:
+          type: string
+          description: Port code, control point code, asset id or OpenStreetMap reference, by kind
+        label:
+          type: string
+        sublabel:
+          type: string
+          description: The type of the thing, for example "Berth"
+        lon:
+          type: number
+          format: double
+        lat:
+          type: number
+          format: double
+        bbox:
+          type: array
+          description: minLon, minLat, maxLon, maxLat of the shape; a point has a box of no size
+          minItems: 4
+          maxItems: 4
+          items:
+            type: number
+            format: double
     Role:
       type: string
       enum: [VIEWER, EDITOR, PUBLISHER, ADMIN]

@@ -30,6 +30,9 @@ public final class LayoutFeatureValidator {
     /** The stored footprint must equal the one rebuilt from its fields within this distance, metres. */
     public static final double FOOTPRINT_TOLERANCE_M = 0.01;
 
+    /** Sources whose imagery must never be traced into stored geometry (ref.data_source with may_trace and may_persist false). */
+    public static final Set<String> UNTRACEABLE_SOURCES = Set.of("GOOGLE");
+
     private static final Set<String> LINK_KINDS = Set.of("SERVES", "FEEDS", "BELONGS_TO", "CONNECTS_TO");
 
     private final Map<String, AssetType> types;
@@ -71,6 +74,14 @@ public final class LayoutFeatureValidator {
         }
         if (a.name() == null || a.name().isBlank()) {
             out.add(v("NAME_REQUIRED", d, "/properties/name", "Name is required"));
+        }
+        if (a.provenance() != null
+                && UNTRACEABLE_SOURCES.contains(a.provenance().source())) {
+            out.add(v(
+                    "SOURCE_NOT_TRACEABLE",
+                    d,
+                    "/properties/provenance/source",
+                    "Google Maps is a locator only: its imagery cannot be traced into stored geometry."));
         }
         AssetType type = types.get(a.typeCode());
         if (type == null) {

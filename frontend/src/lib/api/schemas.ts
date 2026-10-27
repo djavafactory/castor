@@ -354,8 +354,22 @@ export const accuracyReportSchema = z.object({
   byAccuracy: z.record(z.string(), z.number().int()),
 })
 
+export const placeKindSchema = z.enum(['PORT', 'CONTROL_POINT', 'ASSET', 'REFERENCE'])
+
+/** A place of the port's own data: the port, a control point, an asset or an OpenStreetMap shape. */
 export const searchResultsSchema = z.array(
-  z.object({ kind: z.string(), id: z.string(), label: z.string() }),
+  z.object({
+    kind: placeKindSchema,
+    /** Port code, control point code, asset id or OpenStreetMap reference, by kind. */
+    id: z.string(),
+    label: z.string(),
+    /** The type of the thing, for example "Berth". */
+    sublabel: z.string(),
+    lon: z.number(),
+    lat: z.number(),
+    /** minLon, minLat, maxLon, maxLat of the shape; a point has a box of no size. */
+    bbox: z.tuple([z.number(), z.number(), z.number(), z.number()]),
+  }),
 )
 
 export type Port = z.infer<typeof portSchema>

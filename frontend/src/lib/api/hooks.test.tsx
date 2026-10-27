@@ -13,7 +13,7 @@ import {
   portFixture,
   referenceFeaturesFixture,
 } from '@/test/fixtures'
-import { wrapperFor } from '@/test/query-wrapper'
+import { createTestClient, wrapperFor } from '@/test/query-wrapper'
 import { server } from '@/test/setup'
 import {
   BAD_SHAPE_TITLE,
@@ -229,7 +229,17 @@ describe('layout hooks', () => {
     server.use(
       http.get(`${WESTPORTS}/search`, ({ request }) => {
         term = new URL(request.url).searchParams.get('q')
-        return HttpResponse.json([{ kind: 'ASSET', id: 'a-1', label: 'Excavator 1' }])
+        return HttpResponse.json([
+          {
+            kind: 'ASSET',
+            id: 'a-1',
+            label: 'Excavator 1',
+            sublabel: 'Excavator',
+            lon: 101.3,
+            lat: 2.95,
+            bbox: [101.3, 2.95, 101.3, 2.95],
+          },
+        ])
       }),
     )
     const short = renderHook(() => useSearch(' a ', 'westports'), { wrapper: wrapperFor() })
@@ -239,6 +249,73 @@ describe('layout hooks', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(term).toBe('exc')
     expect(result.current.data?.[0]?.label).toBe('Excavator 1')
+  })
+})
+
+describe('useSearch (GET search)', () => {
+  const hit = {
+    kind: 'CONTROL_POINT',
+    id: 'CP-MAIN-GATE',
+    label: 'Main gate',
+    sublabel: 'Control point',
+    lon: 101.3093602,
+    lat: 2.9518844,
+    bbox: [101.3093602, 2.9518844, 101.3093602, 2.9518844],
+  }
+
+  it('sends the layout whose assets are searched, when there is one', async () => {
+    let url: URL | null = null
+    server.use(
+      http.get(`${WESTPORTS}/search`, ({ request }) => {
+        url = new URL(request.url)
+        return HttpResponse.json([hit])
+      }),
+    )
+    const { result } = renderHook(() => useSearch('gate', 'westports', 'draft-7'), {
+      wrapper: wrapperFor(),
+    })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(url!.searchParams.get('q')).toBe('gate')
+    expect(url!.searchParams.get('layoutId')).toBe('draft-7')
+    expect(result.current.data?.[0]).toMatchObject({ kind: 'CONTROL_POINT', lat: 2.9518844 })
+  })
+
+  it('sends no layoutId for the published layout', async () => {
+    let url: URL | null = null
+    server.use(
+      http.get(`${WESTPORTS}/search`, ({ request }) => {
+        url = new URL(request.url)
+        return HttpResponse.json([])
+      }),
+    )
+    const { result } = renderHook(() => useSearch('gate', 'westports'), { wrapper: wrapperFor() })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(url!.searchParams.has('layoutId')).toBe(false)
+  })
+
+  it('refuses an answer of the wrong shape', async () => {
+    server.use(
+      http.get(`${WESTPORTS}/search`, () =>
+        HttpResponse.json([{ kind: 'GOOGLE', id: 'x', label: 'x' }]),
+      ),
+    )
+    const { result } = renderHook(() => useSearch('gate', 'westports'), { wrapper: wrapperFor() })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.error).toBeInstanceOf(ResponseShapeError)
+  })
+
+  it('keeps nothing of what was typed once the box no longer shows it', async () => {
+    server.use(http.get(`${WESTPORTS}/search`, () => HttpResponse.json([hit])))
+    const client = createTestClient()
+    const { result, unmount } = renderHook(() => useSearch('gate', 'westports'), {
+      wrapper: wrapperFor(client),
+    })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(client.getQueryCache().findAll({ queryKey: ['search'] })).toHaveLength(1)
+    unmount()
+    await waitFor(() =>
+      expect(client.getQueryCache().findAll({ queryKey: ['search'] })).toHaveLength(0),
+    )
   })
 })
 
