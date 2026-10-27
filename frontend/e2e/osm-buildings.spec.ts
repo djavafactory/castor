@@ -17,7 +17,15 @@ async function hoverABuilding(page: Page): Promise<{ x: number; y: number }> {
   for (let y = box.y + box.height * 0.48; y < box.y + box.height * 0.66; y += 6) {
     for (let x = box.x + 4; x < box.x + box.width; x += 6) {
       await page.mouse.move(x, y)
-      if ((await page.getByRole('tooltip').count()) > 0) return { x, y }
+      // Assets of the layout have tooltips too; only a building's starts with "Building"
+      if (
+        (await page
+          .getByRole('tooltip')
+          .filter({ hasText: /^Building / })
+          .count()) > 0
+      ) {
+        return { x, y }
+      }
     }
   }
   throw new Error('no building found under the pointer')

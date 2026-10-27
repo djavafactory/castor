@@ -14,6 +14,7 @@ import { LayoutStatusBadge } from '@/features/design/layout-status-badge'
 import { ApiError } from '@/lib/api-client'
 import { getEnv } from '@/lib/env'
 import { Logo } from '@/components/logo'
+import { PublishedVersion } from './published-version'
 import { HelpPopover } from './help-popover'
 import { usePort } from './use-port'
 import { useMenu } from './use-menu'
@@ -23,6 +24,7 @@ const SYNTHETIC_TIP = 'Synthetic layout: positions are placeholders, not a surve
 
 export function AppBar() {
   const port = usePort()
+  const mode = useUiStore((s) => s.mode)
   return (
     <header className="relative z-appbar flex items-center gap-3 border-b border-line-soft bg-paper px-4">
       <div className="flex items-center gap-2.5">
@@ -31,6 +33,7 @@ export function AppBar() {
       </div>
       <span aria-hidden="true" className="h-[18px] w-px bg-line" />
       <span className="text-sm font-medium">{port.name}</span>
+      {mode === 'monitor' && <PublishedVersion />}
       {port.synthetic && (
         <Badge variant="synthetic" tabIndex={0} title={SYNTHETIC_TIP}>
           SYNTHETIC

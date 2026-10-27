@@ -1,8 +1,10 @@
 import { DraftSummary } from '@/features/design/draft-summary'
 import { Tabs } from '@/components/ui/tabs'
+import { LayoutAssetDetails } from '@/components/scene/layout/asset-details'
 import { BuildingDetails } from '@/components/scene/buildings/building-details'
 import { ModelPalette } from '@/components/scene/models/model-palette'
 import { PortScene } from '@/components/scene/port-scene'
+import { useSelectionStore } from '@/lib/stores/selection-store'
 import { useUiStore, type Mode, type RightTab } from '@/lib/stores/ui-store'
 
 const TABS: Record<Mode, { value: RightTab; label: string }[]> = {
@@ -82,8 +84,25 @@ function RightPanel({ mode }: { mode: Mode }) {
         tabIndex={0}
         className="min-h-0 flex-1 overflow-auto p-3.5"
       >
-        {(active === 'details' || active === 'inspector') && <BuildingDetails />}
+        {(active === 'details' || active === 'inspector') && <SelectionDetails />}
       </div>
     </aside>
+  )
+}
+
+/** Read-only details of what is selected: a layout asset or an OpenStreetMap building. */
+function SelectionDetails() {
+  const asset = useSelectionStore((s) => s.selectedAssetId)
+  const reference = useSelectionStore((s) => s.selectedReferenceId)
+  if (asset === null && reference === null) {
+    return (
+      <p className="text-[13px] text-muted">Select an asset in the 3D view to read its details.</p>
+    )
+  }
+  return (
+    <>
+      <LayoutAssetDetails />
+      <BuildingDetails />
+    </>
   )
 }
