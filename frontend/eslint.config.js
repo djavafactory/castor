@@ -72,6 +72,8 @@ export default tseslint.config(
     files: [
       'src/styles/tokens/**/*.{ts,tsx}',
       'src/lib/tokens/**/*.{ts,tsx}',
+      'src/features/scene/palette.ts',
+      'src/features/scene/palette.test.ts',
       'src/test/fixtures.ts',
     ],
     rules: { 'no-restricted-syntax': 'off' },

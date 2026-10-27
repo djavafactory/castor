@@ -7,7 +7,7 @@ import {
   assetTypesSchema,
   catalogueSchema,
   controlPointsSchema,
-  layoutSchema,
+  layoutDocumentSchema,
   layoutVersionsSchema,
   portSchema,
   referenceFeaturesSchema,
@@ -96,17 +96,29 @@ export function usePublishedLayout(code: string = defaultPortCode()) {
   return useQuery({
     queryKey: queryKeys.published(code),
     queryFn: ({ signal }) =>
-      getParsed(`${portPath(code)}/layout/published`, layoutSchema, { signal }),
+      getParsed(`${portPath(code)}/layouts/current`, layoutDocumentSchema, { signal }),
     ...layoutQueryOptions,
   })
 }
 
-export function useDraftLayout(code: string = defaultPortCode(), enabled = true) {
+/** The draft is shared by the team: while it is on screen it is read again on focus and every 30 s. */
+export const DRAFT_SYNC_MS = 30_000
+
+export function fetchDraftLayout(code: string, signal?: AbortSignal) {
+  return getParsed(`${portPath(code)}/layouts/draft`, layoutDocumentSchema, { signal })
+}
+
+export function useDraftLayout(
+  code: string = defaultPortCode(),
+  enabled = true,
+  options: { sync?: boolean } = {},
+) {
   return useQuery({
     queryKey: queryKeys.draft(code),
-    queryFn: ({ signal }) => getParsed(`${portPath(code)}/layout/draft`, layoutSchema, { signal }),
+    queryFn: ({ signal }) => fetchDraftLayout(code, signal),
     enabled,
     ...layoutQueryOptions,
+    ...(options.sync ? { refetchOnWindowFocus: true, refetchInterval: DRAFT_SYNC_MS } : {}),
   })
 }
 

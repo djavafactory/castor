@@ -1,8 +1,9 @@
+import { hex, lighten, palette } from '@/features/scene/palette'
 import { BufferAttribute, BufferGeometry, Color, ShapeUtils, Vector2 } from 'three'
 import { fromLonLat, signedArea, type Local } from '@/lib/geo'
 import type { ReferenceFeature } from '@/lib/reference-api'
 
-export const WALL_COLOUR = 0x9aa3ad
+export const WALL_COLOUR = hex(palette.osmBuilding)
 export const ROOF_LIGHTENING = 0.35
 export const UNIT_COLOUR = 0x8e96a1
 /** Used when OpenStreetMap gave no height. */
@@ -30,14 +31,7 @@ export interface BuildingsGeometry {
 
 type Ring = Local[]
 
-/** A colour moved towards white by the given share, computed on the sRGB channels as designers do. */
-export function lighten(hex: number, share: number): number {
-  const channel = (shift: number) => {
-    const c = (hex >> shift) & 0xff
-    return Math.round(c + (255 - c) * share)
-  }
-  return (channel(16) << 16) | (channel(8) << 8) | channel(0)
-}
+export { lighten }
 
 /**
  * Extrudes every building footprint (holes kept) to its height and merges the result into one geometry.

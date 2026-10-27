@@ -27,6 +27,7 @@ import com.djavafactory.castor.core.layout.domain.LayoutStatus;
 import com.djavafactory.castor.core.layout.domain.LayoutVersion;
 import com.djavafactory.castor.core.layout.domain.LayoutView;
 import com.djavafactory.castor.core.layout.domain.StoragePadCapacity;
+import com.djavafactory.castor.core.shared.domain.DraftAlreadyExistsException;
 
 /**
  * Reads layouts: versions with SQL (they carry the port code), revisions through the {@link AssetRevisionEntity}
@@ -36,8 +37,12 @@ import com.djavafactory.castor.core.layout.domain.StoragePadCapacity;
 public class JpaLayoutRepository implements LayoutRepository {
 
     private static final String VERSION_SQL = "select v.id, p.code, v.version_no, v.status, v.note, v.created_by, "
-            + "v.created_at, v.published_by, v.published_at, v.based_on_version_id, v.row_version "
-            + "from layout.layout_version v join ref.port p on p.id = v.port_id ";
+            + "v.created_at, v.published_by, v.published_at, v.based_on_version_id, b.version_no, "
+            + "coalesce(l.updated_by, v.created_by), coalesce(l.updated_at, v.created_at), v.row_version "
+            + "from layout.layout_version v join ref.port p on p.id = v.port_id "
+            + "left join layout.layout_version b on b.id = v.based_on_version_id "
+            + "left join lateral (select r.updated_by, r.updated_at from layout.asset_revision r "
+            + "where r.layout_version_id = v.id and r.updated_at > v.created_at order by r.updated_at desc limit 1) l on true ";
 
     private final EntityManager em;
     private final DataSource dataSource;
@@ -85,6 +90,46 @@ public class JpaLayoutRepository implements LayoutRepository {
     public Optional<LayoutView> loadAsset(LayoutVersion version, UUID assetId) {
         LayoutView view = assemble(version, assetId);
         return view.assets().isEmpty() ? Optional.empty() : Optional.of(view);
+    }
+
+    @Override
+    @Transactional
+    public LayoutVersion createDraft(String portCode, LayoutVersion basedOn, String createdBy) {
+        // the port row serialises concurrent creators, so the unique draft index is never the first line of defence
+        Object portId = em.createNativeQuery("select id from ref.port where code = :code for update")
+                .setParameter("code", portCode)
+                .getSingleResult();
+        var existing = findDraft(portCode);
+        if (existing.isPresent()) {
+            throw new DraftAlreadyExistsException(existing.get().id());
+        }
+        UUID id = UUID.randomUUID();
+        em.createNativeQuery("insert into layout.layout_version (id, port_id, version_no, status, "
+                        + "based_on_version_id, created_by) values (:id, :port, "
+                        + "(select coalesce(max(version_no), 0) + 1 from layout.layout_version where port_id = :port), "
+                        + "'DRAFT', :basedOn, :by)")
+                .setParameter("id", id)
+                .setParameter("port", ((Number) portId).longValue())
+                .setParameter("basedOn", basedOn == null ? null : basedOn.id())
+                .setParameter("by", createdBy)
+                .executeUpdate();
+        if (basedOn != null) {
+            em.createNativeQuery("select layout.copy_revisions(:from, :to)")
+                    .setParameter("from", basedOn.id())
+                    .setParameter("to", id)
+                    .getSingleResult();
+        }
+        return findVersion(id).orElseThrow();
+    }
+
+    @Override
+    @Transactional
+    public LayoutVersion discard(LayoutVersion draft) {
+        em.createNativeQuery("update layout.layout_version set status = 'DISCARDED', row_version = row_version + 1 "
+                        + "where id = :id and status = 'DRAFT'")
+                .setParameter("id", draft.id())
+                .executeUpdate();
+        return findVersion(draft.id()).orElseThrow();
     }
 
     private LayoutView assemble(LayoutVersion version, UUID only) {
@@ -241,7 +286,10 @@ public class JpaLayoutRepository implements LayoutRepository {
                             rs.getString(8),
                             instant(rs, 9),
                             rs.getObject(10, UUID.class),
-                            rs.getLong(11)));
+                            (Integer) rs.getObject(11),
+                            rs.getString(12),
+                            instant(rs, 13),
+                            rs.getLong(14)));
                 }
                 return out;
             }

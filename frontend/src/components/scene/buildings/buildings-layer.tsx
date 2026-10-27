@@ -17,7 +17,7 @@ interface BuildingsLayerProps {
   buildings: readonly ReferenceFeature[]
   /** Called while the pointer is over a building, with its screen position; null when it leaves. */
   onHover?: (hover: BuildingHover | null) => void
-  /** Receives the built geometry (for framing the camera). */
+  /** Receives the built geometry (a hook for later tickets, such as framing an asset). */
   onBuilt?: (built: BuildingsGeometry) => void
 }
 
@@ -51,6 +51,8 @@ export function BuildingsLayer({ buildings, onHover, onBuilt }: BuildingsLayerPr
   return (
     <mesh
       name="buildings-osm"
+      castShadow
+      receiveShadow
       geometry={built.geometry}
       onPointerMove={(event) => {
         const hit = pick(event)

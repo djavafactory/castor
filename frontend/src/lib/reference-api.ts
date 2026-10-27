@@ -15,6 +15,8 @@ export interface ReferenceFeature {
     osmRef: string
     name: string | null
     heightM: number | null
+    /** Width of a road or other line feature, metres. */
+    widthM?: number | null
     areaM2: number | null
     source: string
     accuracy: 'SURVEYED' | 'VERIFIED' | 'OPERATOR' | 'APPROXIMATE'
@@ -44,6 +46,7 @@ export function fetchReferenceFeatures(
         osmRef: f.properties.osm_ref,
         name: f.properties.name,
         heightM: f.properties.height_m,
+        widthM: f.properties.width_m,
         areaM2: f.properties.area_m2,
         source: f.properties.source,
         accuracy: f.properties.accuracy,
@@ -58,6 +61,17 @@ export function useReferenceBuildings(enabled = true) {
   return useQuery({
     queryKey: ['reference-features', code, 'BUILDING'],
     queryFn: ({ signal }) => fetchReferenceFeatures(code, 'BUILDING', signal),
+    enabled,
+    staleTime: 5 * 60_000,
+  })
+}
+
+/** The OSM roads of the configured port, drawn as flat ribbons of their width. */
+export function useReferenceRoads(enabled = true) {
+  const code = getEnv().VITE_PORT_CODE
+  return useQuery({
+    queryKey: ['reference-features', code, 'ROAD'],
+    queryFn: ({ signal }) => fetchReferenceFeatures(code, 'ROAD', signal),
     enabled,
     staleTime: 5 * 60_000,
   })

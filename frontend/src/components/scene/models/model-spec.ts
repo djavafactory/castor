@@ -1,35 +1,36 @@
+import { hex, palette } from '@/features/scene/palette'
 import type { BoxBatch, Pt, Vec3 } from './box-batch'
 
 /** Colours of the model library. */
 export const COLOUR = {
-  STEEL: 0x6b7480,
-  DARK: 0x2b3442,
-  ORANGE: 0xf2622e,
+  STEEL: hex(palette.containers[5]),
+  DARK: hex(palette.steel),
+  ORANGE: hex(palette.signal),
   WHITE: 0xffffff,
   BOOM: 0xe9e5dc,
   BLUE: 0x3c6fb4,
-  AMBER: 0xe8a317,
+  AMBER: hex(palette.amber),
   GLASS: 0x9db7cc,
   COIL: 0xb8c0c8,
   CAR_RED: 0xb5382f,
   /** Unknown model keys, and the walls of buildings. */
-  NEUTRAL: 0xc9bfa3,
+  NEUTRAL: hex(palette.warehouseWall),
   /** Uncertainty ring of parked mobile equipment. */
   RING: 0x4f6d8f,
   /** Roof and floor of warehouses. */
   ROOF: 0x8c7a5a,
   /** Storage pads and yards. */
-  PAD: 0xe3dccd,
+  PAD: hex(palette.pad),
   /** Tarmac of roads, gates and holding areas. */
   ROAD: 0x4a5059,
   CONCRETE: 0xb9b4a8,
   SILO: 0xc9cdd2,
   GAUGE: 0xe2be5a,
-  HOPPER: 0xe8a317,
+  HOPPER: hex(palette.amber),
   TANK: 0xb9c4cc,
-  PIPE: 0xc8423b,
+  PIPE: hex(palette.brick),
   RAMP: 0x8c949e,
-  ZONE_RED: 0xc8423b,
+  ZONE_RED: hex(palette.brick),
   ZONE_BLUE: 0x6fa8c9,
   PILE: 0x8a6d4b,
   STACK: 0x5d7f9a,

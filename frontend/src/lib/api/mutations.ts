@@ -1,7 +1,15 @@
 import { useMutation, useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query'
-import { apiRequest } from '@/lib/api-client'
-import { defaultPortCode, queryKeys } from './hooks'
-import { layoutAssetSchema, layoutSchema, type Layout, type LayoutAsset } from './schemas'
+import { toast } from 'sonner'
+import { ApiError, apiRequest } from '@/lib/api-client'
+import { useEditorStore } from '@/lib/stores/editor-store'
+import { defaultPortCode, fetchDraftLayout, queryKeys } from './hooks'
+import {
+  layoutAssetSchema,
+  layoutDocumentSchema,
+  layoutSchema,
+  type Layout,
+  type LayoutAsset,
+} from './schemas'
 import { parseResponse } from './validated'
 
 /**
@@ -13,6 +21,42 @@ import { parseResponse } from './validated'
 type Snapshot = { key: QueryKey; previous: Layout | undefined; changed: boolean }
 
 const draftPath = (code: string) => `/v1/ports/${encodeURIComponent(code)}/layout/draft`
+
+export const conflictMessage = (user: string) =>
+  `This asset was changed by ${user}. Reloaded the latest version.`
+
+/** Another editor saved first: read the draft again and say who changed it. Not a failed save to retry. */
+async function reloadAfterConflict(client: QueryClient, code: string): Promise<void> {
+  let user = 'another editor'
+  try {
+    const draft = await client.fetchQuery({
+      queryKey: queryKeys.draft(code),
+      queryFn: ({ signal }) => fetchDraftLayout(code, signal),
+      staleTime: 0,
+    })
+    user = draft.updatedBy ?? user
+  } catch {
+    // The reload failed too; the message still tells the editor to look again.
+  }
+  toast(conflictMessage(user))
+}
+
+/** A save that ended in error: a conflict reloads the draft, anything else waits for Retry. */
+function saveFailed(
+  client: QueryClient,
+  code: string,
+  saveId: string,
+  error: unknown,
+  retry: () => void,
+): void {
+  const editor = useEditorStore.getState()
+  if (error instanceof ApiError && error.status === 409) {
+    editor.endSave(saveId)
+    void reloadAfterConflict(client, code)
+    return
+  }
+  editor.failSave(saveId, retry)
+}
 
 /** Applies a change to the cached layout and returns what is needed to undo it. */
 async function applyOptimistic(
@@ -41,7 +85,7 @@ export const TEMP_ID_PREFIX = 'pending-'
 export function useCreateAsset(code: string = defaultPortCode()) {
   const client = useQueryClient()
   const key = queryKeys.draft(code)
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: async (asset: NewAsset): Promise<LayoutAsset> => {
       const response = await apiRequest<unknown>(`${draftPath(code)}/assets`, {
         method: 'POST',
@@ -49,23 +93,28 @@ export function useCreateAsset(code: string = defaultPortCode()) {
       })
       return parseResponse('POST assets', layoutAssetSchema, response.data)
     },
-    onMutate: (asset) =>
-      applyOptimistic(client, key, (layout) => ({
+    onMutate: (asset) => {
+      const id = `${TEMP_ID_PREFIX}${crypto.randomUUID()}`
+      useEditorStore.getState().beginSave(id)
+      return applyOptimistic(client, key, (layout) => ({
         ...layout,
-        assets: [
-          ...layout.assets,
-          { ...asset, id: `${TEMP_ID_PREFIX}${crypto.randomUUID()}`, rowVersion: 0 },
-        ],
-      })),
-    onError: (_error, _asset, snapshot) => rollback(client, snapshot),
+        assets: [...layout.assets, { ...asset, id, rowVersion: 0 }],
+      })).then((snapshot) => ({ ...snapshot, saveId: id }))
+    },
+    onSuccess: (_asset, _vars, context) => useEditorStore.getState().endSave(context.saveId),
+    onError: (error, asset, context) => {
+      rollback(client, context)
+      if (context) saveFailed(client, code, context.saveId, error, () => mutation.mutate(asset))
+    },
     onSettled: () => client.invalidateQueries({ queryKey: key }),
   })
+  return mutation
 }
 
 export function useUpdateAsset(code: string = defaultPortCode()) {
   const client = useQueryClient()
   const key = queryKeys.draft(code)
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: async ({ id, rowVersion, changes }: AssetPatch): Promise<LayoutAsset> => {
       const response = await apiRequest<unknown>(
         `${draftPath(code)}/assets/${encodeURIComponent(id)}`,
@@ -77,33 +126,85 @@ export function useUpdateAsset(code: string = defaultPortCode()) {
       )
       return parseResponse('PATCH asset', layoutAssetSchema, response.data)
     },
-    onMutate: ({ id, changes }) =>
-      applyOptimistic(client, key, (layout) => ({
+    onMutate: ({ id, changes }) => {
+      useEditorStore.getState().beginSave(id)
+      return applyOptimistic(client, key, (layout) => ({
         ...layout,
         assets: layout.assets.map((asset) => (asset.id === id ? { ...asset, ...changes } : asset)),
-      })),
-    onError: (_error, _patch, snapshot) => rollback(client, snapshot),
+      }))
+    },
+    onSuccess: (_asset, { id }) => useEditorStore.getState().endSave(id),
+    onError: (error, patch, snapshot) => {
+      rollback(client, snapshot)
+      saveFailed(client, code, patch.id, error, () => mutation.mutate(patch))
+    },
     onSettled: () => client.invalidateQueries({ queryKey: key }),
   })
+  return mutation
 }
 
 export function useDeleteAsset(code: string = defaultPortCode()) {
   const client = useQueryClient()
   const key = queryKeys.draft(code)
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: async ({ id, rowVersion }: { id: string; rowVersion: number }): Promise<void> => {
       await apiRequest<unknown>(`${draftPath(code)}/assets/${encodeURIComponent(id)}`, {
         method: 'DELETE',
         rowVersion,
       })
     },
-    onMutate: ({ id }) =>
-      applyOptimistic(client, key, (layout) => ({
+    onMutate: ({ id }) => {
+      useEditorStore.getState().beginSave(id)
+      return applyOptimistic(client, key, (layout) => ({
         ...layout,
         assets: layout.assets.filter((asset) => asset.id !== id),
-      })),
-    onError: (_error, _target, snapshot) => rollback(client, snapshot),
+      }))
+    },
+    onSuccess: (_void, { id }) => useEditorStore.getState().endSave(id),
+    onError: (error, target, snapshot) => {
+      rollback(client, snapshot)
+      saveFailed(client, code, target.id, error, () => mutation.mutate(target))
+    },
     onSettled: () => client.invalidateQueries({ queryKey: key }),
+  })
+  return mutation
+}
+
+export type DraftBase = 'published' | 'blank' | (string & {})
+
+/** Starts the draft of the port: from the published layout, an older version (its id) or nothing. */
+export function useCreateDraft(code: string = defaultPortCode()) {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: (basedOn: DraftBase) => createDraft(code, basedOn),
+    onSuccess: (draft) => {
+      client.setQueryData<Layout>(queryKeys.draft(code), draft)
+      return client.invalidateQueries({ queryKey: queryKeys.versions(code) })
+    },
+  })
+}
+
+export async function createDraft(code: string, basedOn: DraftBase): Promise<Layout> {
+  const response = await apiRequest<unknown>(`/v1/ports/${encodeURIComponent(code)}/layouts`, {
+    method: 'POST',
+    body: { basedOn },
+  })
+  return parseResponse('POST layouts', layoutDocumentSchema, response.data)
+}
+
+/** Throws the draft away (PUBLISHER). The next entry to Design starts a new one from the published layout. */
+export function useDiscardDraft(code: string = defaultPortCode()) {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: async (layoutId: string): Promise<void> => {
+      await apiRequest<unknown>(`/v1/layouts/${encodeURIComponent(layoutId)}`, {
+        method: 'DELETE',
+      })
+    },
+    onSuccess: () => {
+      client.removeQueries({ queryKey: queryKeys.draft(code), exact: true })
+      return client.invalidateQueries({ queryKey: queryKeys.versions(code) })
+    },
   })
 }
 

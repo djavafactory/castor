@@ -66,13 +66,6 @@ describe('login page', () => {
     expect(screen.getByText(/^Castor v/)).not.toHaveTextContent('·')
   })
 
-  it('shows the commit and environment in the footer in local and dev', () => {
-    envState.appEnv = 'dev'
-    renderLogin()
-
-    expect(screen.getByText(/^Castor v/)).toHaveTextContent(/· .+ · dev$/)
-  })
-
   it('toggles the password visibility with a labelled button', async () => {
     const user = userEvent.setup()
     renderLogin()
@@ -217,14 +210,12 @@ describe('version footer', () => {
     ).toBeInTheDocument()
   })
 
-  it('adds commit and environment in dev', async () => {
+  it('shows only the version, even in dev', async () => {
     envState.appEnv = 'dev'
     serverVersion(__APP_VERSION__)
     renderLogin()
 
-    expect(
-      await screen.findByText(`Castor v${__APP_VERSION__} · ${__GIT_COMMIT__} · dev`),
-    ).toBeInTheDocument()
+    expect(await screen.findByText(`Castor v${__APP_VERSION__}`)).toBeInTheDocument()
   })
 
   it('still shows the version when the server does not answer', async () => {

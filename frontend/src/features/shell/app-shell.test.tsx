@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { MemoryRouter, Route, Routes } from 'react-router'
@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { basicCredential, useAuthStore, type Role } from '@/lib/stores/auth-store'
 import { useEditorStore } from '@/lib/stores/editor-store'
 import { useUiStore } from '@/lib/stores/ui-store'
-import { portFixture } from '@/test/fixtures'
+import { layoutFixture, layoutWire, portFixture } from '@/test/fixtures'
 import { server } from '@/test/setup'
 import { AppShell } from './app-shell'
 import { MONITOR_RELOADED_MESSAGE, NOT_AN_EDITOR_MESSAGE, SAVE_FAILED_PROMPT } from './leave-design'
@@ -78,11 +78,21 @@ describe('app shell', () => {
 
   it('switches an editor to Design with its panel tabs, without leaving the page', async () => {
     signInAs(['EDITOR', 'VIEWER'])
+    server.use(
+      http.get(`${BASE}/v1/ports/WESTPORTS/layouts/draft`, () => HttpResponse.json(layoutWire())),
+    )
     renderShell()
 
     await userEvent.click(screen.getByRole('button', { name: 'Design' }))
 
     expect(screen.getByRole('button', { name: 'Design' })).toHaveAttribute('aria-pressed', 'true')
+    await waitFor(() =>
+      expect(toast).toHaveBeenCalledWith("Design mode: editing your team's draft (based on v1)."),
+    )
+    expect(await screen.findByText('Draft (based on v1)')).toHaveAttribute(
+      'title',
+      'State of the layout you are editing',
+    )
     expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual([
       'Inspector',
       'Issues',
@@ -214,5 +224,147 @@ describe('help popover', () => {
     expect(
       await screen.findByText(`Castor v${__APP_VERSION__} (server v9.9.9)`),
     ).toBeInTheDocument()
+  })
+})
+
+describe('entering Design', () => {
+  const DRAFT = `${BASE}/v1/ports/WESTPORTS/layouts/draft`
+  const LAYOUTS = `${BASE}/v1/ports/WESTPORTS/layouts`
+  const notFound = () =>
+    HttpResponse.json(
+      { title: 'Not found', status: 404 },
+      { status: 404, headers: { 'Content-Type': 'application/problem+json' } },
+    )
+
+  it('creates a draft from the published layout when there is none, and says so', async () => {
+    signInAs(['EDITOR'])
+    let created = 0
+    server.use(
+      http.get(DRAFT, notFound),
+      http.post(LAYOUTS, async ({ request }) => {
+        created += 1
+        expect(await request.json()).toEqual({ basedOn: 'published' })
+        return HttpResponse.json(layoutWire(layoutFixture, { versionNo: 3, basedOnVersionNo: 2 }), {
+          status: 201,
+        })
+      }),
+    )
+    renderShell()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Design' }))
+
+    await waitFor(() =>
+      expect(toast).toHaveBeenCalledWith('Design mode: new draft created from published v2.'),
+    )
+    expect(created).toBe(1)
+    expect(await screen.findByText('Draft (based on v2)')).toBeInTheDocument()
+    expect(useUiStore.getState().mode).toBe('design')
+  })
+
+  it('shows "Blank draft" for a blank layout', async () => {
+    signInAs(['EDITOR'])
+    server.use(
+      http.get(DRAFT, () =>
+        HttpResponse.json(layoutWire(layoutFixture, { basedOnVersionNo: null })),
+      ),
+    )
+    renderShell()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Design' }))
+
+    expect(await screen.findByText('Blank draft')).toBeInTheDocument()
+  })
+
+  it('never creates a second draft when Design is entered again', async () => {
+    signInAs(['EDITOR'])
+    let draftExists = false
+    let created = 0
+    server.use(
+      http.get(DRAFT, () => (draftExists ? HttpResponse.json(layoutWire()) : notFound())),
+      http.post(LAYOUTS, () => {
+        created += 1
+        draftExists = true
+        return HttpResponse.json(layoutWire(), { status: 201 })
+      }),
+    )
+    renderShell()
+    const user = userEvent.setup()
+
+    await user.click(screen.getByRole('button', { name: 'Design' }))
+    await user.click(screen.getByRole('button', { name: 'Monitor' }))
+    await user.click(screen.getByRole('button', { name: 'Design' }))
+
+    await waitFor(() =>
+      expect(toast).toHaveBeenCalledWith("Design mode: editing your team's draft (based on v1)."),
+    )
+    expect(created).toBe(1)
+  })
+
+  it('takes the draft of a colleague when both create at once (409)', async () => {
+    signInAs(['EDITOR'])
+    let reads = 0
+    server.use(
+      http.get(DRAFT, () => (reads++ === 0 ? notFound() : HttpResponse.json(layoutWire()))),
+      http.post(LAYOUTS, () =>
+        HttpResponse.json(
+          { title: 'Conflict', status: 409, detail: 'A draft already exists for this layout' },
+          { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+        ),
+      ),
+    )
+    renderShell()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Design' }))
+
+    await waitFor(() =>
+      expect(toast).toHaveBeenCalledWith("Design mode: editing your team's draft (based on v1)."),
+    )
+    expect(useUiStore.getState().mode).toBe('design')
+  })
+
+  it('goes back to Monitor with a message when the draft cannot be opened', async () => {
+    signInAs(['EDITOR'])
+    server.use(
+      http.get(DRAFT, () =>
+        HttpResponse.json(
+          { title: 'Forbidden', status: 403 },
+          { status: 403, headers: { 'Content-Type': 'application/problem+json' } },
+        ),
+      ),
+    )
+    renderShell()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Design' }))
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(NOT_AN_EDITOR_MESSAGE))
+    expect(useUiStore.getState().mode).toBe('monitor')
+  })
+})
+
+describe('layout status badge', () => {
+  const DRAFT = `${BASE}/v1/ports/WESTPORTS/layouts/draft`
+
+  it('shows Saving... while saves are pending, then Save failed with Retry', async () => {
+    signInAs(['EDITOR'])
+    useUiStore.setState({ mode: 'design' })
+    server.use(http.get(DRAFT, () => HttpResponse.json(layoutWire())))
+    renderShell()
+    expect(await screen.findByText('Draft (based on v1)')).toBeInTheDocument()
+
+    act(() => useEditorStore.getState().beginSave('a1'))
+    expect(await screen.findByText('Saving...')).toBeInTheDocument()
+
+    const retry = vi.fn()
+    act(() => useEditorStore.getState().failSave('a1', retry))
+    expect(await screen.findByText('Save failed')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(retry).toHaveBeenCalledOnce()
+  })
+
+  it('is not shown in Monitor', () => {
+    signInAs(['EDITOR'])
+    renderShell()
+    expect(screen.queryByText(/Draft \(based on/)).not.toBeInTheDocument()
   })
 })

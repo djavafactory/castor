@@ -173,3 +173,37 @@ export const layoutFixture = {
     { id: 'a-2', typeCode: 'EXCAVATOR', rowVersion: 1, name: 'Excavator 2' },
   ],
 }
+
+/** The same layout as the server sends it: {layout, features} with GeoJSON features. */
+export function layoutWire(
+  layout: {
+    versionId: string
+    number: number
+    status: string
+    assets: Record<string, unknown>[]
+  } = layoutFixture,
+  header: Record<string, unknown> = {},
+) {
+  return {
+    layout: {
+      id: layout.versionId,
+      versionNo: layout.number,
+      status: layout.status,
+      basedOnVersionNo: 1,
+      createdBy: 'ada',
+      createdAt: '2026-10-27T01:00:00Z',
+      updatedBy: 'grace',
+      updatedAt: '2026-10-27T02:00:00Z',
+      ...header,
+    },
+    features: {
+      type: 'FeatureCollection',
+      features: layout.assets.map(({ id, typeCode, ...properties }) => ({
+        type: 'Feature',
+        id,
+        geometry: { type: 'Polygon', coordinates: [] },
+        properties: { ...properties, type: typeCode },
+      })),
+    },
+  }
+}

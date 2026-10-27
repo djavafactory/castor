@@ -24,7 +24,7 @@ public final class LayoutTestSupport {
         "layout.surface_detail", "layout.flow_detail", "layout.warehouse_detail", "layout.container_yard_detail",
         "layout.storage_pad_detail", "layout.storage_allowed_cargo", "layout.storage_detail", "layout.crane_detail",
         "layout.berth_cargo_family", "layout.berth_detail", "layout.asset_revision", "layout.asset",
-        "layout.layout_version"
+        "layout.layout_version", "audit.audit_log"
     };
 
     private LayoutTestSupport() {}

@@ -19,6 +19,7 @@ import org.jboss.logging.MDC;
 import org.jboss.resteasy.reactive.server.ServerExceptionMapper;
 
 import com.djavafactory.castor.core.shared.domain.ConflictException;
+import com.djavafactory.castor.core.shared.domain.DraftAlreadyExistsException;
 import com.djavafactory.castor.core.shared.domain.InvalidRequestException;
 import com.djavafactory.castor.core.shared.domain.MissingIfMatchException;
 import com.djavafactory.castor.core.shared.domain.ResourceNotFoundException;
@@ -54,6 +55,18 @@ public class ProblemExceptionMappers {
     @ServerExceptionMapper
     public Response notFound(ResourceNotFoundException e, UriInfo uri) {
         return problem(404, "not-found", "Not found", e.getMessage(), uri, null);
+    }
+
+    @ServerExceptionMapper
+    public Response conflict(DraftAlreadyExistsException e, UriInfo uri) {
+        return problem(
+                409,
+                "conflict",
+                "Conflict",
+                e.getMessage(),
+                uri,
+                null,
+                e.draftId() == null ? null : e.draftId().toString());
     }
 
     @ServerExceptionMapper
@@ -122,12 +135,23 @@ public class ProblemExceptionMappers {
             MDC.remove("errorId");
         }
         var body = new ProblemDetail(
-                ProblemDetail.BASE_URI + "internal", "Unexpected error", 500, null, null, null, errorId, null);
+                ProblemDetail.BASE_URI + "internal", "Unexpected error", 500, null, null, null, errorId, null, null);
         return Response.status(500).type(ProblemDetail.MEDIA_TYPE).entity(body).build();
     }
 
     private static Response problem(
             int status, String slug, String title, String detail, UriInfo uri, List<ProblemDetail.Error> errors) {
+        return problem(status, slug, title, detail, uri, errors, null);
+    }
+
+    private static Response problem(
+            int status,
+            String slug,
+            String title,
+            String detail,
+            UriInfo uri,
+            List<ProblemDetail.Error> errors,
+            String draftId) {
         var body = new ProblemDetail(
                 ProblemDetail.BASE_URI + slug,
                 title,
@@ -136,7 +160,8 @@ public class ProblemExceptionMappers {
                 uri.getRequestUri().getRawPath(),
                 (String) MDC.get(RequestContextFilters.REQUEST_ID),
                 null,
-                errors);
+                errors,
+                draftId);
         return Response.status(status)
                 .type(ProblemDetail.MEDIA_TYPE)
                 .entity(body)

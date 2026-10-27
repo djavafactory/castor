@@ -7,6 +7,8 @@ import { useUiStore } from '@/lib/stores/ui-store'
 export function LayersMenu() {
   const layerVisibility = useUiStore((s) => s.layerVisibility)
   const setLayerVisible = useUiStore((s) => s.setLayerVisible)
+  const basemap = useUiStore((s) => s.basemap)
+  const setBasemap = useUiStore((s) => s.setBasemap)
 
   return (
     <Popover>
@@ -34,6 +36,17 @@ export function LayersMenu() {
               </label>
             </li>
           ))}
+          <li className="mt-1 border-t border-line-soft pt-2">
+            <label className="flex cursor-pointer items-center gap-2">
+              <input
+                type="checkbox"
+                className="size-4 accent-signal"
+                checked={basemap === 'sentinel2'}
+                onChange={(event) => setBasemap(event.target.checked ? 'sentinel2' : 'none')}
+              />
+              Satellite imagery (Sentinel-2)
+            </label>
+          </li>
         </ul>
       </PopoverContent>
     </Popover>

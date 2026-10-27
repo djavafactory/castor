@@ -191,7 +191,7 @@ export const catalogueSchema = z.object({
   densityNote: z.string(),
 })
 
-// ---- Layout (CORE-04, DESIGNER-04 and PUB define the final payloads; unknown members are kept) ----
+// ---- Layout ----
 
 export const layoutAssetSchema = z.looseObject({
   id: z.string(),
@@ -199,18 +199,70 @@ export const layoutAssetSchema = z.looseObject({
   rowVersion: z.number().int(),
 })
 
+export const layoutStatusSchema = z.enum(['DRAFT', 'PUBLISHED', 'SUPERSEDED', 'DISCARDED'])
+
+/** The layout as the screens use it: the version header with one flat object per asset. */
 export const layoutSchema = z.looseObject({
   versionId: z.string(),
   number: z.number().int(),
-  status: z.enum(['DRAFT', 'PUBLISHED', 'SUPERSEDED']),
+  status: layoutStatusSchema,
+  /** Number of the version this one was copied from; null for a blank draft. */
+  basedOnVersionNo: z.number().int().nullable().optional(),
+  createdBy: z.string().optional(),
+  createdAt: z.string().optional(),
+  /** Who last changed an asset, and when. */
+  updatedBy: z.string().optional(),
+  updatedAt: z.string().optional(),
   assets: z.array(layoutAssetSchema),
 })
+
+/** What the server sends for a version: {layout, features} with GeoJSON features whose id is the asset id. */
+const layoutHeaderSchema = z.looseObject({
+  id: z.string(),
+  versionNo: z.number().int(),
+  status: layoutStatusSchema,
+  basedOnVersionNo: z.number().int().nullable().optional(),
+  createdBy: z.string().optional(),
+  createdAt: z.string().optional(),
+  updatedBy: z.string().optional(),
+  updatedAt: z.string().optional(),
+})
+
+const layoutFeatureSchema = z.looseObject({
+  id: z.string(),
+  geometry: geometrySchema,
+  properties: z.looseObject({ type: z.string(), rowVersion: z.number().int() }),
+})
+
+export const layoutDocumentSchema = z
+  .object({
+    layout: layoutHeaderSchema,
+    features: z.object({
+      type: z.literal('FeatureCollection'),
+      features: z.array(layoutFeatureSchema),
+    }),
+  })
+  .transform(({ layout, features }): Layout => {
+    const { id, versionNo, ...header } = layout
+    return {
+      ...header,
+      versionId: id,
+      number: versionNo,
+      assets: features.features.map((f) => ({
+        ...f.properties,
+        id: f.id,
+        typeCode: f.properties.type,
+        rowVersion: f.properties.rowVersion,
+        geometry: f.geometry,
+      })),
+    }
+  })
 
 export const layoutVersionsSchema = z.array(
   z.object({
     id: z.string(),
     number: z.number().int(),
-    status: z.enum(['DRAFT', 'PUBLISHED', 'SUPERSEDED']),
+    status: layoutStatusSchema,
     createdAt: z.string(),
     publishedAt: z.string().nullable(),
   }),

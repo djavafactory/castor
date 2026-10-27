@@ -14,7 +14,8 @@ public record ProblemDetail(
         String instance,
         String requestId,
         String errorId,
-        List<Error> errors) {
+        List<Error> errors,
+        String draftId) {
 
     public static final String MEDIA_TYPE = "application/problem+json";
     public static final String BASE_URI = "https://replica8.it/problems/";

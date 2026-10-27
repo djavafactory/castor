@@ -144,7 +144,114 @@ paths:
           description: The role is below EDITOR
         '404':
           description: Unknown port, or there is no draft
+  /api/v1/ports/{portCode}/layouts:
+    post:
+      operationId: createDraftLayout
+      summary: Start the draft of a port (EDITOR and above)
+      description: Version number is the highest plus one. Revisions and details are copied unless basedOn is "blank". Writes a DRAFT_CREATED audit row.
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/PortCode'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [basedOn]
+              properties:
+                basedOn:
+                  type: string
+                  description: '"published", "blank" or the id of a published or superseded version of the port'
+      responses:
+        '201':
+          description: The new draft and one feature per asset
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LayoutResponse'
+        '400':
+          description: basedOn missing or not understood
+        '403':
+          description: The role is below EDITOR
+        '404':
+          description: Unknown port or version, or no published layout to copy
+        '409':
+          description: A draft already exists; draftId in the body is its id
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /api/v1/ports/{portCode}/audit:
+    get:
+      operationId: listAudit
+      summary: The audit trail of a port, newest first (ADMIN)
+      description: Keyset pagination. Pass nextBefore of the last page as before to get the next one.
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/PortCode'
+        - {name: from, in: query, schema: {type: string, format: date-time}}
+        - {name: to, in: query, schema: {type: string, format: date-time}}
+        - {name: actor, in: query, schema: {type: string}}
+        - name: action
+          in: query
+          schema:
+            type: string
+            enum: [ASSET_CREATED, ASSET_UPDATED, ASSET_DELETED, DRAFT_CREATED, DRAFT_DISCARDED, LAYOUT_PUBLISHED, LAYOUT_RESTORED, LAYOUT_IMPORTED, OVERRIDE_RECORDED]
+        - {name: assetId, in: query, schema: {type: string}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: before, in: query, schema: {type: integer, format: int64}}
+      responses:
+        '200':
+          description: One page of audit rows
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, at, actor, action, entityKind]
+                      properties:
+                        id: {type: integer, format: int64}
+                        at: {type: string, format: date-time}
+                        actor: {type: string}
+                        action: {type: string}
+                        entityKind: {type: string}
+                        entityId: {type: [string, 'null']}
+                        layoutVersionId: {type: [string, 'null'], format: uuid}
+                        before: {type: [object, 'null'], description: Snapshot before the change}
+                        after: {type: [object, 'null'], description: Snapshot after the change}
+                        requestId: {type: [string, 'null']}
+                  nextBefore:
+                    type: [integer, 'null']
+                    format: int64
+        '400':
+          description: Malformed from, to, action or limit
+        '403':
+          description: The role is not ADMIN
+        '404':
+          description: Unknown port
   /api/v1/layouts/{layoutId}:
+    delete:
+      operationId: discardDraftLayout
+      summary: Discard a draft (PUBLISHER and above)
+      description: The version becomes DISCARDED and its rows stay for the audit trail. Writes a DRAFT_DISCARDED audit row.
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/LayoutId'
+      responses:
+        '204':
+          description: Discarded
+        '403':
+          description: The role is below PUBLISHER
+        '404':
+          description: Unknown version
+        '409':
+          description: The version is not a draft
     get:
       operationId: getLayout
       summary: Any layout version as GeoJSON (drafts and discarded versions need EDITOR)
@@ -412,6 +519,21 @@ components:
           type: [string, 'null']
         note:
           type: [string, 'null']
+        basedOnVersionNo:
+          type: [integer, 'null']
+          description: The version this one was copied from; null for a blank draft.
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedBy:
+          type: string
+          description: Who last changed an asset of the version (its creator while nothing changed).
+        updatedAt:
+          type: string
+          format: date-time
+          description: When an asset of the version last changed.
     LayoutLink:
       type: object
       required: [kind, toAssetId]
@@ -586,6 +708,10 @@ components:
           type: string
         errorId:
           type: string
+        draftId:
+          type: string
+          format: uuid
+          description: On 409 "A draft already exists", the id of that draft.
         errors:
           type: array
           items:

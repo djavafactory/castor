@@ -1,12 +1,14 @@
 import { useState } from 'react'
+import { TilesNote } from '@/components/states/states'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/overlays'
-import { getEnv } from '@/lib/env'
+import { useUiStore } from '@/lib/stores/ui-store'
 import { useServerVersion, versionLine } from '@/lib/version'
 
 export function HelpPopover() {
   const [open, setOpen] = useState(false)
   // Asked only once the popover is opened, so a closed Help costs nothing.
   const serverVersion = useServerVersion(open)
+  const imageryFailed = useUiStore((s) => s.imageryFailed && s.basemap === 'sentinel2')
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -20,7 +22,8 @@ export function HelpPopover() {
         </button>
       </PopoverTrigger>
       <PopoverContent heading="Help" align="end" className="w-72">
-        <p className="text-xs text-muted">{versionLine(getEnv().VITE_APP_ENV, serverVersion)}</p>
+        <p className="text-xs text-muted">{versionLine(serverVersion)}</p>
+        {imageryFailed && <TilesNote />}
       </PopoverContent>
     </Popover>
   )

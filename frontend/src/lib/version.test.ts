@@ -14,19 +14,12 @@ describe('sameVersion', () => {
 })
 
 describe('versionLine', () => {
-  it('is just the version in a protected environment', () => {
-    expect(versionLine('prod')).toBe(`Castor v${__APP_VERSION__}`)
-  })
-
-  it('adds commit and environment in local and dev', () => {
-    const expected = `Castor v${__APP_VERSION__} · ${__GIT_COMMIT__}`
-    expect(versionLine('local')).toBe(`${expected} · local`)
-    expect(versionLine('dev')).toBe(`${expected} · dev`)
+  it('is just the version, in every environment', () => {
+    expect(versionLine()).toBe(`Castor v${__APP_VERSION__}`)
   })
 
   it('adds the server version only when it differs', () => {
-    expect(versionLine('prod', __APP_VERSION__)).toBe(`Castor v${__APP_VERSION__}`)
-    expect(versionLine('prod', '9.9.9')).toBe(`Castor v${__APP_VERSION__} (server v9.9.9)`)
-    expect(versionLine('dev', '9.9.9')).toContain(' · dev (server v9.9.9)')
+    expect(versionLine(__APP_VERSION__)).toBe(`Castor v${__APP_VERSION__}`)
+    expect(versionLine('9.9.9')).toBe(`Castor v${__APP_VERSION__} (server v9.9.9)`)
   })
 })

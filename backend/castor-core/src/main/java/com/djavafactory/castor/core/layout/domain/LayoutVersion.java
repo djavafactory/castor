@@ -10,6 +10,9 @@ import com.djavafactory.castor.core.shared.domain.RuleViolationException;
 /**
  * One saved version of the layout of a port. Version numbers start at 1; asset ids are the same in every version.
  *
+ * @param basedOnVersionNo number of the version this one was copied from, null for a blank draft or the first version
+ * @param updatedBy who last changed an asset of the version (its creator while nothing changed)
+ * @param updatedAt when an asset of the version last changed (its creation while nothing changed)
  * @param rowVersion optimistic lock counter of the version row
  */
 public record LayoutVersion(
@@ -23,6 +26,9 @@ public record LayoutVersion(
         String publishedBy,
         Instant publishedAt,
         UUID basedOnVersionId,
+        Integer basedOnVersionNo,
+        String updatedBy,
+        Instant updatedAt,
         long rowVersion) {
 
     public LayoutVersion {

@@ -1,3 +1,4 @@
+import { DraftSummary } from '@/features/design/draft-summary'
 import { Tabs } from '@/components/ui/tabs'
 import { BuildingDetails } from '@/components/scene/buildings/building-details'
 import { ModelPalette } from '@/components/scene/models/model-palette'
@@ -53,7 +54,9 @@ export function WorkArea() {
         <footer
           aria-label="Status"
           className="flex h-8 shrink-0 items-center gap-3 border-t border-line-soft bg-paper px-4 font-mono text-xs text-muted"
-        />
+        >
+          <DraftSummary />
+        </footer>
       )}
     </div>
   )

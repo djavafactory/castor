@@ -24,6 +24,9 @@ class LayoutVersionTest {
                 null,
                 null,
                 null,
+                null,
+                "seed",
+                Instant.now(),
                 0);
     }
 

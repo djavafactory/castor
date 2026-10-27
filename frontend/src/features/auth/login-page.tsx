@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { Logo } from '@/components/logo'
-import { ATTRIBUTION } from '@/lib/attribution'
 import { getEnv } from '@/lib/env'
 import { basicCredential, useAuthStore } from '@/lib/stores/auth-store'
 import { fetchDemoUsers, fetchMe } from '@/lib/auth-api'
@@ -162,10 +161,9 @@ export function LoginPage() {
               username.
             </p>
           )}
-          <p className="text-[10px] leading-snug text-muted">{ATTRIBUTION}</p>
         </form>
         <div className="border-t border-line-soft bg-paper px-6 py-2 text-center text-[11px] text-muted">
-          {versionLine(env.VITE_APP_ENV, serverVersion)}
+          {versionLine(serverVersion)}
         </div>
       </div>
     </main>

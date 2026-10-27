@@ -143,6 +143,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ports/{portCode}/layouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start the draft of a port (EDITOR and above)
+         * @description Version number is the highest plus one. Revisions and details are copied unless basedOn is "blank". Writes a DRAFT_CREATED audit row.
+         */
+        post: operations["createDraftLayout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ports/{portCode}/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The audit trail of a port, newest first (ADMIN)
+         * @description Keyset pagination. Pass nextBefore of the last page as before to get the next one.
+         */
+        get: operations["listAudit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/layouts/{layoutId}": {
         parameters: {
             query?: never;
@@ -154,7 +194,11 @@ export interface paths {
         get: operations["getLayout"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Discard a draft (PUBLISHER and above)
+         * @description The version becomes DISCARDED and its rows stay for the audit trail. Writes a DRAFT_DISCARDED audit row.
+         */
+        delete: operations["discardDraftLayout"];
         options?: never;
         head?: never;
         patch?: never;
@@ -297,6 +341,18 @@ export interface components {
             publishedAt?: string | null;
             publishedBy?: string | null;
             note?: string | null;
+            /** @description The version this one was copied from; null for a blank draft. */
+            basedOnVersionNo?: number | null;
+            createdBy?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** @description Who last changed an asset of the version (its creator while nothing changed). */
+            updatedBy?: string;
+            /**
+             * Format: date-time
+             * @description When an asset of the version last changed.
+             */
+            updatedAt?: string;
         };
         LayoutLink: {
             /** @enum {string} */
@@ -401,6 +457,11 @@ export interface components {
             instance?: string;
             requestId?: string;
             errorId?: string;
+            /**
+             * Format: uuid
+             * @description On 409 "A draft already exists", the id of that draft.
+             */
+            draftId?: string;
             errors?: components["schemas"]["ProblemError"][];
         };
         ProblemError: {
@@ -664,6 +725,136 @@ export interface operations {
             };
         };
     };
+    createDraftLayout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                portCode: components["parameters"]["PortCode"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description "published", "blank" or the id of a published or superseded version of the port */
+                    basedOn: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The new draft and one feature per asset */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LayoutResponse"];
+                };
+            };
+            /** @description basedOn missing or not understood */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The role is below EDITOR */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown port or version, or no published layout to copy */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A draft already exists; draftId in the body is its id */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    listAudit: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                actor?: string;
+                action?: "ASSET_CREATED" | "ASSET_UPDATED" | "ASSET_DELETED" | "DRAFT_CREATED" | "DRAFT_DISCARDED" | "LAYOUT_PUBLISHED" | "LAYOUT_RESTORED" | "LAYOUT_IMPORTED" | "OVERRIDE_RECORDED";
+                assetId?: string;
+                limit?: number;
+                before?: number;
+            };
+            header?: never;
+            path: {
+                portCode: components["parameters"]["PortCode"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of audit rows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: int64 */
+                            id: number;
+                            /** Format: date-time */
+                            at: string;
+                            actor: string;
+                            action: string;
+                            entityKind: string;
+                            entityId?: string | null;
+                            /** Format: uuid */
+                            layoutVersionId?: string | null;
+                            /** @description Snapshot before the change */
+                            before?: Record<string, never> | null;
+                            /** @description Snapshot after the change */
+                            after?: Record<string, never> | null;
+                            requestId?: string | null;
+                        }[];
+                        /** Format: int64 */
+                        nextBefore?: number | null;
+                    };
+                };
+            };
+            /** @description Malformed from, to, action or limit */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The role is not ADMIN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown port */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     getLayout: {
         parameters: {
             query?: never;
@@ -693,6 +884,47 @@ export interface operations {
             };
             /** @description Unknown version, or a version the role may not see */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    discardDraftLayout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                layoutId: components["parameters"]["LayoutId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Discarded */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The role is below PUBLISHER */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown version */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The version is not a draft */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

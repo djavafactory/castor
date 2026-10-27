@@ -9,6 +9,10 @@ import { useSelectionStore } from '@/lib/stores/selection-store'
 import { useUiStore, type Mode } from '@/lib/stores/ui-store'
 import { confirmLeaveDesign, MONITOR_RELOADED_MESSAGE, NOT_AN_EDITOR_MESSAGE } from './leave-design'
 import { Badge } from '@/components/ui/badge'
+import { enterDesign } from '@/features/design/enter-design'
+import { LayoutStatusBadge } from '@/features/design/layout-status-badge'
+import { ApiError } from '@/lib/api-client'
+import { getEnv } from '@/lib/env'
 import { Logo } from '@/components/logo'
 import { HelpPopover } from './help-popover'
 import { usePort } from './use-port'
@@ -33,6 +37,7 @@ export function AppBar() {
         </Badge>
       )}
       <ModeSwitch />
+      <LayoutStatusBadge />
       <div className="ml-auto flex items-center gap-3">
         <HelpPopover />
         <UserMenu />
@@ -55,6 +60,16 @@ function ModeSwitch() {
         return
       }
       setMode('design')
+      try {
+        await enterDesign(queryClient, getEnv().VITE_PORT_CODE)
+      } catch (error) {
+        setMode('monitor')
+        toast.error(
+          error instanceof ApiError && error.status === 403
+            ? NOT_AN_EDITOR_MESSAGE
+            : `Could not open the draft: ${error instanceof Error ? error.message : 'unknown error'}`,
+        )
+      }
       return
     }
     if (!(await confirmLeaveDesign())) return

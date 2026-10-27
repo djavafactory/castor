@@ -21,6 +21,8 @@ interface UiState {
   accuracyColouring: boolean
   envelope: boolean
   basemap: Basemap
+  /** True when the satellite tiles could not be drawn; the plain land colour is shown instead. */
+  imageryFailed: boolean
   /** Id of the one open header or strip menu; opening one closes the other. */
   openMenu: string | null
   setMode: (mode: Mode) => void
@@ -35,6 +37,7 @@ interface UiState {
   setAccuracyColouring: (on: boolean) => void
   setEnvelope: (on: boolean) => void
   setBasemap: (basemap: Basemap) => void
+  setImageryFailed: (failed: boolean) => void
   setOpenMenu: (menu: string | null) => void
 }
 
@@ -56,6 +59,7 @@ export const useUiStore = create<UiState>()(
       accuracyColouring: false,
       envelope: false,
       basemap: 'sentinel2',
+      imageryFailed: false,
       openMenu: null,
       setMode: (mode) => set({ mode }),
       setRightTab: (rightTab) => set({ rightTab }),
@@ -70,6 +74,7 @@ export const useUiStore = create<UiState>()(
       setAccuracyColouring: (accuracyColouring) => set({ accuracyColouring }),
       setEnvelope: (envelope) => set({ envelope }),
       setBasemap: (basemap) => set({ basemap }),
+      setImageryFailed: (imageryFailed) => set({ imageryFailed }),
       setOpenMenu: (openMenu) => set({ openMenu }),
     }),
     {

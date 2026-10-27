@@ -8,6 +8,7 @@ import {
   catalogueFixture,
   controlPointsFixture,
   layoutFixture,
+  layoutWire,
   portFixture,
   referenceFeaturesFixture,
 } from '@/test/fixtures'
@@ -140,10 +141,10 @@ describe('reference data hooks', () => {
 describe('layout hooks', () => {
   it('usePublishedLayout and useDraftLayout read their layouts', async () => {
     server.use(
-      http.get(`${WESTPORTS}/layout/published`, () =>
-        HttpResponse.json({ ...layoutFixture, status: 'PUBLISHED' }),
+      http.get(`${WESTPORTS}/layouts/current`, () =>
+        HttpResponse.json(layoutWire({ ...layoutFixture, status: 'PUBLISHED' })),
       ),
-      http.get(`${WESTPORTS}/layout/draft`, () => HttpResponse.json(layoutFixture)),
+      http.get(`${WESTPORTS}/layouts/draft`, () => HttpResponse.json(layoutWire())),
     )
     const published = renderHook(() => usePublishedLayout('westports'), { wrapper: wrapperFor() })
     const draft = renderHook(() => useDraftLayout('westports'), { wrapper: wrapperFor() })
@@ -151,7 +152,18 @@ describe('layout hooks', () => {
     await waitFor(() => expect(draft.result.current.isSuccess).toBe(true))
     expect(published.result.current.data?.status).toBe('PUBLISHED')
     expect(draft.result.current.data?.assets).toHaveLength(2)
-    expect(draft.result.current.data?.assets[0]).toMatchObject({ name: 'Excavator 1' })
+    expect(draft.result.current.data?.assets[0]).toMatchObject({
+      id: 'a-1',
+      typeCode: 'EXCAVATOR',
+      rowVersion: 3,
+      name: 'Excavator 1',
+    })
+    expect(draft.result.current.data).toMatchObject({
+      versionId: 'v-1',
+      number: 1,
+      basedOnVersionNo: 1,
+      updatedBy: 'grace',
+    })
   })
 
   it('useDraftLayout stays idle while disabled', () => {

@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { delay, http, HttpResponse } from 'msw'
-import { describe, expect, it } from 'vitest'
-import { API, layoutFixture } from '@/test/fixtures'
+import { beforeEach, describe, expect, it } from 'vitest'
+import { useEditorStore } from '@/lib/stores/editor-store'
+import { API, layoutFixture, layoutWire } from '@/test/fixtures'
 import { createTestClient, wrapperFor } from '@/test/query-wrapper'
 import { server } from '@/test/setup'
 import {
@@ -16,11 +17,14 @@ import {
 } from '.'
 
 const DRAFT = `${API}/v1/ports/westports/layout/draft`
+const DRAFT_READ = `${API}/v1/ports/westports/layouts/draft`
 const problem = (status: number, title: string) =>
   HttpResponse.json(
     { title, status },
     { status, headers: { 'Content-Type': 'application/problem+json' } },
   )
+
+beforeEach(() => useEditorStore.getState().reset())
 
 function seededClient() {
   const client = createTestClient()
@@ -44,13 +48,15 @@ describe('useCreateAsset', () => {
           { status: 201 },
         )
       }),
-      http.get(DRAFT, () =>
-        HttpResponse.json({
-          ...layoutFixture,
-          assets: created
-            ? [...layoutFixture.assets, { id: 'a-3', typeCode: 'EXCAVATOR', rowVersion: 0 }]
-            : layoutFixture.assets,
-        }),
+      http.get(DRAFT_READ, () =>
+        HttpResponse.json(
+          layoutWire({
+            ...layoutFixture,
+            assets: created
+              ? [...layoutFixture.assets, { id: 'a-3', typeCode: 'EXCAVATOR', rowVersion: 0 }]
+              : layoutFixture.assets,
+          }),
+        ),
       ),
     )
     // the draft is on screen, so something observes it and refetches when the mutation settles
@@ -72,7 +78,7 @@ describe('useCreateAsset', () => {
     const client = seededClient()
     server.use(
       http.post(`${DRAFT}/assets`, () => problem(422, 'Validation failed')),
-      http.get(DRAFT, () => HttpResponse.json(layoutFixture)),
+      http.get(DRAFT_READ, () => HttpResponse.json(layoutWire())),
     )
     const { result } = renderHook(() => useCreateAsset('westports'), {
       wrapper: wrapperFor(client),
@@ -88,7 +94,7 @@ describe('useCreateAsset', () => {
     const client = seededClient()
     server.use(
       http.post(`${DRAFT}/assets`, () => HttpResponse.json({ nope: true }, { status: 201 })),
-      http.get(DRAFT, () => HttpResponse.json(layoutFixture)),
+      http.get(DRAFT_READ, () => HttpResponse.json(layoutWire())),
     )
     const { result } = renderHook(() => useCreateAsset('westports'), {
       wrapper: wrapperFor(client),
@@ -118,7 +124,7 @@ describe('useUpdateAsset', () => {
           name: 'Renamed',
         })
       }),
-      http.get(DRAFT, () => HttpResponse.json(layoutFixture)),
+      http.get(DRAFT_READ, () => HttpResponse.json(layoutWire())),
     )
     const { result } = renderHook(() => useUpdateAsset('westports'), {
       wrapper: wrapperFor(client),
@@ -136,7 +142,7 @@ describe('useUpdateAsset', () => {
     const client = seededClient()
     server.use(
       http.patch(`${DRAFT}/assets/a-1`, () => problem(409, 'Conflict')),
-      http.get(DRAFT, () => HttpResponse.json(layoutFixture)),
+      http.get(DRAFT_READ, () => HttpResponse.json(layoutWire())),
     )
     const { result } = renderHook(() => useUpdateAsset('westports'), {
       wrapper: wrapperFor(client),
@@ -154,7 +160,7 @@ describe('useDeleteAsset', () => {
     const client = seededClient()
     server.use(
       http.delete(`${DRAFT}/assets/a-2`, () => problem(409, 'Conflict')),
-      http.get(DRAFT, () => HttpResponse.json(layoutFixture)),
+      http.get(DRAFT_READ, () => HttpResponse.json(layoutWire())),
     )
     const { result } = renderHook(() => useDeleteAsset('westports'), {
       wrapper: wrapperFor(client),
@@ -174,8 +180,10 @@ describe('useDeleteAsset', () => {
         ifMatch = request.headers.get('If-Match')
         return new HttpResponse(null, { status: 204 })
       }),
-      http.get(DRAFT, () =>
-        HttpResponse.json({ ...layoutFixture, assets: layoutFixture.assets.slice(0, 1) }),
+      http.get(DRAFT_READ, () =>
+        HttpResponse.json(
+          layoutWire({ ...layoutFixture, assets: layoutFixture.assets.slice(0, 1) }),
+        ),
       ),
     )
     const { result } = renderHook(() => useDeleteAsset('westports'), {
@@ -200,8 +208,8 @@ describe('usePublishLayout', () => {
         await delay(30)
         return HttpResponse.json({ ...layoutFixture, status: 'PUBLISHED' })
       }),
-      http.get(`${API}/v1/ports/westports/layout/published`, () =>
-        HttpResponse.json({ ...layoutFixture, status: 'PUBLISHED' }),
+      http.get(`${API}/v1/ports/westports/layouts/current`, () =>
+        HttpResponse.json(layoutWire({ ...layoutFixture, status: 'PUBLISHED' })),
       ),
       http.get(`${API}/v1/ports/westports/layout/versions`, () => HttpResponse.json([])),
     )
@@ -224,7 +232,7 @@ describe('usePublishLayout', () => {
     const client = seededClient()
     server.use(
       http.post(publish, () => problem(422, 'Publish blocked')),
-      http.get(DRAFT, () => HttpResponse.json(layoutFixture)),
+      http.get(DRAFT_READ, () => HttpResponse.json(layoutWire())),
     )
     const { result } = renderHook(() => usePublishLayout('westports'), {
       wrapper: wrapperFor(client),

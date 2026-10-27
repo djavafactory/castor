@@ -1,9 +1,9 @@
+import { hex, palette } from '@/features/scene/palette'
+
 /** Static container fill of a container yard. Nothing moves a box and no box is stored: it is all derived. */
 
 /** Colours of the container fleet, picked by colour key. */
-export const CONTAINER_COLOURS = [
-  0xb5382f, 0x3c6fb4, 0x2f7d5b, 0xe8a317, 0x8a8f98, 0xd8d4c8, 0x7a4b8c, 0xc9682b,
-] as const
+export const CONTAINER_COLOURS = palette.containers.map(hex)
 
 export const PAD_COLOUR = 0xb9b7ae
 

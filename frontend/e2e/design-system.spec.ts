@@ -31,6 +31,24 @@ async function signIn(page: Page) {
       },
     }),
   )
+  // Entering Design loads the team's draft
+  await page.route('**/api/v1/ports/*/layouts/draft', (route) =>
+    route.fulfill({
+      json: {
+        layout: {
+          id: '00000000-0000-0000-0000-000000000002',
+          versionNo: 2,
+          status: 'DRAFT',
+          basedOnVersionNo: 1,
+          createdBy: 'ada',
+          createdAt: '2026-10-27T01:00:00Z',
+          updatedBy: 'ada',
+          updatedAt: '2026-10-27T01:00:00Z',
+        },
+        features: { type: 'FeatureCollection', features: [] },
+      },
+    }),
+  )
   await page.goto('/login')
   await page.getByLabel('Username').fill('ada')
   await page.getByLabel('Password', { exact: true }).fill('secret')

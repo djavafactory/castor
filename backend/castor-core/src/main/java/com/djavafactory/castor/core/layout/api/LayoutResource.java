@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.UUID;
 
 import jakarta.annotation.security.RolesAllowed;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.Path;
@@ -14,6 +15,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
 
+import com.djavafactory.castor.core.layout.application.DiscardDraft;
 import com.djavafactory.castor.core.layout.application.GetLayout;
 import com.djavafactory.castor.core.layout.application.ListLayoutVersions;
 import com.djavafactory.castor.core.layout.domain.LayoutStatus;
@@ -30,13 +32,19 @@ public class LayoutResource {
 
     private final ListLayoutVersions listLayoutVersions;
     private final GetLayout getLayout;
+    private final DiscardDraft discardDraft;
     private final LayoutFeatureMapper mapper;
     private final CachedJson cache;
 
     public LayoutResource(
-            ListLayoutVersions listLayoutVersions, GetLayout getLayout, LayoutFeatureMapper mapper, CachedJson cache) {
+            ListLayoutVersions listLayoutVersions,
+            GetLayout getLayout,
+            DiscardDraft discardDraft,
+            LayoutFeatureMapper mapper,
+            CachedJson cache) {
         this.listLayoutVersions = listLayoutVersions;
         this.getLayout = getLayout;
+        this.discardDraft = discardDraft;
         this.mapper = mapper;
         this.cache = cache;
     }
@@ -60,6 +68,15 @@ public class LayoutResource {
         var result = getLayout.byId(layoutId);
         requireVisible(result.view().version(), security);
         return cache.tagged(ifNoneMatch, result.etag(), () -> mapper.layout(result.view()));
+    }
+
+    /** Discards a draft. The rows stay for the audit trail; the next entry to Design starts a new draft. */
+    @DELETE
+    @Path("{layoutId}")
+    @RolesAllowed({"PUBLISHER", "ADMIN"})
+    public Response discard(@PathParam("layoutId") UUID layoutId) {
+        discardDraft.execute(layoutId);
+        return Response.noContent().build();
     }
 
     /** One feature of one version; its ETag is the row version of the revision. */

@@ -7,12 +7,14 @@ export interface LayerDef {
 }
 
 export const BUILDINGS_LAYER = 'buildings-osm'
+export const ROADS_LAYER = 'roads-osm'
 export const CONTAINERS_LAYER = 'containers'
 
 /** The layers listed in "All layers". Each replica ticket adds its own; the container one needs its feature. */
 export function layers(): LayerDef[] {
   return [
     { key: BUILDINGS_LAYER, label: 'Buildings (OSM)' },
+    { key: ROADS_LAYER, label: 'Roads (OSM)' },
     ...(containersEnabled() ? [{ key: CONTAINERS_LAYER, label: 'Containers' }] : []),
   ]
 }

@@ -48,6 +48,11 @@ public class LayoutFeatureMapper {
         h.put("publishedAt", v.publishedAt() == null ? null : v.publishedAt().toString());
         h.put("publishedBy", v.publishedBy());
         h.put("note", v.note());
+        h.put("basedOnVersionNo", v.basedOnVersionNo());
+        h.put("createdBy", v.createdBy());
+        h.put("createdAt", v.createdAt().toString());
+        h.put("updatedBy", v.updatedBy());
+        h.put("updatedAt", v.updatedAt().toString());
         return h;
     }
 

@@ -23,4 +23,15 @@ public interface LayoutRepository {
 
     /** The single asset of a version with its details, links and measures, if the version has it. */
     Optional<LayoutView> loadAsset(LayoutVersion version, UUID assetId);
+
+    /**
+     * Creates the DRAFT of a port as the next version number, in the running transaction. Revisions and details are
+     * copied from basedOn when it is given; a null basedOn makes a blank draft.
+     *
+     * @throws com.djavafactory.castor.core.shared.domain.DraftAlreadyExistsException when the port has a draft
+     */
+    LayoutVersion createDraft(String portCode, LayoutVersion basedOn, String createdBy);
+
+    /** Marks a DRAFT as DISCARDED; its rows are kept. Returns the changed version. */
+    LayoutVersion discard(LayoutVersion draft);
 }

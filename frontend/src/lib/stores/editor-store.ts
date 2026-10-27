@@ -47,11 +47,16 @@ interface EditorState {
   clearHistory: () => void
   beginSave: (assetId: string) => void
   endSave: (assetId: string) => void
-  /** Ends a save that failed: the asset moves from pending to failed. */
-  failSave: (assetId: string) => void
+  /** Ends a save that failed: the asset moves from pending to failed. `retry` runs it again. */
+  failSave: (assetId: string, retry?: () => void) => void
+  /** Runs the retry of every failed save. */
+  retryFailedSaves: () => void
   setValidation: (result: ValidationResult | null) => void
   reset: () => void
 }
+
+/** What to run to try a failed save again; functions do not belong in reactive state. */
+const retries = new Map<string, () => void>()
 
 const initial = {
   tool: null,
@@ -105,24 +110,37 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
     return entry
   },
   clearHistory: () => set({ undoStack: [], redoStack: [] }),
-  beginSave: (assetId) =>
+  beginSave: (assetId) => {
+    retries.delete(assetId)
     set((state) => ({
       pendingSaves: [...state.pendingSaves, assetId],
       failedSaves: state.failedSaves.filter((id) => id !== assetId),
-    })),
+    }))
+  },
   endSave: (assetId) =>
     set((state) => {
       const index = state.pendingSaves.indexOf(assetId)
       if (index < 0) return state
       return { pendingSaves: state.pendingSaves.filter((_, i) => i !== index) }
     }),
-  failSave: (assetId) =>
+  failSave: (assetId, retry) => {
+    if (retry) retries.set(assetId, retry)
     set((state) => ({
       pendingSaves: state.pendingSaves.filter((id) => id !== assetId),
       failedSaves: state.failedSaves.includes(assetId)
         ? state.failedSaves
         : [...state.failedSaves, assetId],
-    })),
+    }))
+  },
+  retryFailedSaves: () => {
+    const run = get()
+      .failedSaves.map((id) => retries.get(id))
+      .filter((retry) => retry !== undefined)
+    for (const retry of run) retry()
+  },
   setValidation: (lastValidation) => set({ lastValidation }),
-  reset: () => set({ ...initial }),
+  reset: () => {
+    retries.clear()
+    set({ ...initial })
+  },
 }))
