@@ -36,13 +36,21 @@ const LABEL_PX = 256
 export const CAPTION_PX = 512
 export const CAPTION_SCALE: [number, number, number] = [32, 4, 1]
 
-export function labelTexture(text: string, width = LABEL_PX): CanvasTexture | null {
+export function labelTexture(
+  text: string,
+  width = LABEL_PX,
+  colours?: { text: string; background: string },
+): CanvasTexture | null {
   const canvas = document.createElement('canvas')
   canvas.width = width
   canvas.height = width / 4
   const context = canvas.getContext('2d')
   if (!context) return null
-  context.fillStyle = 'rgb(31, 41, 55)'
+  if (colours) {
+    context.fillStyle = colours.background
+    context.fillRect(0, canvas.height * 0.15, canvas.width, canvas.height * 0.7)
+  }
+  context.fillStyle = colours?.text ?? 'rgb(31, 41, 55)'
   context.font = '600 28px sans-serif'
   context.textAlign = 'center'
   context.textBaseline = 'middle'

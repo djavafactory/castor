@@ -14,6 +14,8 @@ import { buildModel, disposeModel, getModelSpec, modelScale } from './registry'
 
 /** One placed asset of a layout. */
 export interface LayoutAsset {
+  /** The layout asset id; lets a caption be tied back to its asset (hover label). */
+  id?: string
   modelKey: string
   size: ModelSize
   footprint?: Pt[]
@@ -27,6 +29,7 @@ export interface LayoutAsset {
 
 export interface LayoutCaption {
   text: string
+  assetId?: string
   /** Scene position above the asset. */
   position: [x: number, y: number, z: number]
 }
@@ -81,7 +84,7 @@ export function buildLayoutMeshes(assets: readonly LayoutAsset[]): LayoutMeshes 
     const caption = spec.caption?.(params)
     if (caption) {
       const [x, y, z] = asset.position
-      captions.push({ text: caption.text, position: [x, y + caption.height, z] })
+      captions.push({ text: caption.text, assetId: asset.id, position: [x, y + caption.height, z] })
     }
   }
 

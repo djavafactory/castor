@@ -4,6 +4,10 @@ import { LayoutAssetDetails } from '@/components/scene/layout/asset-details'
 import { BuildingDetails } from '@/components/scene/buildings/building-details'
 import { ModelPalette } from '@/components/scene/models/model-palette'
 import { PortScene } from '@/components/scene/port-scene'
+import { CatalogueTab } from './catalogue-tab'
+import { PortDetails } from './port-details'
+import { useSceneKeys } from './use-scene-keys'
+import { useEffect } from 'react'
 import { useSelectionStore } from '@/lib/stores/selection-store'
 import { useUiStore, type Mode, type RightTab } from '@/lib/stores/ui-store'
 
@@ -28,6 +32,7 @@ export function WorkArea() {
   const viewMode = useUiStore((s) => s.viewMode)
   const panelHidden = useUiStore((s) => s.panelHidden)
   const paletteHidden = useUiStore((s) => s.paletteHidden)
+  useSceneKeys()
   // Monitor is always the 3D replica; Design shows it in the 3D and Split views (the 2D map is a DSN ticket).
   const showScene = mode === 'monitor' || viewMode !== '2d'
   return (
@@ -69,6 +74,11 @@ function RightPanel({ mode }: { mode: Mode }) {
   const stored = useUiStore((s) => s.rightTab)
   const setRightTab = useUiStore((s) => s.setRightTab)
   // The remembered tab may belong to the other mode; fall back to this mode's first tab.
+  const selection = useSelectionStore((s) => s.selectedAssetId ?? s.selectedReferenceId)
+  // Selecting anything brings its details forward
+  useEffect(() => {
+    if (selection !== null) setRightTab(mode === 'monitor' ? 'details' : 'inspector')
+  }, [selection, mode, setRightTab])
   const active = tabs.some((t) => t.value === stored) ? stored : tabs[0].value
 
   return (
@@ -85,6 +95,7 @@ function RightPanel({ mode }: { mode: Mode }) {
         className="min-h-0 flex-1 overflow-auto p-3.5"
       >
         {(active === 'details' || active === 'inspector') && <SelectionDetails />}
+        {active === 'catalogue' && <CatalogueTab />}
       </div>
     </aside>
   )
@@ -94,11 +105,7 @@ function RightPanel({ mode }: { mode: Mode }) {
 function SelectionDetails() {
   const asset = useSelectionStore((s) => s.selectedAssetId)
   const reference = useSelectionStore((s) => s.selectedReferenceId)
-  if (asset === null && reference === null) {
-    return (
-      <p className="text-[13px] text-muted">Select an asset in the 3D view to read its details.</p>
-    )
-  }
+  if (asset === null && reference === null) return <PortDetails />
   return (
     <>
       <LayoutAssetDetails />
