@@ -173,3 +173,118 @@ export const layoutFixture = {
     { id: 'a-2', typeCode: 'EXCAVATOR', rowVersion: 1, name: 'Excavator 2' },
   ],
 }
+
+const ORIGIN = { lon: 101.3066304, lat: 2.9534057 }
+
+/** A feature of GET /api/v1/ports/{code}/layouts/current, with the members the app reads. */
+export function layoutFeature(
+  id: string,
+  type: string,
+  properties: Record<string, unknown> = {},
+  geometry?: { type: string; coordinates: unknown },
+) {
+  const { dLon = 0, ...rest } = properties as { dLon?: number } & Record<string, unknown>
+  const lon = ORIGIN.lon + dLon
+  const lat = ORIGIN.lat
+  return {
+    type: 'Feature' as const,
+    id,
+    geometry: geometry ?? { type: 'Point', coordinates: [lon, lat] },
+    properties: {
+      code: id.toUpperCase(),
+      type,
+      name: `${type} ${id}`,
+      anchor: [lon, lat],
+      headingDeg: null,
+      lengthM: null,
+      widthM: null,
+      heightM: null,
+      radiusM: null,
+      lineWidthM: null,
+      elevationM: null,
+      storageZoneCode: null,
+      details: {},
+      links: [],
+      provenance: { source: 'SYNTHETIC', accuracy: 'APPROXIMATE', capturedOn: null, note: null },
+      override: null,
+      computed: {},
+      rowVersion: 0,
+      ...rest,
+    },
+  }
+}
+
+function square(lon: number, lat: number, half = 0.0002) {
+  return {
+    type: 'Polygon',
+    coordinates: [
+      [
+        [lon - half, lat - half],
+        [lon + half, lat - half],
+        [lon + half, lat + half],
+        [lon - half, lat + half],
+        [lon - half, lat - half],
+      ],
+    ],
+  }
+}
+
+export const currentLayoutFixture = {
+  layout: {
+    id: '5a1c0000-0000-4000-8000-000000000003',
+    versionNo: 3,
+    status: 'PUBLISHED',
+    publishedAt: '2026-10-27T06:05:00Z',
+    publishedBy: 'pia',
+    note: 'Berth 4 extended',
+  },
+  features: {
+    type: 'FeatureCollection' as const,
+    features: [
+      layoutFeature(
+        'wh1',
+        'WAREHOUSE',
+        {
+          dLon: 0.0004,
+          name: 'Warehouse 1',
+          lengthM: 60,
+          widthM: 30,
+          heightM: 12,
+          headingDeg: 45,
+          details: { warehouse: { roofRiseM: 2, dockDoors: 4 } },
+          computed: { areaM2: 1800 },
+        },
+        square(ORIGIN.lon + 0.0004, ORIGIN.lat),
+      ),
+      layoutFeature('cy1', 'CONTAINER_YARD', {
+        dLon: 0.0008,
+        name: 'Yard 1',
+        lengthM: 120,
+        widthM: 60,
+        details: { containerYard: { maxTiers: 4, designFill: 0.5, capacityTeu: 900 } },
+      }),
+      layoutFeature('sts1', 'STS_CRANE', {
+        dLon: 0.0012,
+        name: 'STS 1',
+        lengthM: 16,
+        widthM: 22,
+        heightM: 55,
+      }),
+      layoutFeature('fk1', 'FORKLIFT', { dLon: 0.0016, name: 'Forklift 1' }),
+      layoutFeature('x1', 'NOT_A_MODEL', { dLon: 0.002, name: 'Mystery' }),
+      layoutFeature(
+        'rd1',
+        'INTERNAL_ROAD',
+        { dLon: 0.0006, lineWidthM: 8 },
+        {
+          type: 'LineString',
+          coordinates: [
+            [ORIGIN.lon, ORIGIN.lat + 0.0003],
+            [ORIGIN.lon + 0.0006, ORIGIN.lat + 0.0003],
+            [ORIGIN.lon + 0.0006, ORIGIN.lat + 0.0006],
+          ],
+        },
+      ),
+    ],
+  },
+}

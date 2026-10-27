@@ -206,6 +206,85 @@ export const layoutSchema = z.looseObject({
   assets: z.array(layoutAssetSchema),
 })
 
+// ---- Published layout: GET /ports/{code}/layouts/current ----
+
+export const layoutStatusSchema = z.enum(['DRAFT', 'PUBLISHED', 'SUPERSEDED', 'DISCARDED'])
+
+export const layoutHeaderSchema = z.object({
+  id: z.string(),
+  versionNo: z.number().int().min(1),
+  status: layoutStatusSchema,
+  publishedAt: z.string().nullish(),
+  publishedBy: z.string().nullish(),
+  note: z.string().nullish(),
+})
+
+const optionalMetres = z.number().nullish()
+
+/** Details groups are present only when the asset type has them; members the app does not read are kept. */
+export const layoutDetailsSchema = z.looseObject({
+  containerYard: z
+    .looseObject({
+      maxTiers: z.number().int(),
+      designFill: z.number().nullish(),
+      capacityTeu: z.number().int().nullish(),
+    })
+    .optional(),
+  storagePad: z
+    .looseObject({ bays: z.number().int(), rows: z.number().int(), maxHeightM: optionalMetres })
+    .optional(),
+  storage: z
+    .looseObject({ designFill: z.number().nullish(), cargoTypeCode: z.string().nullish() })
+    .optional(),
+  warehouse: z.looseObject({ roofRiseM: optionalMetres, dockDoors: z.number().int() }).optional(),
+  berth: z.looseObject({ depthM: optionalMetres }).optional(),
+  mobile: z.looseObject({ positionMode: z.string(), uncertaintyM: optionalMetres }).optional(),
+})
+
+export const layoutFeaturePropertiesSchema = z.looseObject({
+  code: z.string(),
+  type: z.string(),
+  name: z.string(),
+  /** [lon, lat] */
+  anchor: z.tuple([z.number(), z.number()]),
+  headingDeg: optionalMetres,
+  lengthM: optionalMetres,
+  widthM: optionalMetres,
+  heightM: optionalMetres,
+  radiusM: optionalMetres,
+  lineWidthM: optionalMetres,
+  elevationM: optionalMetres,
+  storageZoneCode: z.string().nullish(),
+  details: layoutDetailsSchema,
+  provenance: z.looseObject({
+    source: z.string(),
+    accuracy: z.string(),
+    capturedOn: z.string().nullish(),
+    note: z.string().nullish(),
+  }),
+  computed: z.looseObject({
+    areaM2: optionalMetres,
+    perimeterM: optionalMetres,
+    lengthM: optionalMetres,
+  }),
+  rowVersion: z.number().int(),
+})
+
+export const layoutFeatureSchema = z.looseObject({
+  type: z.literal('Feature'),
+  id: z.string(),
+  geometry: geometrySchema,
+  properties: layoutFeaturePropertiesSchema,
+})
+
+export const currentLayoutSchema = z.object({
+  layout: layoutHeaderSchema,
+  features: z.object({
+    type: z.literal('FeatureCollection'),
+    features: z.array(layoutFeatureSchema),
+  }),
+})
+
 export const layoutVersionsSchema = z.array(
   z.object({
     id: z.string(),
@@ -243,6 +322,10 @@ export type ReferenceFeatures = z.infer<typeof referenceFeaturesSchema>
 export type AssetType = z.infer<typeof assetTypeSchema>
 export type Catalogue = z.infer<typeof catalogueSchema>
 export type Layout = z.infer<typeof layoutSchema>
+export type CurrentLayout = z.infer<typeof currentLayoutSchema>
+export type LayoutHeader = z.infer<typeof layoutHeaderSchema>
+export type LayoutFeature = z.infer<typeof layoutFeatureSchema>
+export type LayoutFeatureProperties = z.infer<typeof layoutFeaturePropertiesSchema>
 export type LayoutAsset = z.infer<typeof layoutAssetSchema>
 export type LayoutVersion = z.infer<typeof layoutVersionsSchema>[number]
 export type AssetHistoryEntry = z.infer<typeof assetHistorySchema>[number]

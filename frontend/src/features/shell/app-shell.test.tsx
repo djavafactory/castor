@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { basicCredential, useAuthStore, type Role } from '@/lib/stores/auth-store'
 import { useEditorStore } from '@/lib/stores/editor-store'
 import { useUiStore } from '@/lib/stores/ui-store'
-import { portFixture } from '@/test/fixtures'
+import { currentLayoutFixture, portFixture } from '@/test/fixtures'
 import { server } from '@/test/setup'
 import { AppShell } from './app-shell'
 import { MONITOR_RELOADED_MESSAGE, NOT_AN_EDITOR_MESSAGE, SAVE_FAILED_PROMPT } from './leave-design'
@@ -214,5 +214,53 @@ describe('help popover', () => {
     expect(
       await screen.findByText(`Castor v${__APP_VERSION__} (server v9.9.9)`),
     ).toBeInTheDocument()
+  })
+})
+
+describe('Monitor of the published layout', () => {
+  function publishedAs(versionNo: number, etag: string) {
+    server.use(
+      http.get(`${BASE}/v1/ports/WESTPORTS/layouts/current`, () =>
+        HttpResponse.json(
+          { ...currentLayoutFixture, layout: { ...currentLayoutFixture.layout, versionNo } },
+          { headers: { ETag: etag } },
+        ),
+      ),
+    )
+  }
+
+  it('shows the published version next to the port name, with the publish note as tooltip', async () => {
+    publishedAs(3, '"a"')
+    signInAs(['VIEWER'])
+    renderShell()
+
+    const label = await screen.findByText('Published v3 · 27 Oct 2026 14:05 by pia')
+    expect(label).toHaveAttribute('title', 'Berth 4 extended')
+    expect(label.previousElementSibling).toHaveTextContent('Westports')
+  })
+
+  it('is read-only and has no live data: no palette, no editing tabs, no live bar', async () => {
+    publishedAs(3, '"a"')
+    signInAs(['VIEWER'])
+    renderShell()
+    await screen.findByText(/Published v3/)
+
+    expect(screen.queryByLabelText('Asset palette')).toBeNull()
+    expect(screen.queryByRole('tab', { name: /Inspector|Issues|Versions/ })).toBeNull()
+    expect(screen.queryByText(/live|KPI|schedule|connected|events/i)).toBeNull()
+    expect(
+      screen.getByText('Select an asset in the 3D view to read its details.'),
+    ).toBeInTheDocument()
+  })
+
+  it('is the start mode and drops the version text in Design', async () => {
+    publishedAs(3, '"a"')
+    signInAs(['EDITOR'])
+    renderShell()
+    await screen.findByText(/Published v3/)
+    expect(useUiStore.getState().mode).toBe('monitor')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Design' }))
+    expect(screen.queryByText(/Published v3/)).toBeNull()
   })
 })

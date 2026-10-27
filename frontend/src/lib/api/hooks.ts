@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { layoutQueryOptions, staticQueryOptions } from '@/app/query-client'
+import { apiGet } from '@/lib/api-client'
 import { getEnv } from '@/lib/env'
 import {
   accuracyReportSchema,
@@ -7,6 +8,7 @@ import {
   assetTypesSchema,
   catalogueSchema,
   controlPointsSchema,
+  currentLayoutSchema,
   layoutSchema,
   layoutVersionsSchema,
   portSchema,
@@ -14,7 +16,7 @@ import {
   searchResultsSchema,
   type ReferenceKind,
 } from './schemas'
-import { getParsed } from './validated'
+import { getParsed, requestParsed } from './validated'
 
 /** Query keys in one place so mutations and tests invalidate exactly what hooks read. */
 export const queryKeys = {
@@ -24,6 +26,7 @@ export const queryKeys = {
     ['reference-features', code, [...kinds].sort().join(',')] as const,
   assetTypes: () => ['asset-types'] as const,
   catalogue: () => ['catalogue'] as const,
+  current: (code: string) => ['layout', code, 'current'] as const,
   published: (code: string) => ['layout', code, 'published'] as const,
   draft: (code: string) => ['layout', code, 'draft'] as const,
   versions: (code: string) => ['layout', code, 'versions'] as const,
@@ -91,6 +94,36 @@ export function useCatalogue() {
 }
 
 // ---- Layout data: refetched whenever it is used again ----
+
+/** How often Monitor asks whether a newer version was published (no WebSocket in Phase 1). */
+export const CURRENT_LAYOUT_POLL_MS = 60_000
+
+/** The published layout version of the port, with its ETag. Read-only; every signed-in role may read it. */
+export function useCurrentLayout(code: string = defaultPortCode()) {
+  return useQuery({
+    queryKey: queryKeys.current(code),
+    queryFn: ({ signal }) =>
+      requestParsed(`${portPath(code)}/layouts/current`, currentLayoutSchema, { signal }),
+    ...layoutQueryOptions,
+  })
+}
+
+/**
+ * Watches the ETag of the published layout. It is true once the server answers with a different ETag than the
+ * one the screen was drawn from, which means a newer version was published. Only the header is read.
+ */
+export function useNewLayoutVersion(loadedEtag: string | null, code: string = defaultPortCode()) {
+  const { data } = useQuery({
+    queryKey: [...queryKeys.current(code), 'etag'],
+    queryFn: ({ signal }) =>
+      apiGet<unknown>(`${portPath(code)}/layouts/current`, { signal }).then((r) => r.etag),
+    enabled: loadedEtag !== null,
+    refetchInterval: CURRENT_LAYOUT_POLL_MS,
+    staleTime: 0,
+    retry: false,
+  })
+  return loadedEtag !== null && data != null && data !== loadedEtag
+}
 
 export function usePublishedLayout(code: string = defaultPortCode()) {
   return useQuery({

@@ -7,6 +7,7 @@ import {
   assetTypesFixture,
   catalogueFixture,
   controlPointsFixture,
+  currentLayoutFixture,
   layoutFixture,
   portFixture,
   referenceFeaturesFixture,
@@ -19,6 +20,8 @@ import {
   useAccuracyReport,
   useAssetHistory,
   useAssetTypes,
+  useCurrentLayout,
+  useNewLayoutVersion,
   useCatalogue,
   useControlPoints,
   useDraftLayout,
@@ -224,5 +227,47 @@ describe('layout hooks', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(term).toBe('exc')
     expect(result.current.data?.[0]?.label).toBe('Excavator 1')
+  })
+})
+
+describe('published layout (GET layouts/current)', () => {
+  it('useCurrentLayout returns the validated layout with its ETag', async () => {
+    server.use(
+      http.get(`${WESTPORTS}/layouts/current`, () =>
+        HttpResponse.json(currentLayoutFixture, { headers: { ETag: '"v3-0"' } }),
+      ),
+    )
+    const { result } = renderHook(() => useCurrentLayout('westports'), { wrapper: wrapperFor() })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data?.etag).toBe('"v3-0"')
+    expect(result.current.data?.data.layout).toMatchObject({ versionNo: 3, publishedBy: 'pia' })
+    expect(result.current.data?.data.features.features).toHaveLength(6)
+  })
+
+  it('useCurrentLayout refuses a layout of an unknown shape', async () => {
+    server.use(http.get(`${WESTPORTS}/layouts/current`, () => HttpResponse.json({ layout: {} })))
+    const { result } = renderHook(() => useCurrentLayout('westports'), { wrapper: wrapperFor() })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.error).toBeInstanceOf(ResponseShapeError)
+  })
+
+  it('useNewLayoutVersion is true only when the server ETag differs from the loaded one', async () => {
+    server.use(
+      http.get(`${WESTPORTS}/layouts/current`, () =>
+        HttpResponse.json(currentLayoutFixture, { headers: { ETag: '"v4-0"' } }),
+      ),
+    )
+    const same = renderHook(() => useNewLayoutVersion('"v4-0"', 'westports'), {
+      wrapper: wrapperFor(),
+    })
+    const older = renderHook(() => useNewLayoutVersion('"v3-0"', 'westports'), {
+      wrapper: wrapperFor(),
+    })
+    const unloaded = renderHook(() => useNewLayoutVersion(null, 'westports'), {
+      wrapper: wrapperFor(),
+    })
+    await waitFor(() => expect(older.result.current).toBe(true))
+    expect(same.result.current).toBe(false)
+    expect(unloaded.result.current).toBe(false)
   })
 })

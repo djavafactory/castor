@@ -138,6 +138,7 @@ export function usePublishLayout(code: string = defaultPortCode()) {
     onSettled: () =>
       Promise.all([
         client.invalidateQueries({ queryKey: publishedKey }),
+        client.invalidateQueries({ queryKey: queryKeys.current(code) }),
         client.invalidateQueries({ queryKey: draftKey }),
         client.invalidateQueries({ queryKey: queryKeys.versions(code) }),
         client.invalidateQueries({ queryKey: queryKeys.port(code) }),
