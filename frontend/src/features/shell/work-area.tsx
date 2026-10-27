@@ -1,4 +1,6 @@
 import { Tabs } from '@/components/ui/tabs'
+import { BuildingDetails } from '@/components/scene/buildings/building-details'
+import { PortScene } from '@/components/scene/port-scene'
 import { useUiStore, type Mode, type RightTab } from '@/lib/stores/ui-store'
 
 const TABS: Record<Mode, { value: RightTab; label: string }[]> = {
@@ -22,6 +24,8 @@ export function WorkArea() {
   const viewMode = useUiStore((s) => s.viewMode)
   const panelHidden = useUiStore((s) => s.panelHidden)
   const paletteHidden = useUiStore((s) => s.paletteHidden)
+  // Monitor is always the 3D replica; Design shows it in the 3D and Split views (the 2D map is a DSN ticket).
+  const showScene = mode === 'monitor' || viewMode !== '2d'
   return (
     <div className="flex min-h-0 flex-col">
       <div className="flex min-h-0 flex-1">
@@ -38,7 +42,9 @@ export function WorkArea() {
         <main
           aria-label={mode === 'design' ? `Design stage, ${viewMode}` : 'Port stage'}
           className="relative min-w-0 flex-1 bg-canvas"
-        />
+        >
+          {showScene && <PortScene />}
+        </main>
         {!panelHidden && <RightPanel mode={mode} />}
       </div>
       {mode === 'design' && (
@@ -70,7 +76,9 @@ function RightPanel({ mode }: { mode: Mode }) {
         aria-labelledby={`tab-${active}`}
         tabIndex={0}
         className="min-h-0 flex-1 overflow-auto p-3.5"
-      />
+      >
+        {(active === 'details' || active === 'inspector') && <BuildingDetails />}
+      </div>
     </aside>
   )
 }

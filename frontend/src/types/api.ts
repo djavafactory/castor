@@ -72,6 +72,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/port": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The port this installation is set up for */
+        get: operations["getConfiguredPort"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ports/{portCode}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A port with its quay frame and measurement CRS */
+        get: operations["getPort"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ports/{portCode}/reference-features": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read-only OpenStreetMap features of a port as GeoJSON (there is no write endpoint) */
+        get: operations["listReferenceFeatures"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -97,6 +148,64 @@ export interface components {
             username: string;
             label: string;
         };
+        LonLat: {
+            /** Format: double */
+            lon: number;
+            /** Format: double */
+            lat: number;
+        };
+        Port: {
+            code: string;
+            name: string;
+            synthetic: boolean;
+            origin: components["schemas"]["LonLat"];
+            /**
+             * Format: double
+             * @description Angle of local +X, degrees counter-clockwise from east
+             */
+            rotDeg: number;
+            /** Format: int32 */
+            measureSrid: number;
+        };
+        /**
+         * @default BUILDING
+         * @enum {string}
+         */
+        ReferenceFeatureKind: "BUILDING" | "ROAD";
+        ReferenceFeatureProperties: {
+            kind: components["schemas"]["ReferenceFeatureKind"];
+            /** @description OpenStreetMap reference such as way/1300405460 */
+            osmRef: string;
+            /** @description The mapped name; null when OpenStreetMap has none */
+            name?: string | null;
+            /** Format: double */
+            heightM?: number | null;
+            /**
+             * Format: double
+             * @description Footprint area measured in the port measurement CRS; null for lines
+             */
+            areaM2?: number | null;
+            source: string;
+            /** @enum {string} */
+            accuracy: "SURVEYED" | "VERIFIED" | "OPERATOR" | "APPROXIMATE";
+        };
+        ReferenceFeature: {
+            /** @enum {string} */
+            type: "Feature";
+            id: string;
+            /** @description GeoJSON Polygon or LineString in WGS84 */
+            geometry: {
+                /** @enum {string} */
+                type: "Polygon" | "LineString";
+                coordinates: unknown[];
+            };
+            properties: components["schemas"]["ReferenceFeatureProperties"];
+        };
+        ReferenceFeatureCollection: {
+            /** @enum {string} */
+            type: "FeatureCollection";
+            features: components["schemas"]["ReferenceFeature"][];
+        };
         /** @enum {string} */
         Role: "VIEWER" | "EDITOR" | "PUBLISHER" | "ADMIN";
         ProblemDetails: {
@@ -120,7 +229,9 @@ export interface components {
         };
     };
     responses: never;
-    parameters: never;
+    parameters: {
+        PortCode: string;
+    };
     requestBodies: never;
     headers: never;
     pathItems: never;
@@ -212,6 +323,100 @@ export interface operations {
         responses: {
             /** @description Recorded */
             204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getConfiguredPort: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The port record */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Port"];
+                };
+            };
+            /** @description The configured port is not loaded */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getPort: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                portCode: components["parameters"]["PortCode"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The port record */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Port"];
+                };
+            };
+            /** @description Unknown port */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listReferenceFeatures: {
+        parameters: {
+            query?: {
+                kind?: components["schemas"]["ReferenceFeatureKind"];
+            };
+            header?: never;
+            path: {
+                portCode: components["parameters"]["PortCode"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The features, ordered by OpenStreetMap reference */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferenceFeatureCollection"];
+                };
+            };
+            /** @description Unknown port */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown kind */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

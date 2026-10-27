@@ -1,0 +1,167 @@
+{
+ "schemaVersion": 1,
+ "port": {
+  "code": "westports",
+  "name": "Westports Malaysia",
+  "timeZone": "Asia/Kuala_Lumpur",
+  "origin": {
+   "type": "Point",
+   "coordinates": [
+    101.3066304,
+    2.9534057
+   ]
+  },
+  "measureSrid": 3380,
+  "frameRotDeg": -120.299,
+  "extent": {
+   "type": "Polygon",
+   "coordinates": [
+    [
+     [
+      101.26,
+      2.9
+     ],
+     [
+      101.36,
+      2.9
+     ],
+     [
+      101.36,
+      3.02
+     ],
+     [
+      101.26,
+      3.02
+     ],
+     [
+      101.26,
+      2.9
+     ]
+    ]
+   ]
+  },
+  "landExtent": {
+   "type": "Polygon",
+   "coordinates": [
+    [
+     [
+      101.3225138,
+      2.9807343
+     ],
+     [
+      101.2794018,
+      2.9065568
+     ],
+     [
+      101.2902746,
+      2.9001692
+     ],
+     [
+      101.3333867,
+      2.9743467
+     ],
+     [
+      101.3225138,
+      2.9807343
+     ]
+    ]
+   ]
+  },
+  "quayLine": {
+   "type": "LineString",
+   "coordinates": [
+    [
+     101.3225138,
+     2.9807343
+    ],
+    [
+     101.2794018,
+     2.9065568
+    ]
+   ]
+  },
+  "synthetic": true,
+  "heightDatum": null
+ },
+ "controlPoints": {
+  "type": "FeatureCollection",
+  "features": [
+   {
+    "type": "Feature",
+    "id": "CP-MAIN-GATE",
+    "geometry": {
+     "type": "Point",
+     "coordinates": [
+      101.3093602,
+      2.9518844
+     ]
+    },
+    "properties": {
+     "code": "CP-MAIN-GATE",
+     "name": "Westport Conventional Main Gate (map listing)",
+     "expectedLocalX": -7.9,
+     "expectedLocalY": 346.9,
+     "accuracy": "APPROXIMATE",
+     "source": "SYNTHETIC"
+    }
+   },
+   {
+    "type": "Feature",
+    "id": "CP-COAST-00",
+    "geometry": {
+     "type": "Point",
+     "coordinates": [
+      101.3094176,
+      2.9579603
+     ]
+    },
+    "properties": {
+     "code": "CP-COAST-00",
+     "name": "Coastline (OSM) 0",
+     "expectedLocalX": -591.2,
+     "expectedLocalY": 13.4,
+     "accuracy": "APPROXIMATE",
+     "source": "OSM"
+    }
+   },
+   {
+    "type": "Feature",
+    "id": "CP-COAST-40",
+    "geometry": {
+     "type": "Point",
+     "coordinates": [
+      101.2950289,
+      2.933553
+     ]
+    },
+    "properties": {
+     "code": "CP-COAST-40",
+     "name": "Coastline (OSM) 40",
+     "expectedLocalX": 2546.1,
+     "expectedLocalY": -6.1,
+     "accuracy": "APPROXIMATE",
+     "source": "OSM"
+    }
+   },
+   {
+    "type": "Feature",
+    "id": "CP-COAST-80",
+    "geometry": {
+     "type": "Point",
+     "coordinates": [
+      101.2796057,
+      2.9065244
+     ]
+    },
+    "properties": {
+     "code": "CP-COAST-80",
+     "name": "Coastline (OSM) 80",
+     "expectedLocalX": 5991.7,
+     "expectedLocalY": 21.3,
+     "accuracy": "APPROXIMATE",
+     "source": "OSM"
+    }
+   }
+  ]
+ }
+}

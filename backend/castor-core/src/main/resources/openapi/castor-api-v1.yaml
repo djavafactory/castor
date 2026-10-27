@@ -55,7 +55,67 @@ paths:
       responses:
         '204':
           description: Recorded
+  /api/v1/port:
+    get:
+      operationId: getConfiguredPort
+      summary: The port this installation is set up for
+      security: [{basicAuth: []}]
+      responses:
+        '200':
+          description: The port record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Port'
+        '404':
+          description: The configured port is not loaded
+  /api/v1/ports/{portCode}:
+    get:
+      operationId: getPort
+      summary: A port with its quay frame and measurement CRS
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/PortCode'
+      responses:
+        '200':
+          description: The port record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Port'
+        '404':
+          description: Unknown port
+  /api/v1/ports/{portCode}/reference-features:
+    get:
+      operationId: listReferenceFeatures
+      summary: Read-only OpenStreetMap features of a port as GeoJSON (there is no write endpoint)
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/PortCode'
+        - name: kind
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ReferenceFeatureKind'
+      responses:
+        '200':
+          description: The features, ordered by OpenStreetMap reference
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReferenceFeatureCollection'
+        '404':
+          description: Unknown port
+        '422':
+          description: Unknown kind
 components:
+  parameters:
+    PortCode:
+      name: portCode
+      in: path
+      required: true
+      schema:
+        type: string
   securitySchemes:
     basicAuth:
       type: http
@@ -97,6 +157,96 @@ components:
           type: string
         label:
           type: string
+    LonLat:
+      type: object
+      required: [lon, lat]
+      properties:
+        lon:
+          type: number
+          format: double
+        lat:
+          type: number
+          format: double
+    Port:
+      type: object
+      required: [code, name, synthetic, origin, rotDeg, measureSrid]
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        synthetic:
+          type: boolean
+        origin:
+          $ref: '#/components/schemas/LonLat'
+        rotDeg:
+          type: number
+          format: double
+          description: Angle of local +X, degrees counter-clockwise from east
+        measureSrid:
+          type: integer
+          format: int32
+    ReferenceFeatureKind:
+      type: string
+      enum: [BUILDING, ROAD]
+      default: BUILDING
+    ReferenceFeatureProperties:
+      type: object
+      required: [kind, osmRef, source, accuracy]
+      properties:
+        kind:
+          $ref: '#/components/schemas/ReferenceFeatureKind'
+        osmRef:
+          type: string
+          description: OpenStreetMap reference such as way/1300405460
+        name:
+          type: [string, 'null']
+          description: The mapped name; null when OpenStreetMap has none
+        heightM:
+          type: [number, 'null']
+          format: double
+        areaM2:
+          type: [number, 'null']
+          format: double
+          description: Footprint area measured in the port measurement CRS; null for lines
+        source:
+          type: string
+        accuracy:
+          type: string
+          enum: [SURVEYED, VERIFIED, OPERATOR, APPROXIMATE]
+    ReferenceFeature:
+      type: object
+      required: [type, id, geometry, properties]
+      properties:
+        type:
+          type: string
+          enum: [Feature]
+        id:
+          type: string
+        geometry:
+          type: object
+          description: GeoJSON Polygon or LineString in WGS84
+          required: [type, coordinates]
+          properties:
+            type:
+              type: string
+              enum: [Polygon, LineString]
+            coordinates:
+              type: array
+              items: {}
+        properties:
+          $ref: '#/components/schemas/ReferenceFeatureProperties'
+    ReferenceFeatureCollection:
+      type: object
+      required: [type, features]
+      properties:
+        type:
+          type: string
+          enum: [FeatureCollection]
+        features:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReferenceFeature'
     Role:
       type: string
       enum: [VIEWER, EDITOR, PUBLISHER, ADMIN]
