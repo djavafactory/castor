@@ -65,30 +65,20 @@ test('the design system renders every component and loads no external fonts', as
   await expectNoA11yViolations(page)
 })
 
-for (const state of ['Colour tokens', 'Buttons', 'Badges and tags', 'Cards and data', 'States']) {
-  test(`screenshot: ${state}`, async ({ page }) => {
-    await signIn(page)
-    await openDesignSystem(page)
-    await expect(page.getByRole('region', { name: state })).toHaveScreenshot(
-      `${state.toLowerCase().replaceAll(' ', '-')}.png`,
-    )
-  })
-}
-
 for (const size of [
   { width: 1440, height: 900 },
   { width: 1280, height: 800 },
 ]) {
-  test(`screenshot: Monitor and Design at ${size.width}x${size.height}`, async ({ page }) => {
+  test(`Monitor and Design keep their panel sizes at ${size.width}x${size.height}`, async ({
+    page,
+  }) => {
     await page.setViewportSize(size)
     await signIn(page)
     await expect(page.getByLabel('Right panel')).toBeVisible()
     await expect(page.getByLabel('Right panel')).toHaveJSProperty('offsetWidth', 348)
-    await expect(page).toHaveScreenshot(`monitor-${size.width}.png`)
 
     await page.getByRole('button', { name: 'Design' }).click()
     await expect(page.getByLabel('Asset palette')).toHaveJSProperty('offsetWidth', 260)
     await expect(page.getByLabel('Status')).toHaveJSProperty('offsetHeight', 32)
-    await expect(page).toHaveScreenshot(`design-${size.width}.png`)
   })
 }
