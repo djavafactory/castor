@@ -52,8 +52,9 @@ test('a viewer can select an asset and read its details, with nothing to edit', 
 
   const details = page.getByRole('region', { name: 'Asset details' })
   await expect(details).toBeVisible()
-  await expect(details.getByText(/published layout, read-only/)).toBeVisible()
-  await expect(details.getByRole('button')).toHaveCount(0)
+  await expect(details.getByText('Identity')).toBeVisible()
+  // The only control is Deselect
+  await expect(details.getByRole('button')).toHaveText(['Deselect'])
   await expect(details.getByRole('textbox')).toHaveCount(0)
 
   // No palette, no editing tabs, no live data

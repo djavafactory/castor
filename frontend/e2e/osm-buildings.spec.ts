@@ -36,9 +36,12 @@ test('the OSM buildings show in 3D; hover and click give read-only details', asy
   await expect(page.locator('[data-testid="port-scene"] canvas')).toBeVisible()
 
   const at = await hoverABuilding(page)
-  await expect(page.getByRole('tooltip')).toHaveText(
-    /^Building \S+, \d+ m2, \d+(\.\d)? m \(OpenStreetMap\)$/,
-  )
+  // One line per fact: the name or id, the area, the height and the source
+  await expect(page.getByRole('tooltip').locator('p')).toHaveText([
+    /^Building .+$/,
+    /^\d+ m2$/,
+    /^\d+(\.\d)? m \(OpenStreetMap\)$/,
+  ])
 
   await page.mouse.click(at.x, at.y)
   const details = page.getByRole('region', { name: 'Building details' })

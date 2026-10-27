@@ -39,3 +39,4 @@ castor project realtime 3d port for.txt
 # Test output
 playwright-report/
 test-results/
+/.env

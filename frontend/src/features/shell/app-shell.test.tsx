@@ -414,11 +414,15 @@ describe('Monitor of the published layout', () => {
   it('is the start mode and drops the version text in Design', async () => {
     publishedAs(3, '"a"')
     signInAs(['EDITOR'])
+    server.use(
+      http.get(`${BASE}/v1/ports/WESTPORTS/layouts/draft`, () => HttpResponse.json(layoutWire())),
+    )
     renderShell()
     await screen.findByText(/Published v3/)
     expect(useUiStore.getState().mode).toBe('monitor')
 
     await userEvent.click(screen.getByRole('button', { name: 'Design' }))
-    expect(screen.queryByText(/Published v3/)).toBeNull()
+    await waitFor(() => expect(screen.queryByText(/Published v3/)).toBeNull())
+    expect(useUiStore.getState().mode).toBe('design')
   })
 })

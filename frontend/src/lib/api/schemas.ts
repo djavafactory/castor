@@ -277,9 +277,21 @@ const layoutHeaderSchema = z.looseObject({
   createdAt: z.string().optional(),
   updatedBy: z.string().optional(),
   updatedAt: z.string().optional(),
+  publishedAt: z.string().nullish(),
+  publishedBy: z.string().nullish(),
+  note: z.string().nullish(),
 })
 
-const layoutFeatureSchema = z.looseObject({
+/** A feature of the published layout: the monitor reads every property, so all of them are typed. */
+export const layoutFeatureSchema = z.looseObject({
+  id: z.string(),
+  geometry: geometrySchema,
+  properties: layoutFeaturePropertiesSchema,
+  type: z.literal('Feature'),
+})
+
+/** A feature of a draft: the editor only needs the type and the row version to track it. */
+const draftFeatureSchema = z.looseObject({
   id: z.string(),
   geometry: geometrySchema,
   properties: z.looseObject({ type: z.string(), rowVersion: z.number().int() }),
@@ -299,7 +311,7 @@ export const layoutDocumentSchema = z
     layout: layoutHeaderSchema,
     features: z.object({
       type: z.literal('FeatureCollection'),
-      features: z.array(layoutFeatureSchema),
+      features: z.array(draftFeatureSchema),
     }),
   })
   .transform(({ layout, features }): Layout => {

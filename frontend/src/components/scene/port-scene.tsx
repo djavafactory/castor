@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { EmptyState, ErrorCard } from '@/components/states/states'
 import { useAssetTypes, useCurrentLayout } from '@/lib/api'
 import { usePort } from '@/lib/api'
@@ -19,15 +19,11 @@ import { MonitorSelection } from './stage/selection'
 import { landSceneBox, stageExtent } from './stage/stage-extent'
 import { StageCanvas } from './stage/stage-canvas'
 import { Water } from './stage/water'
-import type { BuildingsGeometry } from './buildings/building-geometry'
 import { LayoutLayer, type LayoutHover } from './layout/layout-layer'
 import { BUILDINGS_LAYER, useLayerVisible, ROADS_LAYER } from './layers'
-import { OrbitRig } from './orbit-rig'
 import { hoverLines, humanKey } from './layout/asset-rows'
 import { SceneTooltip } from './scene-tooltip'
 import { webglAvailable } from './webgl'
-import type { Sphere } from 'three'
-import { Canvas } from '@react-three/fiber'
 
 /** The 3D replica of the port. Without WebGL it says so and loads nothing. */
 export function PortScene() {
@@ -52,31 +48,23 @@ function Scene() {
   const showBuildings = useLayerVisible(BUILDINGS_LAYER)
   const showRoads = useLayerVisible(ROADS_LAYER)
   const imagery = useUiStore((s) => s.basemap === 'sentinel2')
-  const selectReference = useSelectionStore((s) => s.selectReference)
+  const clearSelection = useSelectionStore((s) => s.clear)
   const selectedRef = useSelectionStore((s) => s.selectedReferenceId)
   const layout = useCurrentLayout()
   const assetTypes = useAssetTypes()
   const features = layout.data?.data.features.features
-  const [buildingsFocus, setBuildingsFocus] = useState<Sphere | null>(null)
-  const [layoutFocus, setLayoutFocus] = useState<Sphere | null>(null)
   const [hover, setHover] = useState<BuildingHover | null>(null)
   const [assetHover, setAssetHover] = useState<LayoutHover | null>(null)
-  const clearSelection = useSelectionStore((s) => s.clear)
 
   const extent = useMemo(
     () => (frameReady && port.data ? stageExtent(port.data) : null),
     [frameReady, port.data],
   )
-  const onBuilt = useCallback(
-    (built: BuildingsGeometry) => setBuildingsFocus(built.geometry.boundingSphere),
-    [],
-  )
   const whole = useMemo(
     () => (extent ? landSceneBox(extent) : { x0: -3500, x1: 6000, z0: -1500, z1: 0 }),
-    [extent],)
+    [extent],
+  )
 
-  // The camera frames the layout once it is there, the buildings until then
-  const focus = layoutFocus ?? buildingsFocus
   const hoveredAsset = assetHover && features?.find((f) => f.id === assetHover.assetId)
 
   const hovered =
@@ -91,7 +79,7 @@ function Scene() {
 
   return (
     <div className="relative h-full w-full" data-testid="port-scene">
-      <StageCanvas onPointerMissed={() => selectReference(null)}>
+      <StageCanvas onPointerMissed={clearSelection}>
         <Lighting />
         <CameraRig whole={whole} />
         {extent && (
@@ -100,23 +88,14 @@ function Scene() {
             <Water extent={extent} imagery={imagery} />
           </>
         )}
-      <Canvas
-        frameloop="demand"
-        camera={{ position: [0, 800, 800], near: 1, far: 40000, fov: 45 }}
-        onPointerMissed={clearSelection}
-      >
-        <ambientLight intensity={1.1} />
-        <directionalLight position={[600, 1200, 400]} intensity={2.2} />
-        <OrbitRig focus={focus} />
         {/* Unmounted, not hidden: a hidden mesh would still be hit by the raycaster */}
         {frameReady && roads.data && showRoads && <OsmRoadsLayer roads={roads.data} />}
         {frameReady && buildings.data && showBuildings && (
           <BuildingsLayer buildings={buildings.data} onHover={setHover} />
         )}
-        {frameReady && features && (
-          <LayoutLayer features={features} onHover={setAssetHover} onBuilt={setLayoutFocus} />
-        )}
-      </Canvas>
+        {frameReady && features && <LayoutLayer features={features} onHover={setAssetHover} />}
+        {selected && <MonitorSelection ring={selected.ring} height={selected.height} />}
+      </StageCanvas>
       {layout.isError && (
         <div className="absolute top-3 right-3 z-menu w-72">
           <ErrorCard
@@ -126,8 +105,6 @@ function Scene() {
           />
         </div>
       )}
-        {selected && <MonitorSelection ring={selected.ring} height={selected.height} />}
-      </StageCanvas>
       <CameraControls />
       {buildings.isError && (
         <div className="absolute top-3 left-3 z-menu w-72">
