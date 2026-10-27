@@ -5,7 +5,7 @@ const PORT = 4173
 // served locally by vite preview and the API calls are expected to be mocked by the test.
 const externalBaseURL = process.env.E2E_BASE_URL
 // Specs that need the real backend and seed data: with E2E_BASE_URL only these run, without it they are left out.
-// The other specs mock the API and keep their screenshot baselines from the locally served build.
+// The other specs mock the API and run against the locally served build.
 const STACK_SPECS = ['**/osm-buildings.spec.ts']
 
 export default defineConfig({

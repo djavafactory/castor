@@ -100,8 +100,7 @@ jobs:
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
-      # Runs in the official Playwright image matching the installed version, so screenshots render with the same
-      # fonts and libraries as the *-linux.png baselines (regenerate them with the command in frontend/README.md).
+      # Runs in the official Playwright image matching the installed version, which has the browser and its libraries.
       - name: Run end-to-end tests
         working-directory: frontend
         run: |
@@ -112,7 +111,7 @@ jobs:
           PW_VERSION=$(node -p "require('@playwright/test/package.json').version")
           IMAGE="mcr.microsoft.com/playwright:v$PW_VERSION-noble"
           status=0
-          # Mocked specs (login, design system and its screenshots) run against the built app served by Playwright
+          # Mocked specs (login and design system) run against the built app served by Playwright
           docker run --rm --ipc=host -v "$GITHUB_WORKSPACE":/work -w /work/frontend \
             -e CI "$IMAGE" npm run test:e2e || status=1
           # Specs that need the real backend and seed data run against the dev stack
