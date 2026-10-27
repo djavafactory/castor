@@ -36,6 +36,14 @@ public interface CastorConfig {
 
     Security security();
 
+    Reference reference();
+
+    interface Reference {
+        /** Import the committed OpenStreetMap reference file at start (idempotent). */
+        @WithDefault("true")
+        boolean importOnStart();
+    }
+
     interface Build {
         /** X.Y.Z for a release tag, otherwise X.Y.Z-dev+commit. */
         @WithDefault("unknown")

@@ -1,0 +1,44 @@
+{
+  "type": "FeatureCollection",
+  "castor": {
+    "schemaVersion": 1,
+    "port": "westports",
+    "kind": "reference-features",
+    "attribution": "(c) OpenStreetMap contributors (ODbL)",
+    "provenance": "test sample, same format as seed/westports/osm-reference.geojson"
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[101.3070, 2.9530], [101.3074, 2.9530], [101.3074, 2.9533], [101.3070, 2.9533], [101.3070, 2.9530]]]
+      },
+      "properties": {"kind": "BUILDING", "osmRef": "way/1001", "name": "Shed A", "heightM": 12, "source": "OSM", "accuracy": "APPROXIMATE"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[101.3080, 2.9540], [101.3083, 2.9540], [101.3083, 2.9542], [101.3080, 2.9542], [101.3080, 2.9540]]]
+      },
+      "properties": {"kind": "BUILDING", "osmRef": "way/1002", "name": null, "heightM": 6, "source": "OSM", "accuracy": "APPROXIMATE"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[101.3060, 2.9530], [101.3090, 2.9545]]
+      },
+      "properties": {"kind": "ROAD", "osmRef": "road/0001", "widthM": 10, "source": "OSM", "accuracy": "APPROXIMATE"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[101.3090, 2.9545], [101.3100, 2.9560]]
+      },
+      "properties": {"kind": "ROAD", "osmRef": "road/0002", "widthM": 6, "source": "OSM", "accuracy": "APPROXIMATE"}
+    }
+  ]
+}
