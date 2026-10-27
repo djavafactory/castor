@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>it.replica8.castor</groupId>
+  <groupId>com.djavafactory.castor</groupId>
   <artifactId>castor-backend</artifactId>
   <!-- Keep equal to the root VERSION file and frontend/package.json (VersionFileTest, scripts/check-versions.mjs in CI) -->
   <version>${revision}</version>
@@ -158,7 +158,7 @@
             </includes>
             <palantirJavaFormat/>
             <importOrder>
-              <order>java,javax,jakarta,,it.replica8,\#</order>
+              <order>java,javax,jakarta,,com.djavafactory,\#</order>
             </importOrder>
             <removeUnusedImports/>
           </java>

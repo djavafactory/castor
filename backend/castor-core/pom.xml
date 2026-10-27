@@ -5,7 +5,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>it.replica8.castor</groupId>
+    <groupId>com.djavafactory.castor</groupId>
     <artifactId>castor-backend</artifactId>
     <version>${revision}</version>
     <relativePath>../pom.xml</relativePath>
@@ -191,7 +191,7 @@
                 <rule>
                   <element>PACKAGE</element>
                   <includes>
-                    <include>it.replica8.castor.core.*.domain</include>
+                    <include>com.djavafactory.castor.core.*.domain</include>
                   </includes>
                   <limits>
                     <limit>

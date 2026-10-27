@@ -18,7 +18,7 @@ Full list: root [README](../README.md#technology-stack).
 
 ## Package layout
 
-`it.replica8.castor.<service>.<bounded-context>.<layer>`
+`com.djavafactory.castor.<service>.<bounded-context>.<layer>`
 
 - service: `castor-core`; contexts: `port`, `layout`, `geometry`, `identity`, `audit`, `shared`.
 - layers: `api` (REST, DTOs) -> `application` (use cases) -> `domain` (pure Java, no framework imports) <- `infrastructure` (Hibernate, security, file import).
@@ -57,7 +57,7 @@ Run one test class: `./mvnw -pl castor-core verify "-Dit.test=DatabaseBaselineIT
 
 | Profile | Use | Database | Logs |
 | --- | --- | --- | --- |
-| `dev` (`quarkus:dev`; profile `test` inherits it for all automated tests) | developer machine | Dev Services, or set `QUARKUS_DATASOURCE_JDBC_URL` | plain text, DEBUG for `it.replica8.castor` |
+| `dev` (`quarkus:dev`; profile `test` inherits it for all automated tests) | developer machine | Dev Services, or set `QUARKUS_DATASOURCE_JDBC_URL` | plain text, DEBUG for `com.djavafactory.castor` |
 | `local` (`-Dquarkus.profile=local`, inherits `dev`) | developer machine, persistent data | Docker PostGIS on `localhost:${LOCAL_DB_PORT}` (`application-local.properties`) | same as `dev` |
 | `prod` (every deployed environment, shared dev included) | deployed | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` for the app; `DB_FLYWAY_USERNAME`, `DB_FLYWAY_PASSWORD` for migrations | JSON |
 
