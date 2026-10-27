@@ -9,12 +9,12 @@ import io.quarkus.test.security.TestSecurity;
 import org.junit.jupiter.api.Test;
 
 import static io.restassured.RestAssured.given;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** The Westports port record and its read-only OpenStreetMap reference features, seeded into a real PostGIS. */
 @QuarkusTest
@@ -73,12 +73,19 @@ class ReferenceFeaturesIT {
 
     @Test
     void buildingsAreTheDefaultKind() {
-        given().when().get("/api/v1/ports/westports/reference-features").then().statusCode(200).body("features", hasSize(127));
+        given().when()
+                .get("/api/v1/ports/westports/reference-features")
+                .then()
+                .statusCode(200)
+                .body("features", hasSize(127));
     }
 
     @Test
     void unknownKindIsRejected() {
-        given().when().get("/api/v1/ports/westports/reference-features?kind=TREE").then().statusCode(422);
+        given().when()
+                .get("/api/v1/ports/westports/reference-features?kind=TREE")
+                .then()
+                .statusCode(422);
     }
 
     @Test
@@ -89,6 +96,9 @@ class ReferenceFeaturesIT {
                 .post("/api/v1/ports/westports/reference-features")
                 .then()
                 .statusCode(405);
-        given().when().delete("/api/v1/ports/westports/reference-features").then().statusCode(405);
+        given().when()
+                .delete("/api/v1/ports/westports/reference-features")
+                .then()
+                .statusCode(405);
     }
 }

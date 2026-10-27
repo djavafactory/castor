@@ -1,5 +1,6 @@
 import { Tabs } from '@/components/ui/tabs'
 import { BuildingDetails } from '@/components/scene/buildings/building-details'
+import { ModelPalette } from '@/components/scene/models/model-palette'
 import { PortScene } from '@/components/scene/port-scene'
 import { useUiStore, type Mode, type RightTab } from '@/lib/stores/ui-store'
 
@@ -32,11 +33,12 @@ export function WorkArea() {
         {mode === 'design' && !paletteHidden && (
           <aside
             aria-label="Asset palette"
-            className="w-[260px] shrink-0 border-r border-line-soft bg-paper p-3.5"
+            className="w-[260px] shrink-0 overflow-auto border-r border-line-soft bg-paper p-3.5"
           >
             <h2 className="font-brand text-[11px] font-bold tracking-[0.07em] text-muted uppercase">
               Assets
             </h2>
+            <ModelPalette />
           </aside>
         )}
         <main

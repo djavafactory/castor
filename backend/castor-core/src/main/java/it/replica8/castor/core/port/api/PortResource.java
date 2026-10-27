@@ -41,8 +41,7 @@ public class PortResource {
     private final ListReferenceFeatures listReferenceFeatures;
     private final ObjectMapper json;
 
-    public PortResource(
-            GetPort getPort, ListReferenceFeatures listReferenceFeatures, ObjectMapper json) {
+    public PortResource(GetPort getPort, ListReferenceFeatures listReferenceFeatures, ObjectMapper json) {
         this.getPort = getPort;
         this.listReferenceFeatures = listReferenceFeatures;
         this.json = json;
