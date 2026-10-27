@@ -19,6 +19,7 @@ import org.jboss.logging.MDC;
 import org.jboss.resteasy.reactive.server.ServerExceptionMapper;
 
 import it.replica8.castor.core.shared.domain.ConflictException;
+import it.replica8.castor.core.shared.domain.InvalidRequestException;
 import it.replica8.castor.core.shared.domain.MissingIfMatchException;
 import it.replica8.castor.core.shared.domain.ResourceNotFoundException;
 import it.replica8.castor.core.shared.domain.RuleViolation;
@@ -43,6 +44,11 @@ public class ProblemExceptionMappers {
     @ServerExceptionMapper
     public Response badRequest(JsonProcessingException e, UriInfo uri) {
         return problem(400, "bad-request", "Invalid request", "The request body is not valid JSON", uri, null);
+    }
+
+    @ServerExceptionMapper
+    public Response badRequest(InvalidRequestException e, UriInfo uri) {
+        return problem(400, "bad-request", "Invalid request", e.getMessage(), uri, null);
     }
 
     @ServerExceptionMapper
