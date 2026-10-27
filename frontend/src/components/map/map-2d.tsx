@@ -25,7 +25,17 @@ import { GOOGLE_NOTE } from '@/lib/basemap'
 import { useReferenceBuildings, useReferenceRoads } from '@/lib/reference-api'
 import { useSelectionStore } from '@/lib/stores/selection-store'
 import { useUiStore } from '@/lib/stores/ui-store'
-import { drawMap } from './map-draw'
+import { DrawReadout } from '@/features/design/draw/draw-readout'
+import {
+  VERTEX_SLOP_PX,
+  roundLonLat,
+  shapeOf,
+  sketchStats,
+  type DrawShape,
+} from '@/features/design/draw/draw-rules'
+import { useFinishDraw } from '@/features/design/draw/use-finish-draw'
+import { useEditorStore } from '@/lib/stores/editor-store'
+import { drawMap, type Sketch } from './map-draw'
 import { MapFurniture } from './map-furniture-view'
 import { PIN_MS, useMapStore } from './map-store'
 import {
@@ -36,7 +46,7 @@ import {
   type MapShape,
 } from './map-scene'
 import { MapTiles } from './map-tiles'
-import { screenToLocal, wheelFactor } from './map-view'
+import { localToScreen, screenToLocal, wheelFactor } from './map-view'
 
 /** A pointer that moves less than this between press and release is a click, not a drag. */
 const CLICK_SLOP_PX = 4
@@ -86,6 +96,24 @@ export function Map2D() {
   const paint = useRef<() => void>(() => {})
   const schedule = useRef<() => void>(() => {})
   const [tiles] = useState(() => new MapTiles())
+  const tool = useEditorStore((s) => s.tool)
+  const sketch = useRef<Omit<Sketch, 'cursor'> | null>(null)
+  const { finish, place, typeOf } = useFinishDraw()
+
+  // What the draw tool is doing: the shape kind of its type, and the sketch drawn from its vertices
+  const drawing = useMemo((): DrawShape | 'point' | null => {
+    const type = tool?.kind === 'draw' ? typeOf(tool.typeCode) : undefined
+    return type ? shapeOf(type) : null
+  }, [tool, typeOf])
+  const sketchBase = useMemo(() => {
+    if (!frameReady || !tool || (drawing !== 'polygon' && drawing !== 'line')) return null
+    const stats = sketchStats(drawing, tool.points)
+    return {
+      points: stats.local,
+      polygon: drawing === 'polygon',
+      crossing: stats.crossing !== null,
+    }
+  }, [frameReady, tool, drawing])
 
   const allAssets = useMemo(
     () => (frameReady && draft.data ? assetShapes(draft.data.assets, types.data, palette.pad) : []),
@@ -117,7 +145,7 @@ export function Map2D() {
     paint.current = () => {
       const ctx = canvas.current?.getContext('2d')
       if (!ctx) return
-      const { view, size } = useMapStore.getState()
+      const { view, size, cursor } = useMapStore.getState()
       const ui = useUiStore.getState()
       const selection = useSelectionStore.getState()
       drawMap({
@@ -132,6 +160,10 @@ export function Map2D() {
         assets: scene.current.assets,
         selectedAssetId: selection.selectedAssetId,
         selectedReferenceId: selection.selectedReferenceId,
+        sketch: sketch.current && {
+          ...sketch.current,
+          cursor: cursor ? [cursor.x, cursor.y] : null,
+        },
       })
     }
     schedule.current = () => {
@@ -148,8 +180,9 @@ export function Map2D() {
   // Anything that changes what is on the map paints it again
   useEffect(() => {
     scene.current = { assets, background }
+    sketch.current = sketchBase
     schedule.current()
-  }, [assets, background, basemap, selectedAssetId, selectedReferenceId, frameReady])
+  }, [assets, background, basemap, selectedAssetId, selectedReferenceId, frameReady, sketchBase])
 
   // The view and the size move often; they never go through React
   useEffect(() => {
@@ -267,6 +300,10 @@ export function Map2D() {
     const d = drag.current
     drag.current = null
     if (!d || d.moved || d.button !== 0) return
+    if (drawing !== null) {
+      addVertex(event)
+      return
+    }
     // A click: the shape under it is selected, empty space clears the selection
     const { local } = localAt(event)
     const { view } = useMapStore.getState()
@@ -277,7 +314,29 @@ export function Map2D() {
     else selection.selectReference(hit.id)
   }
 
+  /** A click of the draw tool: a vertex (not within 4 px of the last one), or the whole asset of a point type. */
+  function addVertex(event: PointerEvent<HTMLCanvasElement>) {
+    const { px, py, local } = localAt(event)
+    const at = roundLonLat(toLonLat(local[0], local[1]))
+    if (drawing === 'point') {
+      void place(at)
+      return
+    }
+    const { view, size } = useMapStore.getState()
+    const last = sketch.current?.points.at(-1)
+    if (last) {
+      const [lx, ly] = localToScreen(view, size, last[0], last[1])
+      if (Math.hypot(px - lx, py - ly) < VERTEX_SLOP_PX) return
+    }
+    useEditorStore.getState().addPoint(at)
+  }
+
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === 'Enter' && (drawing === 'polygon' || drawing === 'line')) {
+      event.preventDefault()
+      void finish()
+      return
+    }
     const map = useMapStore.getState()
     switch (event.key) {
       case 'ArrowLeft':
@@ -319,17 +378,21 @@ export function Map2D() {
         ref={canvas}
         role="img"
         aria-label="Plan of the port in local metres, north arrow top right"
-        className="block h-full w-full touch-none"
+        className={`block h-full w-full touch-none ${drawing ? 'cursor-crosshair' : ''}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={() => (drag.current = null)}
+        onDoubleClick={() => {
+          if (drawing === 'polygon' || drawing === 'line') void finish()
+        }}
         onPointerLeave={() => useMapStore.getState().setCursor(null)}
         onContextMenu={(event) => event.preventDefault()}
       />
       <div className="absolute top-3 left-3 z-overlay">
         <PlaceSearch />
       </div>
+      <DrawReadout onFinish={() => void finish()} />
       <MapFurniture
         frameRotDeg={port.data?.frameRotDeg ?? 0}
         basemap={basemap}

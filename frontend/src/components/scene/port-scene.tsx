@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { EmptyState, ErrorCard } from '@/components/states/states'
-import { useAssetTypes, useCurrentLayout } from '@/lib/api'
+import { useAssetTypes, useCurrentLayout, useDraftLayout } from '@/lib/api'
 import { usePort } from '@/lib/api'
 import { getEnv } from '@/lib/env'
 import { usePortFrame } from '@/lib/geo/use-port-frame'
@@ -19,6 +19,7 @@ import { MonitorSelection } from './stage/selection'
 import { landSceneBox, stageExtent } from './stage/stage-extent'
 import { StageCanvas } from './stage/stage-canvas'
 import { Water } from './stage/water'
+import { draftFeatures } from './layout/draft-features'
 import { LayoutLayer, type LayoutHover } from './layout/layout-layer'
 import { BUILDINGS_LAYER, useLayerVisible, visibleFeatures, ROADS_LAYER } from './layers'
 import { hoverLines, humanKey } from './layout/asset-rows'
@@ -52,7 +53,15 @@ function Scene() {
   const selectedRef = useSelectionStore((s) => s.selectedReferenceId)
   const layout = useCurrentLayout()
   const assetTypes = useAssetTypes()
-  const allFeatures = layout.data?.data.features.features
+  // Design shows the draft in 3D, Monitor the published layout
+  const design = useUiStore((s) => s.mode === 'design')
+  const draft = useDraftLayout(undefined, design)
+  const draftAssets = draft.data?.assets
+  const allFeatures = useMemo(
+    () =>
+      design && draftAssets ? draftFeatures(draftAssets) : layout.data?.data.features.features,
+    [design, draftAssets, layout.data],
+  )
   const layerVisibility = useUiStore((s) => s.layerVisibility)
   const isolatedLayer = useUiStore((s) => s.isolatedLayer)
   // Each asset sits on the layer of its type (asset_type.category); a hidden layer is not drawn or picked
