@@ -10,7 +10,6 @@ import {
   controlPointsSchema,
   layoutDocumentSchema,
   currentLayoutSchema,
-  layoutSchema,
   layoutVersionsSchema,
   portSchema,
   referenceFeaturesSchema,

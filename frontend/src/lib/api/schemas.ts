@@ -216,19 +216,6 @@ export const layoutSchema = z.looseObject({
   assets: z.array(layoutAssetSchema),
 })
 
-// ---- Published layout: GET /ports/{code}/layouts/current ----
-
-export const layoutStatusSchema = z.enum(['DRAFT', 'PUBLISHED', 'SUPERSEDED', 'DISCARDED'])
-
-export const layoutHeaderSchema = z.object({
-  id: z.string(),
-  versionNo: z.number().int().min(1),
-  status: layoutStatusSchema,
-  publishedAt: z.string().nullish(),
-  publishedBy: z.string().nullish(),
-  note: z.string().nullish(),
-})
-
 const optionalMetres = z.number().nullish()
 
 /** Details groups are present only when the asset type has them; members the app does not read are kept. */
@@ -280,21 +267,6 @@ export const layoutFeaturePropertiesSchema = z.looseObject({
   rowVersion: z.number().int(),
 })
 
-export const layoutFeatureSchema = z.looseObject({
-  type: z.literal('Feature'),
-  id: z.string(),
-  geometry: geometrySchema,
-  properties: layoutFeaturePropertiesSchema,
-})
-
-export const currentLayoutSchema = z.object({
-  layout: layoutHeaderSchema,
-  features: z.object({
-    type: z.literal('FeatureCollection'),
-    features: z.array(layoutFeatureSchema),
-  }),
-})
-
 /** What the server sends for a version: {layout, features} with GeoJSON features whose id is the asset id. */
 const layoutHeaderSchema = z.looseObject({
   id: z.string(),
@@ -311,6 +283,15 @@ const layoutFeatureSchema = z.looseObject({
   id: z.string(),
   geometry: geometrySchema,
   properties: z.looseObject({ type: z.string(), rowVersion: z.number().int() }),
+  type: z.literal('Feature'),
+})
+
+export const currentLayoutSchema = z.object({
+  layout: layoutHeaderSchema,
+  features: z.object({
+    type: z.literal('FeatureCollection'),
+    features: z.array(layoutFeatureSchema),
+  }),
 })
 
 export const layoutDocumentSchema = z

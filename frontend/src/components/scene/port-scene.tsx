@@ -1,17 +1,14 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { EmptyState, ErrorCard } from '@/components/states/states'
 import { useAssetTypes, useCurrentLayout } from '@/lib/api'
 import { usePort } from '@/lib/api'
 import { getEnv } from '@/lib/env'
-import { useCurrentLayout } from '@/lib/api'
 import { usePortFrame } from '@/lib/geo/use-port-frame'
 import { useReferenceBuildings, useReferenceRoads } from '@/lib/reference-api'
 import { useSelectionStore } from '@/lib/stores/selection-store'
 import { buildingHoverText, buildingTitle } from './buildings/building-text'
 import { useUiStore } from '@/lib/stores/ui-store'
-import { buildingHoverText } from './buildings/building-text'
 import { BuildingsLayer, type BuildingHover } from './buildings/buildings-layer'
-import { BUILDINGS_LAYER, ROADS_LAYER, useLayerVisible } from './layers'
 import { CameraControls } from './stage/camera-controls'
 import { CameraRig } from './stage/camera-rig'
 import { footprintOf } from './stage/footprint'
@@ -24,11 +21,13 @@ import { StageCanvas } from './stage/stage-canvas'
 import { Water } from './stage/water'
 import type { BuildingsGeometry } from './buildings/building-geometry'
 import { LayoutLayer, type LayoutHover } from './layout/layout-layer'
-import { BUILDINGS_LAYER, useLayerVisible } from './layers'
+import { BUILDINGS_LAYER, useLayerVisible, ROADS_LAYER } from './layers'
 import { OrbitRig } from './orbit-rig'
 import { hoverLines, humanKey } from './layout/asset-rows'
 import { SceneTooltip } from './scene-tooltip'
 import { webglAvailable } from './webgl'
+import type { Sphere } from 'three'
+import { Canvas } from '@react-three/fiber'
 
 /** The 3D replica of the port. Without WebGL it says so and loads nothing. */
 export function PortScene() {
@@ -68,13 +67,14 @@ function Scene() {
     () => (frameReady && port.data ? stageExtent(port.data) : null),
     [frameReady, port.data],
   )
-  const whole = useMemo(
-    () => (extent ? landSceneBox(extent) : { x0: -3500, x1: 6000, z0: -1500, z1: 0 }),
-    [extent],
   const onBuilt = useCallback(
     (built: BuildingsGeometry) => setBuildingsFocus(built.geometry.boundingSphere),
     [],
   )
+  const whole = useMemo(
+    () => (extent ? landSceneBox(extent) : { x0: -3500, x1: 6000, z0: -1500, z1: 0 }),
+    [extent],)
+
   // The camera frames the layout once it is there, the buildings until then
   const focus = layoutFocus ?? buildingsFocus
   const hoveredAsset = assetHover && features?.find((f) => f.id === assetHover.assetId)
