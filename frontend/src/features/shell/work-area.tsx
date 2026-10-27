@@ -1,3 +1,4 @@
+import { DrawTypes } from '@/features/design/draw/draw-types'
 import { DraftSummary } from '@/features/design/draft-summary'
 import { IssuesTab } from '@/features/design/issues/issues-tab'
 import { useDraftValidation } from '@/features/design/issues/use-draft-validation'
@@ -55,6 +56,7 @@ export function WorkArea() {
             <h2 className="font-brand text-[11px] font-bold tracking-[0.07em] text-muted uppercase">
               Assets
             </h2>
+            <DrawTypes />
             <ModelPalette />
           </aside>
         )}

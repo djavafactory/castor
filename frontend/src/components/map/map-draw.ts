@@ -9,8 +9,16 @@ import {
   tileUrl,
   type TileId,
 } from '../scene/stage/tiles'
+import type { Local } from '@/lib/geo'
 import { boxesTouch, labelFits, type MapShape } from './map-scene'
-import { tileMatrix, viewBox, type LocalBox, type MapSize, type MapView } from './map-view'
+import {
+  localToScreen,
+  tileMatrix,
+  viewBox,
+  type LocalBox,
+  type MapSize,
+  type MapView,
+} from './map-view'
 
 /** Hands out a tile image when it is ready, and starts loading it when it is not. */
 export type TileSource = (url: string) => CanvasImageSource | null
@@ -28,7 +36,20 @@ export interface DrawInput {
   assets: readonly MapShape[]
   selectedAssetId: string | null
   selectedReferenceId: string | null
+  /** The outline being drawn (DESIGNER-05), if any. */
+  sketch?: Sketch | null
 }
+
+/** The outline in progress: vertices and the cursor in local metres. */
+export interface Sketch {
+  points: readonly Local[]
+  cursor: Local | null
+  polygon: boolean
+  /** A polygon whose outline crosses itself is stroked red. */
+  crossing: boolean
+}
+
+const VERTEX_PX = 8
 
 const paths = new WeakMap<MapShape, Path2D>()
 
@@ -226,6 +247,37 @@ function drawLabels(input: DrawInput, visible: LocalBox) {
   }
 }
 
+/** The sketch: a dashed line through the vertices and the cursor, a faint fill from three points, white square vertices. */
+function drawSketch(input: DrawInput, sketch: Sketch) {
+  const { ctx, view, size, dpr } = input
+  if (sketch.points.length === 0) return
+  const path = [...sketch.points, ...(sketch.cursor ? [sketch.cursor] : [])]
+  localTransform(ctx, view, size, dpr)
+  ctx.beginPath()
+  path.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)))
+  if (sketch.polygon && sketch.points.length >= 3) {
+    ctx.closePath()
+    ctx.fillStyle = withAlpha(palette.signal, 0.15)
+    ctx.fill()
+  }
+  ctx.setLineDash([8 / view.k, 5 / view.k])
+  ctx.lineJoin = 'round'
+  ctx.lineWidth = 2 / view.k
+  ctx.strokeStyle = sketch.crossing ? palette.brick : palette.signal
+  ctx.stroke()
+  ctx.setLineDash([])
+
+  screenTransform(ctx, dpr)
+  ctx.lineWidth = 1
+  ctx.strokeStyle = palette.ink
+  ctx.fillStyle = 'white'
+  for (const [x, y] of sketch.points) {
+    const [px, py] = localToScreen(view, size, x, y)
+    ctx.fillRect(px - VERTEX_PX / 2, py - VERTEX_PX / 2, VERTEX_PX, VERTEX_PX)
+    ctx.strokeRect(px - VERTEX_PX / 2, py - VERTEX_PX / 2, VERTEX_PX, VERTEX_PX)
+  }
+}
+
 /** Paints the whole map: basemap, background outlines, assets bottom to top, quay line, selection and labels. */
 export function drawMap(input: DrawInput): void {
   const { ctx, size, dpr, view } = input
@@ -247,4 +299,5 @@ export function drawMap(input: DrawInput): void {
   localTransform(ctx, view, size, dpr)
   drawSelection(input)
   drawLabels(input, visible)
+  if (input.sketch) drawSketch(input, input.sketch)
 }
