@@ -330,6 +330,21 @@ export const layoutDocumentSchema = z
     }
   })
 
+/** One failed rule of the catalogue (README section 6); the first asset id is the one to select. */
+export const validationIssueSchema = z.object({
+  code: z.string(),
+  level: z.enum(['ERROR', 'WARNING']),
+  message: z.string(),
+  assetIds: z.array(z.string()),
+})
+
+/** POST /v1/layouts/{id}/validate: errors block publishing, warnings do not. */
+export const validationSchema = z.object({
+  errors: z.number().int().nonnegative(),
+  warnings: z.number().int().nonnegative(),
+  issues: z.array(validationIssueSchema),
+})
+
 export const layoutVersionsSchema = z.array(
   z.object({
     id: z.string(),
@@ -386,6 +401,8 @@ export type LayoutHeader = z.infer<typeof layoutHeaderSchema>
 export type LayoutFeature = z.infer<typeof layoutFeatureSchema>
 export type LayoutFeatureProperties = z.infer<typeof layoutFeaturePropertiesSchema>
 export type LayoutAsset = z.infer<typeof layoutAssetSchema>
+export type ValidationIssue = z.infer<typeof validationIssueSchema>
+export type ValidationReport = z.infer<typeof validationSchema>
 export type LayoutVersion = z.infer<typeof layoutVersionsSchema>[number]
 export type AssetHistoryEntry = z.infer<typeof assetHistorySchema>[number]
 export type AccuracyReport = z.infer<typeof accuracyReportSchema>

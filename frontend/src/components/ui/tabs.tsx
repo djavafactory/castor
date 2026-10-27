@@ -1,9 +1,11 @@
+import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
 interface TabsProps<T extends string> {
   label: string
   value: T
-  tabs: { value: T; label: string }[]
+  /** `badge` is shown after the label, for example a count pill. */
+  tabs: { value: T; label: string; badge?: ReactNode }[]
   onChange: (value: T) => void
   /** Set when the caller renders a matching `tabpanel-<value>` element. */
   panel?: boolean
@@ -35,7 +37,7 @@ export function Tabs<T extends string>({
           aria-controls={panel ? `tabpanel-${t.value}` : undefined}
           tabIndex={value === t.value ? 0 : -1}
           className={cn(
-            'h-8 border-b-2 px-3 text-xs font-semibold transition-colors',
+            'flex h-8 items-center gap-1.5 border-b-2 px-3 text-xs font-semibold transition-colors',
             value === t.value
               ? 'border-signal text-ink'
               : 'border-transparent text-muted hover:text-ink',
@@ -50,6 +52,7 @@ export function Tabs<T extends string>({
           }}
         >
           {t.label}
+          {t.badge}
         </button>
       ))}
     </div>

@@ -7,6 +7,7 @@ import jakarta.annotation.security.RolesAllowed;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HeaderParam;
+import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
@@ -17,7 +18,9 @@ import jakarta.ws.rs.core.SecurityContext;
 
 import com.djavafactory.castor.core.layout.application.DiscardDraft;
 import com.djavafactory.castor.core.layout.application.GetLayout;
+import com.djavafactory.castor.core.layout.application.LayoutValidation;
 import com.djavafactory.castor.core.layout.application.ListLayoutVersions;
+import com.djavafactory.castor.core.layout.domain.IssueLevel;
 import com.djavafactory.castor.core.layout.domain.LayoutStatus;
 import com.djavafactory.castor.core.layout.domain.LayoutVersion;
 import com.djavafactory.castor.core.shared.api.CachedJson;
@@ -30,9 +33,15 @@ public class LayoutResource {
 
     public record LayoutVersionResponse(UUID id, String portCode, int versionNo, LayoutStatus status) {}
 
+    /** One failed rule: code and wording of the catalogue, the assets it is about (the first is the one to select). */
+    public record IssueResponse(String code, IssueLevel level, String message, List<String> assetIds) {}
+
+    public record ValidationResponse(int errors, int warnings, List<IssueResponse> issues) {}
+
     private final ListLayoutVersions listLayoutVersions;
     private final GetLayout getLayout;
     private final DiscardDraft discardDraft;
+    private final LayoutValidation validation;
     private final LayoutFeatureMapper mapper;
     private final CachedJson cache;
 
@@ -40,11 +49,13 @@ public class LayoutResource {
             ListLayoutVersions listLayoutVersions,
             GetLayout getLayout,
             DiscardDraft discardDraft,
+            LayoutValidation validation,
             LayoutFeatureMapper mapper,
             CachedJson cache) {
         this.listLayoutVersions = listLayoutVersions;
         this.getLayout = getLayout;
         this.discardDraft = discardDraft;
+        this.validation = validation;
         this.mapper = mapper;
         this.cache = cache;
     }
@@ -77,6 +88,23 @@ public class LayoutResource {
     public Response discard(@PathParam("layoutId") UUID layoutId) {
         discardDraft.execute(layoutId);
         return Response.noContent().build();
+    }
+
+    /**
+     * Every error and warning of a version, for the Issues list. Read-only: nothing is stored and no audit row is
+     * written, so it may be asked as often as needed.
+     */
+    @POST
+    @Path("{layoutId}/validate")
+    @RolesAllowed({"EDITOR", "PUBLISHER", "ADMIN"})
+    public ValidationResponse validate(@PathParam("layoutId") UUID layoutId) {
+        var report = validation.layout(layoutId);
+        return new ValidationResponse(
+                report.errors().size(),
+                report.warnings().size(),
+                report.issues().stream()
+                        .map(i -> new IssueResponse(i.code(), i.level(), i.message(), i.assetIds()))
+                        .toList());
     }
 
     /** One feature of one version; its ETag is the row version of the revision. */

@@ -1,4 +1,7 @@
 import { DraftSummary } from '@/features/design/draft-summary'
+import { IssuesTab } from '@/features/design/issues/issues-tab'
+import { useDraftValidation } from '@/features/design/issues/use-draft-validation'
+import { CountPill } from '@/components/ui/badge'
 import { CursorReadout } from '@/components/map/cursor-readout'
 import { Map2D } from '@/components/map/map-2d'
 import { Tabs } from '@/components/ui/tabs'
@@ -12,11 +15,11 @@ import { DebugSwitches } from './more-menu'
 import { PortDetails } from './port-details'
 import { useSceneKeys } from './use-scene-keys'
 import { showsMap, showsScene } from './view-modes'
-import { useEffect } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { useSelectionStore } from '@/lib/stores/selection-store'
 import { useUiStore, type Mode, type RightTab } from '@/lib/stores/ui-store'
 
-const TABS: Record<Mode, { value: RightTab; label: string }[]> = {
+const TABS: Record<Mode, { value: RightTab; label: string; badge?: ReactNode }[]> = {
   monitor: [
     { value: 'details', label: 'Details' },
     { value: 'catalogue', label: 'Catalogue' },
@@ -94,14 +97,24 @@ export function WorkArea() {
 }
 
 function RightPanel({ mode }: { mode: Mode }) {
-  const tabs = TABS[mode]
+  // Design: the Issues tab carries a red count of errors and warnings, hidden when there are none
+  const { query: validation } = useDraftValidation(mode === 'design')
+  const issueCount = (validation.data?.errors ?? 0) + (validation.data?.warnings ?? 0)
+  const tabs = TABS[mode].map((t) =>
+    t.value === 'issues' && issueCount > 0
+      ? { ...t, badge: <CountPill tone="bad">{issueCount}</CountPill> }
+      : t,
+  )
   const stored = useUiStore((s) => s.rightTab)
   const setRightTab = useUiStore((s) => s.setRightTab)
   // The remembered tab may belong to the other mode; fall back to this mode's first tab.
   const selection = useSelectionStore((s) => s.selectedAssetId ?? s.selectedReferenceId)
-  // Selecting anything brings its details forward
+  // Selecting anything brings its details forward, except from the Issues list: a row there selects its asset and the
+  // list stays, so the designer can go from one problem to the next
   useEffect(() => {
-    if (selection !== null) setRightTab(mode === 'monitor' ? 'details' : 'inspector')
+    if (selection === null) return
+    if (mode === 'design' && useUiStore.getState().rightTab === 'issues') return
+    setRightTab(mode === 'monitor' ? 'details' : 'inspector')
   }, [selection, mode, setRightTab])
   const active = tabs.some((t) => t.value === stored) ? stored : tabs[0].value
 
@@ -120,6 +133,7 @@ function RightPanel({ mode }: { mode: Mode }) {
       >
         {(active === 'details' || active === 'inspector') && <SelectionDetails />}
         {active === 'catalogue' && <CatalogueTab />}
+        {active === 'issues' && <IssuesTab />}
       </div>
     </aside>
   )

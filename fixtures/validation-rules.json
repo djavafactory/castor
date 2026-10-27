@@ -1,0 +1,313 @@
+{
+  "description": "Shared validation rule catalogue (DESIGNER-03, README section 6): codes, levels and message wording. {slots} are filled by the caller. Used by backend and frontend tests, which compare their own copy of the catalogue with this file.",
+  "rules": [
+    {
+      "code": "GEOM_INVALID",
+      "variant": "default",
+      "level": "ERROR",
+      "template": "{name} has an invalid shape"
+    },
+    {
+      "code": "SELF_INTERSECTION",
+      "variant": "named",
+      "level": "ERROR",
+      "template": "{name} has a self-intersecting outline and cannot be published"
+    },
+    {
+      "code": "SELF_INTERSECTION",
+      "variant": "edges",
+      "level": "ERROR",
+      "template": "The outline crosses itself (edges {i} and {j})"
+    },
+    {
+      "code": "TOO_FEW_POINTS",
+      "variant": "polygon",
+      "level": "ERROR",
+      "template": "{name} needs at least three corners"
+    },
+    {
+      "code": "TOO_FEW_POINTS",
+      "variant": "line",
+      "level": "ERROR",
+      "template": "{name} needs at least two points"
+    },
+    {
+      "code": "TOO_SMALL",
+      "variant": "default",
+      "level": "ERROR",
+      "template": "The outline is smaller than 4 m2"
+    },
+    {
+      "code": "WRONG_GEOMETRY_KIND",
+      "variant": "default",
+      "level": "ERROR",
+      "template": "{name}: geometry does not match type {type}"
+    },
+    {
+      "code": "OUT_OF_PORT",
+      "variant": "default",
+      "level": "ERROR",
+      "template": "{name} lies outside the port extent"
+    },
+    {
+      "code": "ON_WATER",
+      "variant": "default",
+      "level": "ERROR",
+      "template": "Extends past the quay edge into the water"
+    },
+    {
+      "code": "OUTSIDE_LAND",
+      "variant": "default",
+      "level": "ERROR",
+      "template": "Outside the land area"
+    },
+    {
+      "code": "IN_EXCLUSION_ZONE",
+      "variant": "default",
+      "level": "ERROR",
+      "template": "Inside safety exclusion zone {zone}. Move it, or record a documented override in the inspector"
+    },
+    {
+      "code": "OVERLAP",
+      "variant": "default",
+      "level": "ERROR",
+      "template": "Overlaps {other}"
+    },
+    {
+      "code": "BERTH_OVERLAP",
+      "variant": "default",
+      "level": "ERROR",
+      "template": "Overlaps {other} along the quay"
+    },
+    {
+      "code": "CRANE_OFF_BERTH",
+      "variant": "default",
+      "level": "ERROR",
+      "template": "A rail-mounted quay crane must stand on a berth"
+    },
+    {
+      "code": "DIM_OUT_OF_RANGE",
+      "variant": "min",
+      "level": "ERROR",
+      "template": "{label}: enter a number of at least {limit}"
+    },
+    {
+      "code": "DIM_OUT_OF_RANGE",
+      "variant": "max",
+      "level": "ERROR",
+      "template": "{label}: enter a number of at most {limit}"
+    },
+    {
+      "code": "UNKNOWN_TYPE",
+      "variant": "default",
+      "level": "ERROR",
+      "template": "{name}: unknown asset type {type}"
+    },
+    {
+      "code": "TRACE_SOURCE_NOT_ALLOWED",
+      "variant": "default",
+      "level": "ERROR",
+      "template": "{name} was traced from unlicensed imagery. Publishing is blocked until its source is replaced with licensed or surveyed data"
+    },
+    {
+      "code": "ON_ROAD",
+      "variant": "default",
+      "level": "WARNING",
+      "template": "{block} sits on road {road}"
+    },
+    {
+      "code": "PILE_SLOT_TOO_SMALL",
+      "variant": "default",
+      "level": "WARNING",
+      "template": "{block}: a {bp} x {rp} m slot is too small to hold a pile"
+    },
+    {
+      "code": "APPROXIMATE_SOURCE",
+      "variant": "one",
+      "level": "WARNING",
+      "template": "1 shape has no survey"
+    },
+    {
+      "code": "APPROXIMATE_SOURCE",
+      "variant": "many",
+      "level": "WARNING",
+      "template": "{n} shapes have no survey"
+    }
+  ],
+  "examples": [
+    {
+      "code": "GEOM_INVALID",
+      "variant": "default",
+      "params": {
+        "name": "Warehouse A"
+      },
+      "message": "Warehouse A has an invalid shape"
+    },
+    {
+      "code": "SELF_INTERSECTION",
+      "variant": "named",
+      "params": {
+        "name": "Warehouse A"
+      },
+      "message": "Warehouse A has a self-intersecting outline and cannot be published"
+    },
+    {
+      "code": "SELF_INTERSECTION",
+      "variant": "edges",
+      "params": {
+        "i": "1",
+        "j": "3"
+      },
+      "message": "The outline crosses itself (edges 1 and 3)"
+    },
+    {
+      "code": "TOO_FEW_POINTS",
+      "variant": "polygon",
+      "params": {
+        "name": "Hall"
+      },
+      "message": "Hall needs at least three corners"
+    },
+    {
+      "code": "TOO_FEW_POINTS",
+      "variant": "line",
+      "params": {
+        "name": "Belt"
+      },
+      "message": "Belt needs at least two points"
+    },
+    {
+      "code": "TOO_SMALL",
+      "variant": "default",
+      "params": {},
+      "message": "The outline is smaller than 4 m2"
+    },
+    {
+      "code": "WRONG_GEOMETRY_KIND",
+      "variant": "default",
+      "params": {
+        "name": "Belt",
+        "type": "CONVEYOR"
+      },
+      "message": "Belt: geometry does not match type CONVEYOR"
+    },
+    {
+      "code": "OUT_OF_PORT",
+      "variant": "default",
+      "params": {
+        "name": "Warehouse A"
+      },
+      "message": "Warehouse A lies outside the port extent"
+    },
+    {
+      "code": "ON_WATER",
+      "variant": "default",
+      "params": {},
+      "message": "Extends past the quay edge into the water"
+    },
+    {
+      "code": "OUTSIDE_LAND",
+      "variant": "default",
+      "params": {},
+      "message": "Outside the land area"
+    },
+    {
+      "code": "IN_EXCLUSION_ZONE",
+      "variant": "default",
+      "params": {
+        "zone": "Zone 1"
+      },
+      "message": "Inside safety exclusion zone Zone 1. Move it, or record a documented override in the inspector"
+    },
+    {
+      "code": "OVERLAP",
+      "variant": "default",
+      "params": {
+        "other": "Warehouse B"
+      },
+      "message": "Overlaps Warehouse B"
+    },
+    {
+      "code": "BERTH_OVERLAP",
+      "variant": "default",
+      "params": {
+        "other": "Berth 1"
+      },
+      "message": "Overlaps Berth 1 along the quay"
+    },
+    {
+      "code": "CRANE_OFF_BERTH",
+      "variant": "default",
+      "params": {},
+      "message": "A rail-mounted quay crane must stand on a berth"
+    },
+    {
+      "code": "DIM_OUT_OF_RANGE",
+      "variant": "min",
+      "params": {
+        "label": "Length",
+        "limit": "0.5"
+      },
+      "message": "Length: enter a number of at least 0.5"
+    },
+    {
+      "code": "DIM_OUT_OF_RANGE",
+      "variant": "max",
+      "params": {
+        "label": "Length",
+        "limit": "100"
+      },
+      "message": "Length: enter a number of at most 100"
+    },
+    {
+      "code": "UNKNOWN_TYPE",
+      "variant": "default",
+      "params": {
+        "name": "Rocket",
+        "type": "SPACESHIP"
+      },
+      "message": "Rocket: unknown asset type SPACESHIP"
+    },
+    {
+      "code": "TRACE_SOURCE_NOT_ALLOWED",
+      "variant": "default",
+      "params": {
+        "name": "Warehouse A"
+      },
+      "message": "Warehouse A was traced from unlicensed imagery. Publishing is blocked until its source is replaced with licensed or surveyed data"
+    },
+    {
+      "code": "ON_ROAD",
+      "variant": "default",
+      "params": {
+        "block": "Pad 7",
+        "road": "Road 1"
+      },
+      "message": "Pad 7 sits on road Road 1"
+    },
+    {
+      "code": "PILE_SLOT_TOO_SMALL",
+      "variant": "default",
+      "params": {
+        "block": "Pad 7",
+        "bp": "8",
+        "rp": "12.5"
+      },
+      "message": "Pad 7: a 8 x 12.5 m slot is too small to hold a pile"
+    },
+    {
+      "code": "APPROXIMATE_SOURCE",
+      "variant": "one",
+      "params": {},
+      "message": "1 shape has no survey"
+    },
+    {
+      "code": "APPROXIMATE_SOURCE",
+      "variant": "many",
+      "params": {
+        "n": "301"
+      },
+      "message": "301 shapes have no survey"
+    }
+  ]
+}

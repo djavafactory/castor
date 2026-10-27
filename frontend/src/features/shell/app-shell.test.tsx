@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { basicCredential, useAuthStore, type Role } from '@/lib/stores/auth-store'
 import { useEditorStore } from '@/lib/stores/editor-store'
+import { useSelectionStore } from '@/lib/stores/selection-store'
 import { useUiStore } from '@/lib/stores/ui-store'
 import { layoutFixture, layoutWire, currentLayoutFixture, portFixture } from '@/test/fixtures'
 import { server } from '@/test/setup'
@@ -105,6 +106,74 @@ describe('app shell', () => {
       'Versions',
     ])
     expect(screen.getByLabelText('Asset palette')).toBeInTheDocument()
+  })
+
+  it('counts errors and warnings in a red pill on the Issues tab, and hides it at zero', async () => {
+    signInAs(['EDITOR'])
+    useUiStore.setState({ mode: 'design', rightTab: 'issues' })
+    let issues = 0
+    server.use(
+      http.get(`${BASE}/v1/ports/WESTPORTS/layouts/draft`, () => HttpResponse.json(layoutWire())),
+      http.post(`${BASE}/v1/layouts/v-1/validate`, () =>
+        HttpResponse.json({
+          errors: issues === 0 ? 0 : 2,
+          warnings: issues === 0 ? 0 : 1,
+          issues:
+            issues === 0
+              ? []
+              : [
+                  {
+                    code: 'OVERLAP',
+                    level: 'ERROR',
+                    message: 'Overlaps B',
+                    assetIds: ['a-1', 'a-2'],
+                  },
+                  {
+                    code: 'ON_WATER',
+                    level: 'ERROR',
+                    message: 'Extends past the quay edge into the water',
+                    assetIds: ['a-1'],
+                  },
+                  {
+                    code: 'APPROXIMATE_SOURCE',
+                    level: 'WARNING',
+                    message: '2 shapes have no survey',
+                    assetIds: ['a-1', 'a-2'],
+                  },
+                ],
+        }),
+      ),
+    )
+    renderShell()
+
+    expect(await screen.findByText('No issues. The layout can be published.')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Issues' })).toBeInTheDocument()
+
+    issues = 3
+    await userEvent.click(screen.getByRole('button', { name: 'Check again' }))
+
+    expect(await screen.findByRole('tab', { name: /^Issues\s*3$/ })).toBeInTheDocument()
+    expect(screen.getByText('2 errors (block publishing), 1 warning')).toBeInTheDocument()
+  })
+
+  it('keeps the Issues list open when a row selects an asset, but brings the Inspector forward from elsewhere', async () => {
+    signInAs(['EDITOR'])
+    useUiStore.setState({ mode: 'design', rightTab: 'issues' })
+    server.use(
+      http.get(`${BASE}/v1/ports/WESTPORTS/layouts/draft`, () => HttpResponse.json(layoutWire())),
+      http.post(`${BASE}/v1/layouts/v-1/validate`, () =>
+        HttpResponse.json({ errors: 0, warnings: 0, issues: [] }),
+      ),
+    )
+    renderShell()
+    await screen.findByText('No issues. The layout can be published.')
+
+    act(() => useSelectionStore.getState().select('a-1'))
+    expect(useUiStore.getState().rightTab).toBe('issues')
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Versions' }))
+    act(() => useSelectionStore.getState().select('a-2'))
+    await waitFor(() => expect(useUiStore.getState().rightTab).toBe('inspector'))
   })
 
   it('leaves Design without a question when nothing is pending, then reloads Monitor', async () => {

@@ -241,6 +241,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/layouts/{layoutId}/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Every error and warning of a version (EDITOR and above)
+         * @description Runs the whole rule catalogue over the version (README section 6). Read-only, writes no audit row. Errors block publishing, warnings do not.
+         */
+        post: operations["validateLayout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -480,6 +500,21 @@ export interface components {
             lat: number;
             /** @description minLon, minLat, maxLon, maxLat of the shape; a point has a box of no size */
             bbox: number[];
+        };
+        /** @enum {string} */
+        ValidationLevel: "ERROR" | "WARNING";
+        ValidationIssue: {
+            /** @description Rule code of the catalogue, for example OVERLAP */
+            code: string;
+            level: components["schemas"]["ValidationLevel"];
+            message: string;
+            /** @description The assets the issue is about; the first one is the one to select */
+            assetIds: string[];
+        };
+        ValidationResponse: {
+            errors: number;
+            warnings: number;
+            issues: components["schemas"]["ValidationIssue"][];
         };
         /** @enum {string} */
         Role: "VIEWER" | "EDITOR" | "PUBLISHER" | "ADMIN";
@@ -1039,6 +1074,42 @@ export interface operations {
                 content?: never;
             };
             /** @description Unknown version or asset */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    validateLayout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                layoutId: components["parameters"]["LayoutId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The issues, errors first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationResponse"];
+                };
+            };
+            /** @description The role is below EDITOR */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown version */
             404: {
                 headers: {
                     [name: string]: unknown;

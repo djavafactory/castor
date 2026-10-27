@@ -334,6 +334,25 @@ paths:
           description: Unchanged since the ETag in If-None-Match
         '404':
           description: Unknown version or asset
+  /api/v1/layouts/{layoutId}/validate:
+    post:
+      operationId: validateLayout
+      summary: Every error and warning of a version (EDITOR and above)
+      description: Runs the whole rule catalogue over the version (README section 6). Read-only, writes no audit row. Errors block publishing, warnings do not.
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/LayoutId'
+      responses:
+        '200':
+          description: The issues, errors first
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResponse'
+        '403':
+          description: The role is below EDITOR
+        '404':
+          description: Unknown version
 components:
   parameters:
     LayoutId:
@@ -753,6 +772,38 @@ components:
           items:
             type: number
             format: double
+    ValidationLevel:
+      type: string
+      enum: [ERROR, WARNING]
+    ValidationIssue:
+      type: object
+      required: [code, level, message, assetIds]
+      properties:
+        code:
+          type: string
+          description: Rule code of the catalogue, for example OVERLAP
+        level:
+          $ref: '#/components/schemas/ValidationLevel'
+        message:
+          type: string
+        assetIds:
+          type: array
+          description: The assets the issue is about; the first one is the one to select
+          items:
+            type: string
+            format: uuid
+    ValidationResponse:
+      type: object
+      required: [errors, warnings, issues]
+      properties:
+        errors:
+          type: integer
+        warnings:
+          type: integer
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationIssue'
     Role:
       type: string
       enum: [VIEWER, EDITOR, PUBLISHER, ADMIN]

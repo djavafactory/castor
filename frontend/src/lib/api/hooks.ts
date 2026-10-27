@@ -11,6 +11,7 @@ import {
   layoutDocumentSchema,
   currentLayoutSchema,
   layoutVersionsSchema,
+  validationSchema,
   portSchema,
   referenceFeaturesSchema,
   searchResultsSchema,
@@ -31,6 +32,8 @@ export const queryKeys = {
   draft: (code: string) => ['layout', code, 'draft'] as const,
   versions: (code: string) => ['layout', code, 'versions'] as const,
   assetHistory: (code: string, assetId: string) => ['asset-history', code, assetId] as const,
+  /** The signature changes whenever the draft changes, so every save asks the server again. */
+  validation: (layoutId: string, signature: string) => ['validation', layoutId, signature] as const,
   accuracyReport: (code: string) => ['accuracy-report', code] as const,
   search: (code: string, q: string, layoutId: string | null) =>
     ['search', code, q, layoutId] as const,
@@ -177,6 +180,14 @@ export function useAssetHistory(assetId: string | null, code: string = defaultPo
     enabled: assetId !== null,
     ...layoutQueryOptions,
   })
+}
+
+/** The full list of errors and warnings of a version. A POST, but read-only: nothing is stored and nothing audited. */
+export function fetchValidation(layoutId: string, signal?: AbortSignal) {
+  return requestParsed(`/v1/layouts/${encodeURIComponent(layoutId)}/validate`, validationSchema, {
+    method: 'POST',
+    signal,
+  }).then((r) => r.data)
 }
 
 export function useAccuracyReport(code: string = defaultPortCode()) {
