@@ -1,16 +1,15 @@
-import { useQuery } from '@tanstack/react-query'
-import { apiGet } from '@/lib/api-client'
+import { usePort } from '@/lib/api'
 import { getEnv } from '@/lib/env'
 import { setActiveFrame, type QuayFrameParams } from '.'
 
 /** The part of GET /api/v1/ports/{code} the geo module needs. */
 export interface PortFrameResponse {
   origin: { lon: number; lat: number }
-  rotDeg: number
+  frameRotDeg: number
 }
 
 export function toFrameParams(port: PortFrameResponse): QuayFrameParams {
-  return { lon0: port.origin.lon, lat0: port.origin.lat, rotDeg: port.rotDeg }
+  return { lon0: port.origin.lon, lat0: port.origin.lat, rotDeg: port.frameRotDeg }
 }
 
 /**
@@ -18,14 +17,7 @@ export function toFrameParams(port: PortFrameResponse): QuayFrameParams {
  * convert positions; render 2D and 3D layers only then.
  */
 export function usePortFrame(): boolean {
-  const code = getEnv().VITE_PORT_CODE
-  const { data } = useQuery({
-    queryKey: ['port-frame', code],
-    queryFn: ({ signal }) =>
-      apiGet<PortFrameResponse>(`/v1/ports/${code}`, { signal }).then((r) => r.data),
-    retry: false,
-    staleTime: Infinity,
-  })
+  const { data } = usePort(getEnv().VITE_PORT_CODE)
   if (!data) return false
   setActiveFrame(toFrameParams(data))
   return true

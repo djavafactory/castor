@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { basicCredential, useAuthStore, type Role } from '@/lib/stores/auth-store'
 import { useEditorStore } from '@/lib/stores/editor-store'
 import { useUiStore } from '@/lib/stores/ui-store'
+import { portFixture } from '@/test/fixtures'
 import { server } from '@/test/setup'
 import { AppShell } from './app-shell'
 import { MONITOR_RELOADED_MESSAGE, NOT_AN_EDITOR_MESSAGE, SAVE_FAILED_PROMPT } from './leave-design'
@@ -29,9 +30,7 @@ function signInAs(roles: Role[], username = 'ada') {
 
 function renderShell() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  server.use(
-    http.get(`${BASE}/v1/port`, () => HttpResponse.json({ name: 'Westports', synthetic: true })),
-  )
+  server.use(http.get(`${BASE}/v1/ports/WESTPORTS`, () => HttpResponse.json(portFixture)))
   return render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={['/']}>

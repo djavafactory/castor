@@ -68,8 +68,12 @@ export default tseslint.config(
   },
   ...crossFeatureRules,
   {
-    // Token files may define raw colours.
-    files: ['src/styles/tokens/**/*.{ts,tsx}', 'src/lib/tokens/**/*.{ts,tsx}'],
+    // Token files may define raw colours; so may the API payload fixtures, where a colour is data from the server.
+    files: [
+      'src/styles/tokens/**/*.{ts,tsx}',
+      'src/lib/tokens/**/*.{ts,tsx}',
+      'src/test/fixtures.ts',
+    ],
     rules: { 'no-restricted-syntax': 'off' },
   },
   {

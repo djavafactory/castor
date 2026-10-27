@@ -1,9 +1,9 @@
 import { QueryClient } from '@tanstack/react-query'
 import { ApiError } from '@/lib/api-client'
 
-/** Never retry a 4xx (the request is wrong or forbidden); retry network, timeout and 5xx twice. */
+/** Never retry a 4xx or a response of an unknown shape; retry network, timeout and 5xx twice. */
 export function shouldRetry(failureCount: number, error: unknown): boolean {
-  if (error instanceof ApiError && error.status >= 400 && error.status < 500) return false
+  if (error instanceof ApiError && !error.retryable) return false
   return failureCount < 2
 }
 

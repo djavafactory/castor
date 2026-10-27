@@ -93,6 +93,31 @@ Each environment is a set of variables; see `.env.example` and `frontend/.env.ex
 - The backend refuses to start when `CASTOR_ENV` is anything else and demo login is on, a value contains `CHANGE_ME`, the admin password has fewer than 14 characters, or CORS origins are empty or `*`.
 - `CASTOR_RESET_ON_START=true` is allowed only in dev or test, otherwise start-up fails with "Refusing to wipe data: reset-on-start is only allowed in dev or test".
 
+## Data
+
+Reference data comes from migrations, never from a manual import: `V3__ref.sql` (port, data sources, accuracy classes, catalogue, control points) and `V4__asset_types.sql` (asset types). A new asset type is one migration (an `INSERT` into `layout.asset_type`, with `model_key` and a hint) plus a 3D model; nothing else changes. Type specific defaults without a column (reach, tiers, rate) go in the `params` JSON column.
+
+The OpenStreetMap background is the file `backend/castor-core/src/main/resources/seed/westports/osm-reference.geojson` (ODbL, attribution kept). `OsmImportJob` loads it into `ref.reference_feature` in one `ref.import_batch` at start and after a dev reset, upserting by `(port_id, osm_ref)`; an unchanged file (same SHA-256) is skipped. Set `CASTOR_REFERENCE_IMPORT_ON_START=false` to switch it off. A source with `may_persist = false` (GOOGLE) is refused.
+
+Refresh procedure, run only when the data needs updating:
+
+1. Download a dated Geofabrik Malaysia extract; record its date and SHA-256 in the file header (`castor.provenance`).
+2. Clip: `osmium extract --bbox 101.26,2.90,101.36,3.02 malaysia.osm.pbf -o westports.osm.pbf`.
+3. Export: `osmium export westports.osm.pbf -o westports.geojson`.
+4. Convert to the committed format (`FeatureCollection` with a `castor` header `{schemaVersion 1, port, kind "reference-features", attribution, provenance}`; per feature `kind`, `osmRef`, `name`, `heightM`/`widthM`, `source` OSM, `accuracy` APPROXIMATE):
+
+| OSM tag | kind | rule |
+|---|---|---|
+| `building=*` | BUILDING | height = `height` tag, else `building:levels` x 3.5 m, else 12 m (industrial, warehouse) or 9 m (other) |
+| `highway=*` | ROAD | width = `width` tag, else `lanes` x 3.5 m, else primary 10 m, secondary 8 m, tertiary 7 m, service 6 m, other 6 m |
+| `railway=rail` | RAIL | |
+| `natural=coastline` | COASTLINE | |
+| `man_made=quay\|pier\|jetty` | JETTY | |
+| `landuse=industrial\|port` | LANDUSE | |
+| `natural=water` | WATER | |
+
+5. Commit the file and restart the backend; the batch row in `ref.import_batch` shows the row count and checksum.
+
 ## Versioning and releases
 
 One version for the whole app, `MAJOR.MINOR.PATCH`, in the root `VERSION` file (0.1.0 now, 1.0.0 when Phase 1 is accepted). `backend/pom.xml` (`<revision>`) and `frontend/package.json` must equal it; CI runs `node scripts/check-versions.mjs` and fails if they differ.

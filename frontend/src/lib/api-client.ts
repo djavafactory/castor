@@ -25,6 +25,11 @@ export class ApiError extends Error {
     this.errors = init.errors ?? []
   }
 
+  /** False when asking again cannot help: a 4xx (the request is wrong) or a response of an unknown shape. */
+  get retryable(): boolean {
+    return this.status < 400 || this.status >= 500
+  }
+
   get isTimeout(): boolean {
     return this.status === 0 && this.title === 'Request timed out'
   }
