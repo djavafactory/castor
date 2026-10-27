@@ -2,17 +2,18 @@ import { Canvas } from '@react-three/fiber'
 import { useCallback, useState } from 'react'
 import type { Sphere } from 'three'
 import { EmptyState, ErrorCard } from '@/components/states/states'
-import { useCurrentLayout } from '@/lib/api'
+import { useAssetTypes, useCurrentLayout } from '@/lib/api'
 import { usePortFrame } from '@/lib/geo/use-port-frame'
 import { useReferenceBuildings } from '@/lib/reference-api'
 import { useSelectionStore } from '@/lib/stores/selection-store'
-import { buildingHoverText } from './buildings/building-text'
+import { buildingHoverText, buildingTitle } from './buildings/building-text'
 import { BuildingsLayer, type BuildingHover } from './buildings/buildings-layer'
 import type { BuildingsGeometry } from './buildings/building-geometry'
 import { LayoutLayer, type LayoutHover } from './layout/layout-layer'
 import { BUILDINGS_LAYER, useLayerVisible } from './layers'
 import { OrbitRig } from './orbit-rig'
-import { assetHoverText } from './layout/asset-text'
+import { hoverLines, humanKey } from './layout/asset-rows'
+import { SceneTooltip } from './scene-tooltip'
 import { webglAvailable } from './webgl'
 
 /** The 3D replica of the port. Without WebGL it says so and loads nothing. */
@@ -34,6 +35,7 @@ function Scene() {
   const buildings = useReferenceBuildings(frameReady)
   const showBuildings = useLayerVisible(BUILDINGS_LAYER)
   const layout = useCurrentLayout()
+  const assetTypes = useAssetTypes()
   const features = layout.data?.data.features.features
   const [buildingsFocus, setBuildingsFocus] = useState<Sphere | null>(null)
   const [layoutFocus, setLayoutFocus] = useState<Sphere | null>(null)
@@ -89,22 +91,26 @@ function Scene() {
         </div>
       )}
       {hoveredAsset && assetHover && (
-        <p
-          role="tooltip"
-          className="pointer-events-none absolute z-popover rounded-lg border border-signal bg-paper px-2.5 py-1.5 text-xs text-ink shadow-popover"
-          style={{ left: assetHover.x + 12, top: assetHover.y + 12 }}
-        >
-          {assetHoverText(hoveredAsset.properties)}
-        </p>
+        <SceneTooltip
+          x={assetHover.x}
+          y={assetHover.y}
+          lines={hoverLines(
+            hoveredAsset.properties,
+            assetTypes.data?.find((t) => t.code === hoveredAsset.properties.type)?.label ??
+              humanKey(hoveredAsset.properties.type.toLowerCase()),
+            (hoveredAsset.geometry as { type?: string }).type,
+          )}
+        />
       )}
       {hovered && hover && (
-        <p
-          role="tooltip"
-          className="pointer-events-none absolute z-popover rounded-lg border border-signal bg-paper px-2.5 py-1.5 text-xs text-ink shadow-popover"
-          style={{ left: hover.x + 12, top: hover.y + 12 }}
-        >
-          {buildingHoverText(hovered.properties)}
-        </p>
+        <SceneTooltip
+          x={hover.x}
+          y={hover.y}
+          lines={[
+            buildingTitle(hovered.properties),
+            ...buildingHoverText(hovered.properties).split(', ').slice(1),
+          ]}
+        />
       )}
     </div>
   )

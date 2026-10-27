@@ -1,4 +1,4 @@
-import { PanelRight, PanelLeft } from 'lucide-react'
+import { PanelRight, PanelLeft, Tag } from 'lucide-react'
 import { IconButton } from '@/components/ui/button'
 import { Segmented } from '@/components/ui/segmented'
 import { useUiStore, type ViewMode } from '@/lib/stores/ui-store'
@@ -20,6 +20,8 @@ export function ToolStrip() {
   const setViewMode = useUiStore((s) => s.setViewMode)
   const panelHidden = useUiStore((s) => s.panelHidden)
   const setPanelHidden = useUiStore((s) => s.setPanelHidden)
+  const labels = useUiStore((s) => s.labels)
+  const setLabels = useUiStore((s) => s.setLabels)
   const paletteHidden = useUiStore((s) => s.paletteHidden)
   const setPaletteHidden = useUiStore((s) => s.setPaletteHidden)
 
@@ -42,6 +44,9 @@ export function ToolStrip() {
         </>
       )}
       <LayersMenu />
+      <IconButton label="Labels (L)" pressed={labels} onClick={() => setLabels(!labels)}>
+        <Tag aria-hidden="true" />
+      </IconButton>
       <IconButton
         label="Hide panel"
         pressed={panelHidden}

@@ -134,3 +134,9 @@ export interface ModelSpec {
 export function tallest(spec: ModelSpec): number {
   return spec.size.height + spec.extraHeight
 }
+
+/** Hover label: white on the signal colour. */
+export const HOVER_LABEL = {
+  text: `#${COLOUR.WHITE.toString(16)}`,
+  background: `#${COLOUR.ORANGE.toString(16)}`,
+}

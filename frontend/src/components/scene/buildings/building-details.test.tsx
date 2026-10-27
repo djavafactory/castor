@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { server } from '@/test/setup'
 import { useSelectionStore } from '@/lib/stores/selection-store'
@@ -64,14 +65,17 @@ describe('BuildingDetails', () => {
     useSelectionStore.getState().selectReference('way/1300405460')
     renderDetails()
 
-    expect(await screen.findByRole('heading', { name: 'Building 1300405460' })).toBeInTheDocument()
-    expect(screen.getByText('Reference feature, read-only')).toBeInTheDocument()
+    expect(await screen.findByText('Building 1300405460')).toBeInTheDocument()
+    expect(screen.getByText(/Reference feature, read-only/)).toBeInTheDocument()
     expect(screen.getByText('way/1300405460')).toBeInTheDocument()
     expect(screen.getByText('1812 m2')).toBeInTheDocument()
     expect(screen.getByText('12 m')).toBeInTheDocument()
     expect(screen.getByText('OpenStreetMap (ODbL)')).toBeInTheDocument()
     expect(screen.getByText('Approximate')).toBeInTheDocument()
-    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Deselect' })).toBeInTheDocument()
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Deselect' }))
+    expect(useSelectionStore.getState().selectedReferenceId).toBeNull()
   })
 })

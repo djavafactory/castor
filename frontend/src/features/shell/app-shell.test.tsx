@@ -48,6 +48,12 @@ beforeEach(() => {
   useAuthStore.getState().clearSession()
   useEditorStore.getState().reset()
   useUiStore.setState({ mode: 'monitor', openMenu: null, rightTab: 'details' })
+  // The stage and the PORT section read the published layout; tests that care override this
+  server.use(
+    http.get(`${BASE}/v1/ports/WESTPORTS/layouts/current`, () =>
+      HttpResponse.json(currentLayoutFixture, { headers: { ETag: '"a"' } }),
+    ),
+  )
 })
 
 describe('app shell', () => {
@@ -59,7 +65,7 @@ describe('app shell', () => {
       'title',
       'Synthetic layout: positions are placeholders, not a survey of Westports',
     )
-    expect(screen.getByText('Westports')).toBeInTheDocument()
+    expect(screen.getAllByText('Westports').length).toBeGreaterThan(0)
     expect(screen.getByRole('toolbar', { name: 'Tools' })).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'Mode' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Monitor' })).toHaveAttribute('aria-pressed', 'true')
@@ -249,7 +255,7 @@ describe('Monitor of the published layout', () => {
     expect(screen.queryByRole('tab', { name: /Inspector|Issues|Versions/ })).toBeNull()
     expect(screen.queryByText(/live|KPI|schedule|connected|events/i)).toBeNull()
     expect(
-      screen.getByText('Select an asset in the 3D view to read its details.'),
+      screen.getByText('Select something in the 3D view to see its details.'),
     ).toBeInTheDocument()
   })
 
