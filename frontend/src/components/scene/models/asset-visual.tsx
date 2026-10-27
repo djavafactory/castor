@@ -33,10 +33,10 @@ export interface AssetVisualProps {
 const LABEL_PX = 256
 
 /** Captions above models (berth and pad names) are wider than the label of an unknown model. */
-const CAPTION_PX = 512
-const CAPTION_SCALE: [number, number, number] = [32, 4, 1]
+export const CAPTION_PX = 512
+export const CAPTION_SCALE: [number, number, number] = [32, 4, 1]
 
-function labelTexture(text: string, width = LABEL_PX): CanvasTexture | null {
+export function labelTexture(text: string, width = LABEL_PX): CanvasTexture | null {
   const canvas = document.createElement('canvas')
   canvas.width = width
   canvas.height = width / 4

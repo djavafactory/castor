@@ -30,6 +30,8 @@ public interface CastorConfig {
     /** Stamped at build time (META-INF/microprofile-config.properties); "unknown" when run without that file. */
     Build build();
 
+    Features features();
+
     Admin admin();
 
     Data data();
@@ -48,6 +50,12 @@ public interface CastorConfig {
         /** UTC, ISO-8601. */
         @WithDefault("unknown")
         String time();
+    }
+
+    interface Features {
+        /** Container yards, STS cranes, RTGs and TEU figures. On for the Westports demo. */
+        @WithDefault("true")
+        boolean containers();
     }
 
     interface Admin {

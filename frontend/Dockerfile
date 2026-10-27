@@ -6,6 +6,7 @@ COPY . .
 # VITE_* values are bundled into the browser build: no secrets here
 ARG VITE_PORT_CODE=westports
 ARG VITE_DEMO_LOGIN=false
+ARG VITE_FEATURE_CONTAINERS=true
 ARG VITE_SATELLITE_TILE_URL=https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/{z}/{y}/{x}.jpg
 # Build stamps from scripts/build-stamp.sh (the VERSION file is outside this build context)
 ARG BUILD_VERSION=
@@ -18,6 +19,7 @@ ENV BUILD_VERSION=$BUILD_VERSION \
     VITE_API_URL=/api \
     VITE_PORT_CODE=$VITE_PORT_CODE \
     VITE_DEMO_LOGIN=$VITE_DEMO_LOGIN \
+    VITE_FEATURE_CONTAINERS=$VITE_FEATURE_CONTAINERS \
     VITE_SATELLITE_TILE_URL=$VITE_SATELLITE_TILE_URL
 # Types are checked by CI (npm run typecheck); tests import the shared fixtures/ folder, which is outside this build context
 RUN npx vite build

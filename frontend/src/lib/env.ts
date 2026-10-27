@@ -5,6 +5,12 @@ const booleanString = z
   .default('false')
   .transform((value) => value === 'true')
 
+/** A feature flag that is on unless it is explicitly false. */
+const onByDefault = z
+  .enum(['true', 'false'])
+  .default('true')
+  .transform((value) => value === 'true')
+
 const DEMO_ENVIRONMENTS = ['local', 'dev']
 
 export const envSchema = z
@@ -20,6 +26,8 @@ export const envSchema = z
     VITE_PORT_CODE: z.string().min(1),
     VITE_DEMO_LOGIN: booleanString,
     VITE_SATELLITE_TILE_URL: z.url(),
+    // Container yards, STS cranes, RTGs and TEU figures. Mirrors castor.features.containers.
+    VITE_FEATURE_CONTAINERS: onByDefault,
   })
   // Demo login is on only when explicitly true AND the environment is local or dev.
   .transform((value) => ({

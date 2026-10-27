@@ -21,6 +21,15 @@ describe('parseEnv', () => {
     })
   })
 
+  it('turns the containers feature on by default and off with VITE_FEATURE_CONTAINERS=false', () => {
+    expect(parseEnv(valid)).toMatchObject({ ok: true, env: { VITE_FEATURE_CONTAINERS: true } })
+    expect(parseEnv({ ...valid, VITE_FEATURE_CONTAINERS: 'false' })).toMatchObject({
+      ok: true,
+      env: { VITE_FEATURE_CONTAINERS: false },
+    })
+    expect(parseEnv({ ...valid, VITE_FEATURE_CONTAINERS: 'maybe' }).ok).toBe(false)
+  })
+
   it('keeps demo login off outside local and dev even when the flag is true', () => {
     for (const VITE_APP_ENV of ['test', 'staging', 'prod']) {
       expect(parseEnv({ ...valid, VITE_APP_ENV, VITE_DEMO_LOGIN: 'true' })).toMatchObject({
