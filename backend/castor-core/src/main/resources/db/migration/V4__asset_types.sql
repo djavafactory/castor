@@ -69,7 +69,7 @@ SELECT t.code, t.label, t.grp, t.cat, t.geom, t.mode,
            WHEN t.geom = 'POLYGON' THEN 'Click the corners, then double-click or press Enter.'
            ELSE 'Click along the path, then double-click or press Enter.'
        END,
-       t.n::smallint
+       (row_number() OVER ())::smallint
 FROM (VALUES
     ('MOBILE_HARBOUR_CRANE', 'Mobile harbour crane', 'CRANES', 'LIFTING', 'POINT', 'PLACE', 'M', 18, 9, 28, NULL, NULL, NULL, NULL, '{"reachM":32}', '#F2622E'),
     ('LEVEL_LUFFING_CRANE', 'Level luffing crane', 'CRANES', 'LIFTING', 'POINT', 'PLACE', 'M', 24, 10, 40, NULL, NULL, NULL, NULL, '{"reachM":40}', '#E8A317'),
@@ -129,7 +129,7 @@ FROM (VALUES
     ('FIRE_ACCESS', 'Fire access', 'ZONES', 'SAFETY', 'LINE', 'DRAW', 'F', NULL, NULL, NULL, NULL, 5, NULL, NULL, NULL, '#C8423B'),
     ('DRAINAGE_ZONE', 'Drainage zone', 'ZONES', 'SAFETY', 'POLYGON', 'DRAW', 'FZ', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '#6FA8C9'),
     ('FENCE', 'Fence', 'ZONES', 'SAFETY', 'LINE', 'DRAW', '', NULL, NULL, 2.4, NULL, 0.3, NULL, NULL, NULL, '#6B7480')
-) WITH ORDINALITY AS t(code, label, grp, cat, geom, mode, flags, l, w, h, r, lw, cap, cap_unit, params, colour, n);
+) AS t(code, label, grp, cat, geom, mode, flags, l, w, h, r, lw, cap, cap_unit, params, colour);
 
 -- Type specific limits and hints
 UPDATE layout.asset_type SET min_length_m = 20 WHERE code = 'BERTH';
