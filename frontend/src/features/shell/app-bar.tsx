@@ -35,7 +35,8 @@ export function AppBar() {
       <span className="text-sm font-medium">{port.name}</span>
       {mode === 'monitor' && <PublishedVersion />}
       {port.synthetic && (
-        <Badge variant="synthetic" tabIndex={0} title={SYNTHETIC_TIP}>
+        // Below 1024 px the room goes to the mode switch and the layout status
+        <Badge variant="synthetic" tabIndex={0} title={SYNTHETIC_TIP} className="max-lg:hidden">
           SYNTHETIC
         </Badge>
       )}
@@ -133,7 +134,8 @@ function UserMenu() {
       <button
         ref={triggerRef}
         type="button"
-        aria-haspopup="true"
+        aria-haspopup="dialog"
+        aria-controls={open ? 'user-menu' : undefined}
         aria-expanded={open}
         className="flex h-8 items-center gap-1.5 rounded-lg px-2 text-sm font-medium hover:bg-paper-2"
         onClick={toggle}
@@ -151,7 +153,10 @@ function UserMenu() {
         </svg>
       </button>
       {open && (
+        // A small panel (name, role, Sign out), not a list of menu items: a labelled non-modal dialog
         <div
+          id="user-menu"
+          role="dialog"
           aria-label="User menu"
           className="absolute top-full right-0 z-menu mt-1 w-56 rounded-xl bg-paper p-3 shadow-popover ring-1 ring-line-soft"
         >

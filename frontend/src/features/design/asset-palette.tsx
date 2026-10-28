@@ -66,7 +66,8 @@ function Tile({ type, active }: { type: AssetType; active: boolean }) {
           if (event.button === 0) beginTileDrag(type, event)
         }}
         className={cn(
-          'flex w-full touch-none flex-col items-center gap-1 rounded-lg border border-line-soft p-1.5 text-center select-none hover:bg-paper-2',
+          // p-1 in the 220 px palette (<= 1100 px) so the 84 px thumbnail still fits two to a row
+          'flex w-full touch-none flex-col items-center gap-1 rounded-lg border border-line-soft p-1.5 text-center select-none hover:bg-paper-2 max-wide:p-1',
           active && 'border-signal bg-signal-soft',
         )}
       >

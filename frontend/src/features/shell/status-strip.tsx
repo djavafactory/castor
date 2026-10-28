@@ -105,19 +105,22 @@ export function StatusStrip() {
   return (
     <footer
       aria-label="Status"
-      className="flex h-8 min-w-0 shrink-0 items-center gap-2.5 overflow-hidden border-t border-line-soft bg-paper px-4 text-[13px] whitespace-nowrap text-ink"
+      className="flex h-8 min-w-0 shrink-0 items-center gap-2.5 overflow-hidden border-t border-line-soft bg-paper px-4 text-[13px] whitespace-nowrap text-ink max-wide:gap-1.5 max-wide:px-3"
     >
-      <span className="min-w-[46ch] shrink-0 font-mono text-xs">
-        <CursorReadout />
-      </span>
-      <Divider />
-      <Crs />
-      <BasemapSelect />
-      <Divider />
-      <MeasureButton />
-      <Check label="Accuracy" tip={ACCURACY_TIP} checked={accuracy} onChange={setAccuracy} />
-      <Check label="Envelope" tip={ENVELOPE_TIP} checked={envelope} onChange={setEnvelope} />
-      <span className="ml-auto min-w-0 truncate pl-2 font-mono text-xs text-muted">
+      {/* When room runs out the tools on the left are cut, never History and the issues on the right */}
+      <div className="flex min-w-0 items-center gap-2.5 overflow-hidden max-wide:gap-1.5">
+        <span className="min-w-[46ch] shrink-0 font-mono text-xs max-wide:min-w-[44ch] max-wide:text-[11px]">
+          <CursorReadout />
+        </span>
+        <Divider />
+        <Crs />
+        <BasemapSelect />
+        <Divider />
+        <MeasureButton />
+        <Check label="Accuracy" tip={ACCURACY_TIP} checked={accuracy} onChange={setAccuracy} />
+        <Check label="Envelope" tip={ENVELOPE_TIP} checked={envelope} onChange={setEnvelope} />
+      </div>
+      <span className="min-w-0 flex-1 truncate pl-2 text-right font-mono text-xs text-muted">
         <DraftSummary />
       </span>
       <HistoryPopover />

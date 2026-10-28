@@ -140,8 +140,12 @@
   --radius-xl: 14px;
   --radius-2xl: 18px;
 
-  /* z-order: stage overlays 5, popovers 8, narrow notice 9, strip and drawer 20, menus and loading 30,
-     app bar 40, toasts 60, login 70, drag chip 90 */
+  /* Laptop layout (JOIN-03): `max-wide:` is at most 1100 px (narrower panel and palette, icon-only tool strip);
+     the default `max-lg:` is below 1024 px (notice, panel drawer). 1101 px in rem so it sorts with the defaults. */
+  --breakpoint-wide: 68.8125rem;
+
+  /* z-order: stage overlays and the narrow-screen panel drawer 5 (popovers and tooltips of the drawer stay on top),
+     popovers 8, narrow notice 9, strip 20, menus and loading 30, app bar 40, toasts 60, login 70, drag chip 90 */
   --z-index-overlay: 5;
   --z-index-popover: 8;
   --z-index-notice: 9;

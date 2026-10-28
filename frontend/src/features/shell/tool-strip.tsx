@@ -74,6 +74,11 @@ const VIEW_MODES: { value: ViewMode; label: string }[] = [
   { value: 'split', label: 'Split' },
 ]
 
+/** The text of an icon + text tool: at <= 1100 px only the icon shows, the text stays the name for screen readers. */
+function ToolLabel({ children }: { children: ReactNode }) {
+  return <span className="max-wide:sr-only">{children}</span>
+}
+
 function Group({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div role="group" aria-label={label} className="flex items-center gap-0.5">
@@ -96,7 +101,7 @@ function CameraMenu() {
           className="inline-flex h-7 items-center gap-1.5 rounded-lg px-2 text-[13px] font-medium hover:bg-paper"
         >
           <Camera aria-hidden="true" className="size-4" />
-          {label}
+          <ToolLabel>{label}</ToolLabel>
           <ChevronDown aria-hidden="true" className="size-3.5" />
         </button>
       </MenuTrigger>
@@ -140,7 +145,7 @@ export function ToolStrip() {
     <div
       role="toolbar"
       aria-label="Tools"
-      className="relative z-strip flex items-center gap-2 border-b border-line-soft bg-paper-2 px-4"
+      className="relative z-strip flex items-center gap-2 border-b border-line-soft bg-paper-2 px-4 max-wide:gap-1.5 max-wide:px-3"
     >
       {mode === 'design' && (
         <>
@@ -152,7 +157,7 @@ export function ToolStrip() {
             className="inline-flex h-7 items-center gap-1.5 rounded-lg px-2 text-[13px] font-medium hover:bg-paper aria-pressed:bg-signal-soft"
           >
             <PanelLeft aria-hidden="true" className="size-4" />
-            Assets
+            <ToolLabel>Assets</ToolLabel>
           </button>
           <Segmented label="View" value={viewMode} options={VIEW_MODES} onChange={setViewMode} />
           <UndoRedo />
@@ -237,7 +242,7 @@ export function ToolStrip() {
         onClick={() => setPanelHidden(!panelHidden)}
       >
         <PanelRight aria-hidden="true" className="size-4" />
-        {panelHidden ? 'Show panel' : 'Hide panel'}
+        <ToolLabel>{panelHidden ? 'Show panel' : 'Hide panel'}</ToolLabel>
       </Button>
       {mode === 'monitor' && (
         <Button
@@ -251,7 +256,7 @@ export function ToolStrip() {
           ) : (
             <Maximize aria-hidden="true" className="size-4" />
           )}
-          {fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+          <ToolLabel>{fullscreen ? 'Exit fullscreen' : 'Fullscreen'}</ToolLabel>
         </Button>
       )}
       <MoreMenu />

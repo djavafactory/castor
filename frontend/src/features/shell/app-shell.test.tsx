@@ -48,7 +48,7 @@ beforeEach(() => {
   vi.mocked(toast).mockClear()
   useAuthStore.getState().clearSession()
   useEditorStore.getState().reset()
-  useUiStore.setState({ mode: 'monitor', openMenu: null, rightTab: 'details' })
+  useUiStore.setState({ mode: 'monitor', openMenu: null, rightTab: 'details', panelHidden: false })
   // The stage and the PORT section read the published layout; tests that care override this
   server.use(
     http.get(`${BASE}/v1/ports/WESTPORTS/layouts/current`, () =>
@@ -225,8 +225,12 @@ describe('app shell', () => {
     renderShell()
     const user = userEvent.setup()
 
-    await user.click(screen.getByRole('button', { name: /ada/ }))
-    expect(screen.getByLabelText('User menu')).toHaveTextContent('EDITOR')
+    const trigger = screen.getByRole('button', { name: /ada/ })
+    expect(trigger).toHaveAttribute('aria-haspopup', 'dialog')
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+    await user.click(trigger)
+    expect(trigger).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('dialog', { name: 'User menu' })).toHaveTextContent('EDITOR')
 
     await user.keyboard('{Escape}')
     expect(screen.queryByLabelText('User menu')).not.toBeInTheDocument()
@@ -276,6 +280,43 @@ describe('layout', () => {
     expect(screen.getByLabelText('Asset palette')).toHaveClass('w-[260px]')
     await userEvent.click(screen.getByRole('button', { name: 'Assets' }))
     expect(screen.queryByLabelText('Asset palette')).not.toBeInTheDocument()
+  })
+
+  // jsdom applies no CSS: these check the breakpoint classes; e2e/responsive.spec.ts checks the real layout
+  it('narrows the palette and the panel at <= 1100 px and makes the panel a drawer below 1024 px', () => {
+    signInAs(['EDITOR'])
+    useUiStore.setState({ mode: 'design', panelHidden: false, paletteHidden: false })
+    renderShell()
+    expect(screen.getByLabelText('Asset palette')).toHaveClass('max-wide:w-[220px]')
+    expect(screen.getByLabelText('Right panel')).toHaveClass(
+      'w-[348px]',
+      'max-wide:w-[300px]',
+      'max-lg:absolute',
+      'max-lg:w-[min(340px,92vw)]',
+    )
+  })
+
+  it('closes the drawer with its close button', async () => {
+    signInAs(['VIEWER'])
+    renderShell()
+    const close = screen.getByRole('button', { name: 'Close panel' })
+    expect(close).toHaveClass('hidden', 'max-lg:inline-flex')
+    await userEvent.click(close)
+    expect(screen.queryByLabelText('Right panel')).not.toBeInTheDocument()
+  })
+
+  it('says below 1024 px that Castor is for wider screens, and in Design that editing needs them', async () => {
+    signInAs(['EDITOR'])
+    renderShell()
+    const note = screen.getByRole('note')
+    expect(note).toHaveClass('hidden', 'max-lg:block', 'bg-warn-soft')
+    expect(note).toHaveTextContent(/^Castor is designed for screens at least 1024 px wide\.$/)
+    expect(await screen.findByText('SYNTHETIC')).toHaveClass('max-lg:hidden')
+
+    act(() => useUiStore.setState({ mode: 'design' }))
+    expect(screen.getByRole('note')).toHaveTextContent(
+      'Castor is designed for screens at least 1024 px wide. Editing the layout needs a window at least 1024 px wide',
+    )
   })
 })
 
