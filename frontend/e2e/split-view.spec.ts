@@ -93,9 +93,13 @@ test('the issues button opens the Issues tab', async ({ page }) => {
   await expect(issues).toBeVisible({ timeout: 20_000 })
   // The strip fits the window (1280 px): it never widens the page or pushes the issues button out
   await expect(issues).toBeInViewport({ ratio: 1 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
-    page.viewportSize()!.width,
-  )
+  expect(
+    await page.evaluate(
+      () =>
+        (globalThis as unknown as { document: { documentElement: { scrollWidth: number } } })
+          .document.documentElement.scrollWidth,
+    ),
+  ).toBeLessThanOrEqual(page.viewportSize()!.width)
   await issues.click()
   await expect(page.getByRole('tab', { name: /Issues/ })).toHaveAttribute('aria-selected', 'true')
 })
