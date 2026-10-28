@@ -53,6 +53,16 @@ describe('LayoutLayer', () => {
     await renderer.unmount()
   })
 
+  it('outlines an asset selected elsewhere (the 2D map) on the next render', async () => {
+    const renderer = await ReactThreeTestRenderer.create(<LayoutLayer features={features} />)
+    expect(renderer.scene.instance.getObjectByName('selection-outline')).toBeUndefined()
+    await ReactThreeTestRenderer.act(async () => useSelectionStore.getState().select('wh1'))
+    expect(renderer.scene.instance.getObjectByName('selection-outline')).toBeDefined()
+    await ReactThreeTestRenderer.act(async () => useSelectionStore.getState().clear())
+    expect(renderer.scene.instance.getObjectByName('selection-outline')).toBeUndefined()
+    await renderer.unmount()
+  })
+
   it('reports hover with the pointer position and clears it', async () => {
     const onHover = vi.fn()
     const renderer = await ReactThreeTestRenderer.create(

@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { GOOGLE_NOTE } from '@/lib/basemap'
 import { fromLonLat, setActiveFrame, toLonLat } from '@/lib/geo'
 import { toggleMeasure } from '@/features/design/measure/measure'
+import { palette } from '@/features/scene/palette'
 import { useEditorStore } from '@/lib/stores/editor-store'
 import { useSelectionStore } from '@/lib/stores/selection-store'
 import { useUiStore } from '@/lib/stores/ui-store'
@@ -323,6 +324,57 @@ describe('selection', () => {
     act(() => useUiStore.setState({ layerVisibility: { 'storage-pads': false } }))
     await click([140, 130])
     expect(useSelectionStore.getState().selectedAssetId).toBeNull()
+  })
+})
+
+describe('shared selection', () => {
+  it('outlines an asset selected in 3D on the next animation frame', async () => {
+    // A canvas that writes down the colour of every stroke, and frames that run only when the test says so
+    const strokes: unknown[] = []
+    const ctx = new Proxy(
+      {},
+      {
+        get: (target: Record<string | symbol, unknown>, key) =>
+          key in target
+            ? target[key]
+            : key === 'stroke'
+              ? () => strokes.push(target.strokeStyle)
+              : key === 'measureText'
+                ? () => ({ width: 0 })
+                : () => undefined,
+        set: (target, key, value) => {
+          target[key] = value
+          return true
+        },
+      },
+    )
+    const frames: FrameRequestCallback[] = []
+    const getContext = HTMLCanvasElement.prototype.getContext
+    const path2d = (globalThis as { Path2D?: unknown }).Path2D
+    ;(globalThis as { Path2D?: unknown }).Path2D = class {
+      moveTo() {}
+      lineTo() {}
+      closePath() {}
+    }
+    HTMLCanvasElement.prototype.getContext = (() => ctx) as never
+    const raf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+      frames.push(cb)
+      return frames.length
+    })
+    try {
+      await loaded()
+      frames.splice(0).forEach((f) => f(0))
+      strokes.length = 0
+
+      act(() => useSelectionStore.getState().select('pad-1'))
+      expect(frames).toHaveLength(1)
+      frames.splice(0).forEach((f) => f(0))
+      expect(strokes).toContain(palette.signal)
+    } finally {
+      raf.mockRestore()
+      HTMLCanvasElement.prototype.getContext = getContext
+      ;(globalThis as { Path2D?: unknown }).Path2D = path2d
+    }
   })
 })
 
