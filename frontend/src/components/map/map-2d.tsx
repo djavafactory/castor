@@ -445,7 +445,7 @@ export function Map2D() {
         ref={canvas}
         role="img"
         aria-label="Plan of the port in local metres, north arrow top right"
-        className={`block h-full w-full touch-none ${drawing ? 'cursor-crosshair' : ''}`}
+        className={`block h-full w-full touch-none select-none ${drawing ? 'cursor-crosshair' : ''}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -457,6 +457,8 @@ export function Map2D() {
           if (drawing === 'polygon' || drawing === 'line') void finish()
         }}
         onPointerLeave={() => useMapStore.getState().setCursor(null)}
+        // A native drag (and its "not allowed" cursor) must never start over the map: the handles own the pointer
+        onDragStart={(event) => event.preventDefault()}
         onContextMenu={(event) => event.preventDefault()}
       />
       <div className="absolute top-3 left-3 z-overlay">
