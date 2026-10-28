@@ -7,6 +7,7 @@ import { useSelectionStore } from '@/lib/stores/selection-store'
 import { useUiStore } from '@/lib/stores/ui-store'
 import { rotated } from '@/features/design/place/placement-plan'
 import { runRedo, runUndo } from '@/features/design/history/undo-redo'
+import { toggleMeasure } from '@/features/design/measure/measure'
 import { toggleFullscreen } from './fullscreen'
 
 const ROTATE_STEP_DEG = 15
@@ -71,7 +72,7 @@ export function useSceneKeys() {
           break
         case 'm':
         case 'M':
-          if (design) useEditorStore.getState().setTool('measure')
+          if (design) toggleMeasure()
           break
         case 'r':
         case 'R':

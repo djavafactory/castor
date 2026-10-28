@@ -93,6 +93,15 @@ class RecordingContext {
   lineTo(...a: number[]) {
     this.record('lineTo', a)
   }
+  arc(...a: number[]) {
+    this.record('arc', a)
+  }
+  roundRect(...a: number[]) {
+    this.record('roundRect', a)
+  }
+  measureText(text: string) {
+    return { width: text.length * 6 }
+  }
   ops(op: string) {
     return this.calls.filter((c) => c.op === op)
   }
@@ -423,6 +432,31 @@ describe('labels', () => {
     )
     expect(px).toBeGreaterThan(0)
     expect(py).toBeGreaterThan(0)
+  })
+})
+
+describe('measure line', () => {
+  it('draws a dashed signal line between the ends with its label on top', () => {
+    const ctx = new RecordingContext()
+    const label = '470.40 m (geodesic 470.38 m), bearing 210.3 deg'
+    const view = { x: 0, y: 300, k: 0.5 }
+    drawMap(input({ ctx, view, measure: { from: [-200, 0], to: [200, 0], label } }))
+    const line = ctx.ops('stroke').find((c) => c.style === palette.signal && c.dash?.length)!
+    expect(line.dash).toEqual([8, 5])
+    // drawn in screen pixels from one end to the other
+    const [ax, ay] = localToScreen(view, SIZE, -200, 0)
+    const [bx, by] = localToScreen(view, SIZE, 200, 0)
+    expect(ctx.ops('moveTo').at(-1)?.args).toEqual([ax, ay])
+    expect(ctx.ops('lineTo').at(-1)?.args).toEqual([bx, by])
+    expect(ctx.ops('arc')).toHaveLength(2)
+    // the label is the last thing painted
+    expect(ctx.calls.at(-1)).toMatchObject({ op: 'fillText', args: [label] })
+  })
+
+  it('draws nothing without a measurement', () => {
+    const ctx = new RecordingContext()
+    drawMap(input({ ctx }))
+    expect(ctx.ops('arc')).toHaveLength(0)
   })
 })
 

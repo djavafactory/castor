@@ -4,6 +4,8 @@ import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { GOOGLE_NOTE } from '@/lib/basemap'
 import { fromLonLat, setActiveFrame, toLonLat } from '@/lib/geo'
+import { toggleMeasure } from '@/features/design/measure/measure'
+import { useEditorStore } from '@/lib/stores/editor-store'
 import { useSelectionStore } from '@/lib/stores/selection-store'
 import { useUiStore } from '@/lib/stores/ui-store'
 import { layoutWire, portFixture } from '@/test/fixtures'
@@ -321,6 +323,43 @@ describe('selection', () => {
     act(() => useUiStore.setState({ layerVisibility: { 'storage-pads': false } }))
     await click([140, 130])
     expect(useSelectionStore.getState().selectedAssetId).toBeNull()
+  })
+})
+
+describe('measure tool', () => {
+  async function click(local: [number, number]) {
+    const [px, py] = localToScreen(useMapStore.getState().view, SIZE, local[0], local[1])
+    fireEvent.pointerDown(canvas(), { clientX: px, clientY: py, button: 0, pointerId: 1 })
+    fireEvent.pointerUp(canvas(), { clientX: px, clientY: py, button: 0, pointerId: 1 })
+  }
+
+  beforeEach(() => useEditorStore.getState().reset())
+
+  it('measures between two clicks without selecting, and logs the measurement', async () => {
+    await loaded()
+    act(() => toggleMeasure())
+    expect(canvas()).toHaveClass('cursor-crosshair')
+    // the ends of Berth 2, 400 m apart
+    await click([-200, 0])
+    await click([200, 0])
+    expect(useSelectionStore.getState().selectedAssetId).toBeNull()
+    const points = useEditorStore.getState().tool?.points ?? []
+    expect(points).toHaveLength(2)
+    const [x0, y0] = fromLonLat(...points[0])
+    const [x1, y1] = fromLonLat(...points[1])
+    expect(Math.hypot(x1 - x0, y1 - y0)).toBeCloseTo(400, 0)
+    expect(useEditorStore.getState().historyLog[0].label).toMatch(/^Measured 40\d\.\d\d m/)
+  })
+
+  it('still pans on a drag', async () => {
+    await loaded()
+    act(() => toggleMeasure())
+    const before = useMapStore.getState().view
+    fireEvent.pointerDown(canvas(), { clientX: 300, clientY: 300, button: 0, pointerId: 1 })
+    fireEvent.pointerMove(canvas(), { clientX: 360, clientY: 300, pointerId: 1 })
+    fireEvent.pointerUp(canvas(), { clientX: 360, clientY: 300, button: 0, pointerId: 1 })
+    expect(useMapStore.getState().view.x).toBeCloseTo(before.x - 60 / before.k, 6)
+    expect(useEditorStore.getState().tool?.points).toEqual([])
   })
 })
 

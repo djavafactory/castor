@@ -19,7 +19,7 @@ import { palette } from '@/features/scene/palette'
 import { PlaceSearch } from '@/features/search/place-search'
 import { useAssetTypes, useDraftLayout, usePort } from '@/lib/api'
 import { getEnv } from '@/lib/env'
-import { toLonLat } from '@/lib/geo'
+import { fromLonLat, toLonLat } from '@/lib/geo'
 import { usePortFrame } from '@/lib/geo/use-port-frame'
 import { GOOGLE_NOTE } from '@/lib/basemap'
 import { useReferenceBuildings, useReferenceRoads } from '@/lib/reference-api'
@@ -42,8 +42,9 @@ import { EditReason } from '@/features/design/edit/edit-reason'
 import { editableHandles } from '@/features/design/edit/edit-ops'
 import { useAssetEdit } from '@/features/design/edit/use-asset-edit'
 import { useDraftValidation } from '@/features/design/issues/use-draft-validation'
+import { measure, measureClick, measureText } from '@/features/design/measure/measure'
 import { useEditorStore } from '@/lib/stores/editor-store'
-import { drawMap, type Ghost2D, type Sketch } from './map-draw'
+import { drawMap, type Ghost2D, type MeasureDraw, type Sketch } from './map-draw'
 import { MapFurniture } from './map-furniture-view'
 import { PIN_MS, useMapStore } from './map-store'
 import {
@@ -61,6 +62,20 @@ const CLICK_SLOP_PX = 4
 /** How near a click must be to a line or an edge to hit it. */
 const REACH_PX = 7
 const MAX_DPR = 2
+
+/** The Measure line: from the first click to the second, or to the cursor until the second click. */
+function measureLine(cursor: { lon: number; lat: number } | null): MeasureDraw | null {
+  const tool = useEditorStore.getState().tool
+  if (tool?.kind !== 'measure' || tool.points.length === 0) return null
+  const a = tool.points[0]
+  const b = tool.points[1] ?? (cursor ? ([cursor.lon, cursor.lat] as const) : null)
+  if (!b) return null
+  return {
+    from: fromLonLat(a[0], a[1]),
+    to: fromLonLat(b[0], b[1]),
+    label: measureText(measure(a, [b[0], b[1]])),
+  }
+}
 
 interface Drag {
   pointerId: number
@@ -110,6 +125,7 @@ export function Map2D() {
   const editing = useRef<EditSubject | null>(null)
   const { finish, place, typeOf } = useFinishDraw()
   const placing = tool?.kind === 'place'
+  const measuring = tool?.kind === 'measure'
   const placeAsset = usePlaceAsset()
   const ghost = useRef<Ghost2D | null>(null)
   const mode = useUiStore((s) => s.mode)
@@ -208,6 +224,7 @@ export function Map2D() {
               view.k,
             )
           : undefined,
+        measure: measureLine(cursor),
       })
     }
     schedule.current = () => {
@@ -238,6 +255,7 @@ export function Map2D() {
     sketchBase,
     errorIds,
     edit.subject,
+    tool,
   ])
 
   // The view and the size move often; they never go through React
@@ -331,7 +349,7 @@ export function Map2D() {
     if (event.button === 1) event.preventDefault()
     event.currentTarget.setPointerCapture(event.pointerId)
     // A handle, or the selected shape, takes the press before the map can pan
-    if (event.button === 0 && drawing === null) {
+    if (event.button === 0 && drawing === null && !measuring) {
       const { px, py, local } = localAt(event)
       const { view, size } = useMapStore.getState()
       if (edit.press(event, px, py, local, view, size) === 'gesture') {
@@ -377,6 +395,11 @@ export function Map2D() {
     const d = released.click ? { moved: false, button: 0 } : drag.current
     drag.current = null
     if (!d || d.moved || d.button !== 0) return
+    if (measuring) {
+      const { local } = localAt(event)
+      measureClick(toLonLat(local[0], local[1]))
+      return
+    }
     if (placing) {
       void placeAsset({ keepTool: event.shiftKey })
       return
@@ -461,7 +484,7 @@ export function Map2D() {
         ref={canvas}
         role="img"
         aria-label="Plan of the port in local metres, north arrow top right"
-        className={`block h-full w-full touch-none select-none ${drawing || placing ? 'cursor-crosshair' : ''}`}
+        className={`block h-full w-full touch-none select-none ${drawing || placing || measuring ? 'cursor-crosshair' : ''}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}

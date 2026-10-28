@@ -120,6 +120,10 @@ describe('scene keys', () => {
       expect(useEditorStore.getState().tool?.points).toEqual([])
       fireEvent.keyDown(document.body, { key: 'Escape' })
       expect(useEditorStore.getState().tool).toBeNull()
+      // M again leaves the Measure tool
+      fireEvent.keyDown(document.body, { key: 'm' })
+      fireEvent.keyDown(document.body, { key: 'm' })
+      expect(useEditorStore.getState().tool).toBeNull()
     })
 
     it('Ctrl+Z undoes and Ctrl+Y redoes, without the browser default', () => {
