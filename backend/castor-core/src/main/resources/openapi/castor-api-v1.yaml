@@ -182,6 +182,38 @@ paths:
         '404':
           description: Unknown port, or there is no draft
   /api/v1/ports/{portCode}/layouts:
+    get:
+      operationId: listLayoutVersions
+      summary: The versions of a port, newest first
+      description: Drafts and discarded versions are listed for EDITOR and above only; a viewer sees published and superseded versions.
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/PortCode'
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [DRAFT, PUBLISHED, SUPERSEDED, DISCARDED]
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        '200':
+          description: The versions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LayoutVersionSummary'
+        '400':
+          description: Unknown status or limit out of range
     post:
       operationId: createDraftLayout
       summary: Start the draft of a port (EDITOR and above)
@@ -334,6 +366,148 @@ paths:
           description: Unchanged since the ETag in If-None-Match
         '404':
           description: Unknown version or asset
+  /api/v1/layouts/{layoutId}/publish:
+    post:
+      operationId: publishLayout
+      summary: Publish a draft (PUBLISHER and above)
+      description: 'Runs the whole rule catalogue first; any error answers 422 "Publishing blocked: N error(s). Fix them first." with the issues and changes nothing. Otherwise, in one transaction, the draft becomes PUBLISHED, the previous published version SUPERSEDED, and a LAYOUT_PUBLISHED audit row is written.'
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/LayoutId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishRequest'
+      responses:
+        '200':
+          description: Published
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishResponse'
+        '400':
+          description: The note is longer than 500 characters
+        '403':
+          description: The role is below PUBLISHER
+        '404':
+          description: Unknown version
+        '409':
+          description: The version is not a draft
+        '422':
+          description: Publishing blocked by errors of the rule catalogue, or the reviewer is not a publisher or admin other than the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /api/v1/layouts/{layoutId}/restore:
+    post:
+      operationId: restoreLayout
+      summary: Load an older version into a new draft (PUBLISHER and above)
+      description: The draft is a copy of the version with the same asset ids. An open draft is a 409 unless discardDraft is true. Writes a LAYOUT_RESTORED audit row.
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/LayoutId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                discardDraft:
+                  type: boolean
+      responses:
+        '201':
+          description: The new draft and one feature per asset, with a message
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LayoutResponse'
+        '400':
+          description: The version is not published or superseded
+        '403':
+          description: The role is below PUBLISHER
+        '404':
+          description: Unknown version
+        '409':
+          description: A draft is open; draftId in the body is its id
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /api/v1/layouts/{layoutId}/diff:
+    get:
+      operationId: diffLayout
+      summary: What differs between two versions
+      description: Added are in this version but not in the other, removed the other way round. Without against the published version is the other side.
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/LayoutId'
+        - name: against
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The difference
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiffResponse'
+        '400':
+          description: against is not a version id, or the versions belong to different ports
+        '404':
+          description: Unknown version, or a version the role may not see
+  /api/v1/assets/{assetId}/history:
+    get:
+      operationId: getAssetHistory
+      summary: One asset in every version that holds it, newest first
+      security: [{basicAuth: []}]
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: One entry per version
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AssetHistoryEntry'
+        '404':
+          description: Unknown asset
+  /api/v1/reviewers:
+    get:
+      operationId: listReviewers
+      summary: Who may be named as reviewer when publishing (PUBLISHER and above)
+      description: Publishers and admins, the caller left out.
+      security: [{basicAuth: []}]
+      responses:
+        '200':
+          description: The users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [username, displayName]
+                  properties:
+                    username:
+                      type: string
+                    displayName:
+                      type: string
+        '403':
+          description: The role is below PUBLISHER
   /api/v1/layouts/{layoutId}/validate:
     post:
       operationId: validateLayout
@@ -373,6 +547,133 @@ components:
       type: http
       scheme: basic
   schemas:
+    LayoutVersionSummary:
+      type: object
+      required: [id, versionNo, status, createdBy, createdAt, assetCount]
+      properties:
+        id:
+          type: string
+          format: uuid
+        versionNo:
+          type: integer
+        status:
+          type: string
+          enum: [DRAFT, PUBLISHED, SUPERSEDED, DISCARDED]
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        publishedBy:
+          type: string
+          nullable: true
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        reviewedBy:
+          type: string
+          nullable: true
+        restoredFromVersionNo:
+          type: integer
+          nullable: true
+          description: Set when the version was made by restoring an older one
+        note:
+          type: string
+          nullable: true
+        assetCount:
+          type: integer
+    PublishRequest:
+      type: object
+      properties:
+        note:
+          type: string
+          maxLength: 500
+        reviewedBy:
+          type: string
+          description: Username of a publisher or admin other than the caller
+          nullable: true
+    PublishResponse:
+      type: object
+      required: [versionNo, publishedAt, publishedBy, assetCount]
+      properties:
+        versionNo:
+          type: integer
+        publishedAt:
+          type: string
+          format: date-time
+        publishedBy:
+          type: string
+        reviewedBy:
+          type: string
+          nullable: true
+        assetCount:
+          type: integer
+    DiffResponse:
+      type: object
+      required: [added, removed, changed]
+      properties:
+        added:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiffItem'
+        removed:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiffItem'
+        changed:
+          type: array
+          items:
+            type: object
+            required: [assetId, code, name, fields]
+            properties:
+              assetId:
+                type: string
+                format: uuid
+              code:
+                type: string
+              name:
+                type: string
+              fields:
+                type: array
+                items:
+                  type: string
+                description: Names of the properties that differ, for example geometry or heightM
+    DiffItem:
+      type: object
+      required: [assetId, code, name, type]
+      properties:
+        assetId:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+    AssetHistoryEntry:
+      type: object
+      required: [versionId, versionNo, status, name, geometry, changedBy, changedAt]
+      properties:
+        versionId:
+          type: string
+          format: uuid
+        versionNo:
+          type: integer
+        status:
+          type: string
+          enum: [DRAFT, PUBLISHED, SUPERSEDED, DISCARDED]
+        name:
+          type: string
+        geometry:
+          type: string
+          description: Short summary of the shape, for example "Polygon, 1,234 m2"
+        changedBy:
+          type: string
+        changedAt:
+          type: string
+          format: date-time
     Me:
       type: object
       required: [username, roles, displayName]

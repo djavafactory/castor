@@ -1,5 +1,6 @@
 package com.djavafactory.castor.core.layout.domain;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -34,4 +35,25 @@ public interface LayoutRepository {
 
     /** Marks a DRAFT as DISCARDED; its rows are kept. Returns the changed version. */
     LayoutVersion discard(LayoutVersion draft);
+
+    /** Records that a draft was made by restoring a version. */
+    void markRestored(UUID draftId, UUID sourceVersionId);
+
+    /**
+     * Turns a DRAFT into the PUBLISHED version of its port in the running transaction: the previous published version
+     * becomes SUPERSEDED and the port points at the new one. Returns the published version.
+     */
+    LayoutVersion publish(LayoutVersion draft, String publishedBy, String note, String reviewedBy);
+
+    /** Versions of a port, newest first; only versions with one of the statuses are listed. */
+    List<VersionSummary> listVersions(String portCode, Collection<LayoutStatus> statuses, int limit);
+
+    /** The asset in every version that holds it, newest first. */
+    List<AssetHistoryEntry> assetHistory(UUID assetId, Collection<LayoutStatus> statuses);
+
+    /** True when the asset exists. */
+    boolean assetExists(UUID assetId);
+
+    /** Number of assets in a version. */
+    int countAssets(UUID layoutId);
 }

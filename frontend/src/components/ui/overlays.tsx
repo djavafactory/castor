@@ -97,7 +97,7 @@ export function MenuItem({ className, ...props }: ComponentProps<typeof Dropdown
 interface ConfirmDialogProps {
   open: boolean
   title: string
-  description: string
+  description: ReactNode
   confirmLabel?: string
   cancelLabel?: string
   danger?: boolean

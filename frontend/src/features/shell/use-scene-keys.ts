@@ -5,6 +5,7 @@ import { useAuthStore } from '@/lib/stores/auth-store'
 import { useEditorStore } from '@/lib/stores/editor-store'
 import { useSelectionStore } from '@/lib/stores/selection-store'
 import { useUiStore } from '@/lib/stores/ui-store'
+import { checkAndSave } from '@/features/design/check-and-save'
 import { toggleFullscreen } from './fullscreen'
 
 const ROTATE_STEP_DEG = 15
@@ -38,6 +39,7 @@ export function useSceneKeys() {
         if (lower === 'z' || lower === 'y' || lower === 's') event.preventDefault()
         if (lower === 'z') undoOrRedo(event.shiftKey ? 'redo' : 'undo')
         else if (lower === 'y') undoOrRedo('redo')
+        else if (lower === 's') void checkAndSave()
         return
       }
       if (event.ctrlKey || event.metaKey || event.altKey) return

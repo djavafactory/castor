@@ -8,6 +8,10 @@ public record DemoUser(String username, String label, Set<Role> roles) {
 
     public static final List<DemoUser> ALL = List.of(
             new DemoUser("admin", "Admin: full access", Set.of(Role.ADMIN, Role.PUBLISHER, Role.EDITOR, Role.VIEWER)),
+            new DemoUser(
+                    "publisher",
+                    "Publisher: publishes and restores layouts",
+                    Set.of(Role.PUBLISHER, Role.EDITOR, Role.VIEWER)),
             new DemoUser("editor", "Editor: edits layout drafts", Set.of(Role.EDITOR, Role.VIEWER)),
             new DemoUser("viewer", "Viewer: monitor only", Set.of(Role.VIEWER)));
 }

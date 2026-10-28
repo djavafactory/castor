@@ -1,5 +1,6 @@
 package com.djavafactory.castor.core.identity.infrastructure;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -7,6 +8,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 
+import com.djavafactory.castor.core.identity.domain.Role;
 import com.djavafactory.castor.core.identity.domain.UserRepository;
 import com.djavafactory.castor.core.identity.domain.UserSummary;
 
@@ -27,5 +29,20 @@ public class JpaUserRepository implements UserRepository {
                 .getResultStream()
                 .findFirst()
                 .map(u -> new UserSummary(u.username, u.displayName, Set.copyOf(u.roles)));
+    }
+
+    @Override
+    @Transactional
+    public List<UserSummary> findReviewers() {
+        return em
+                .createQuery(
+                        "select distinct u from UserAccount u join u.roles r "
+                                + "where u.enabled = true and r in :roles order by u.username",
+                        UserAccount.class)
+                .setParameter("roles", List.of(Role.PUBLISHER, Role.ADMIN))
+                .getResultList()
+                .stream()
+                .map(u -> new UserSummary(u.username, u.displayName, Set.copyOf(u.roles)))
+                .toList();
     }
 }

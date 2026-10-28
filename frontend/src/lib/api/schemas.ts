@@ -345,24 +345,70 @@ export const validationSchema = z.object({
   issues: z.array(validationIssueSchema),
 })
 
-export const layoutVersionsSchema = z.array(
+/** One row of GET /v1/ports/{code}/layouts, newest first. */
+export const layoutVersionSchema = z.object({
+  id: z.string(),
+  versionNo: z.number().int(),
+  status: layoutStatusSchema,
+  createdBy: z.string(),
+  createdAt: z.string(),
+  publishedBy: z.string().nullish(),
+  publishedAt: z.string().nullish(),
+  /** Who reviewed the draft before it was published. */
+  reviewedBy: z.string().nullish(),
+  /** Number of the version this one was restored from; null when it was not a restore. */
+  restoredFromVersionNo: z.number().int().nullish(),
+  note: z.string().nullish(),
+  assetCount: z.number().int().nonnegative(),
+})
+
+export const layoutVersionsSchema = z.array(layoutVersionSchema)
+
+/** One asset in one version: what it was called and how big its shape was. */
+export const assetHistorySchema = z.array(
   z.object({
-    id: z.string(),
-    number: z.number().int(),
+    versionId: z.string(),
+    versionNo: z.number().int(),
     status: layoutStatusSchema,
-    createdAt: z.string(),
-    publishedAt: z.string().nullable(),
+    name: z.string(),
+    geometry: z.string(),
+    changedBy: z.string(),
+    changedAt: z.string(),
   }),
 )
 
-export const assetHistorySchema = z.array(
-  z.object({
-    revision: z.number().int(),
-    at: z.string(),
-    actor: z.string(),
-    action: z.string(),
-  }),
-)
+const diffItemSchema = z.object({
+  assetId: z.string(),
+  code: z.string(),
+  name: z.string(),
+  type: z.string(),
+})
+
+/** GET /v1/layouts/{id}/diff?against=: seen from the version asked about. */
+export const layoutDiffSchema = z.object({
+  added: z.array(diffItemSchema),
+  removed: z.array(diffItemSchema),
+  changed: z.array(
+    z.object({
+      assetId: z.string(),
+      code: z.string(),
+      name: z.string(),
+      /** Names of the properties that differ, for example geometry or heightM. */
+      fields: z.array(z.string()),
+    }),
+  ),
+})
+
+export const publishResultSchema = z.object({
+  versionNo: z.number().int(),
+  publishedAt: z.string(),
+  publishedBy: z.string(),
+  reviewedBy: z.string().nullish(),
+  assetCount: z.number().int(),
+})
+
+/** Publishers and admins other than the caller: who may be named as reviewer. */
+export const reviewersSchema = z.array(z.object({ username: z.string(), displayName: z.string() }))
 
 export const accuracyReportSchema = z.object({
   total: z.number().int(),
@@ -396,6 +442,9 @@ export type ReferenceFeatures = z.infer<typeof referenceFeaturesSchema>
 export type AssetType = z.infer<typeof assetTypeSchema>
 export type Catalogue = z.infer<typeof catalogueSchema>
 export type Layout = z.infer<typeof layoutSchema>
+export type LayoutDiff = z.infer<typeof layoutDiffSchema>
+export type PublishResult = z.infer<typeof publishResultSchema>
+export type Reviewer = z.infer<typeof reviewersSchema>[number]
 export type CurrentLayout = z.infer<typeof currentLayoutSchema>
 export type LayoutHeader = z.infer<typeof layoutHeaderSchema>
 export type LayoutFeature = z.infer<typeof layoutFeatureSchema>

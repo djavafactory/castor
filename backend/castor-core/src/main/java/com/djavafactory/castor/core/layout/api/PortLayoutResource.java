@@ -1,5 +1,9 @@
 package com.djavafactory.castor.core.layout.api;
 
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
@@ -8,6 +12,7 @@ import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -16,6 +21,8 @@ import jakarta.ws.rs.core.UriInfo;
 
 import com.djavafactory.castor.core.layout.application.CreateDraft;
 import com.djavafactory.castor.core.layout.application.GetLayout;
+import com.djavafactory.castor.core.layout.application.LayoutHistory;
+import com.djavafactory.castor.core.layout.domain.LayoutStatus;
 import com.djavafactory.castor.core.shared.api.CachedJson;
 
 /** The layouts of one port by port code: the published version and the open draft. */
@@ -26,17 +33,64 @@ public class PortLayoutResource {
     /** @param basedOn "published", "blank" or the id of an earlier version */
     public record CreateDraftRequest(String basedOn) {}
 
+    /** One row of the version list; restoredFromVersionNo is set when the version was made by a restore. */
+    public record VersionResponse(
+            UUID id,
+            int versionNo,
+            LayoutStatus status,
+            String createdBy,
+            Instant createdAt,
+            String publishedBy,
+            Instant publishedAt,
+            String reviewedBy,
+            Integer restoredFromVersionNo,
+            String note,
+            int assetCount) {}
+
     private final GetLayout getLayout;
     private final CreateDraft createDraft;
+    private final LayoutHistory history;
     private final LayoutFeatureMapper mapper;
     private final CachedJson cache;
 
     public PortLayoutResource(
-            GetLayout getLayout, CreateDraft createDraft, LayoutFeatureMapper mapper, CachedJson cache) {
+            GetLayout getLayout,
+            CreateDraft createDraft,
+            LayoutHistory history,
+            LayoutFeatureMapper mapper,
+            CachedJson cache) {
         this.getLayout = getLayout;
         this.createDraft = createDraft;
+        this.history = history;
         this.mapper = mapper;
         this.cache = cache;
+    }
+
+    /**
+     * The versions of the port, newest first. {@code status} keeps one status, {@code limit} (default 50, at most 200)
+     * the newest rows. Drafts and discarded versions are listed for editors and above only.
+     */
+    @GET
+    @RolesAllowed({"VIEWER", "EDITOR", "PUBLISHER", "ADMIN"})
+    public List<VersionResponse> versions(
+            @PathParam("portCode") String portCode,
+            @QueryParam("status") String status,
+            @QueryParam("limit") Integer limit,
+            @Context SecurityContext security) {
+        return history.versions(portCode, status, limit, LayoutResource.isEditor(security)).stream()
+                .map(v -> new VersionResponse(
+                        v.id(),
+                        v.versionNo(),
+                        v.status(),
+                        v.createdBy(),
+                        v.createdAt(),
+                        v.publishedBy(),
+                        v.publishedAt(),
+                        v.reviewedBy(),
+                        v.restoredFromVersionNo(),
+                        v.note(),
+                        v.assetCount()))
+                .toList();
     }
 
     /** The published version: {layout, features}. ETag = version id and row versions, 304 supported. */

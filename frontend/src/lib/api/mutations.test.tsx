@@ -11,10 +11,14 @@ import {
   useCreateAsset,
   useDeleteAsset,
   useDraftLayout,
+  useLayoutVersions,
   usePublishLayout,
+  useRestoreVersion,
+  useStartBlankLayout,
   useUpdateAsset,
   type Layout,
 } from '.'
+import type { ApiError } from '@/lib/api-client'
 
 const DRAFT = `${API}/v1/ports/westports/layout/draft`
 const DRAFT_READ = `${API}/v1/ports/westports/layouts/draft`
@@ -199,49 +203,160 @@ describe('useDeleteAsset', () => {
 })
 
 describe('usePublishLayout', () => {
-  const publish = `${API}/v1/ports/westports/layout/publish`
+  const publish = `${API}/v1/layouts/v-1/publish`
+  const result = {
+    versionNo: 2,
+    publishedAt: '2026-10-28T02:00:00Z',
+    publishedBy: 'pat',
+    reviewedBy: 'rita',
+    assetCount: 2,
+  }
 
-  it('moves the draft into the published cache at once', async () => {
+  it('posts the note and the reviewer, drops the draft and reads the versions again', async () => {
     const client = seededClient()
+    let body: unknown
+    let versionReads = 0
     server.use(
-      http.post(publish, async () => {
-        await delay(30)
-        return HttpResponse.json({ ...layoutFixture, status: 'PUBLISHED' })
+      http.post(publish, async ({ request }) => {
+        body = await request.json()
+        return HttpResponse.json(result)
       }),
-      http.get(`${API}/v1/ports/westports/layouts/current`, () =>
-        HttpResponse.json(layoutWire({ ...layoutFixture, status: 'PUBLISHED' })),
-      ),
-      http.get(`${API}/v1/ports/westports/layout/versions`, () => HttpResponse.json([])),
+      http.get(`${API}/v1/ports/westports/layouts`, () => {
+        versionReads += 1
+        return HttpResponse.json([])
+      }),
     )
-    const { result } = renderHook(() => usePublishLayout('westports'), {
-      wrapper: wrapperFor(client),
-    })
+    client.setQueryData(queryKeys.versions('westports'), [])
+    const hook = renderHook(() => usePublishLayout('westports'), { wrapper: wrapperFor(client) })
+    // an observer keeps the version list active so the invalidation reads it again
+    renderHook(() => useLayoutVersions('westports'), { wrapper: wrapperFor(client) })
 
-    act(() => result.current.mutate())
-
-    await waitFor(() =>
-      expect(client.getQueryData<Layout>(queryKeys.published('westports'))?.status).toBe(
-        'PUBLISHED',
-      ),
+    act(() =>
+      hook.result.current.mutate({ layoutId: 'v-1', note: 'Moved gate', reviewedBy: 'rita' }),
     )
+
+    await waitFor(() => expect(hook.result.current.isSuccess).toBe(true))
+    expect(body).toEqual({ note: 'Moved gate', reviewedBy: 'rita' })
+    expect(hook.result.current.data).toMatchObject({ versionNo: 2, publishedBy: 'pat' })
     expect(draftOf(client)).toBeUndefined()
-    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    await waitFor(() => expect(versionReads).toBeGreaterThan(1))
   })
 
-  it('brings the draft back when publishing is refused', async () => {
+  it('leaves out the reviewer when nobody is named', async () => {
     const client = seededClient()
+    let body: unknown
     server.use(
-      http.post(publish, () => problem(422, 'Publish blocked')),
-      http.get(DRAFT_READ, () => HttpResponse.json(layoutWire())),
+      http.post(publish, async ({ request }) => {
+        body = await request.json()
+        return HttpResponse.json({ ...result, reviewedBy: null })
+      }),
     )
-    const { result } = renderHook(() => usePublishLayout('westports'), {
+    const { result: hook } = renderHook(() => usePublishLayout('westports'), {
       wrapper: wrapperFor(client),
     })
 
-    act(() => result.current.mutate())
+    act(() => hook.current.mutate({ layoutId: 'v-1', note: '', reviewedBy: null }))
+
+    await waitFor(() => expect(hook.current.isSuccess).toBe(true))
+    expect(body).toEqual({ note: '' })
+  })
+
+  it('keeps the draft when publishing is refused', async () => {
+    const client = seededClient()
+    server.use(
+      http.post(publish, () => problem(422, 'Publishing blocked: 1 error(s). Fix them first.')),
+    )
+    const { result: hook } = renderHook(() => usePublishLayout('westports'), {
+      wrapper: wrapperFor(client),
+    })
+
+    act(() => hook.current.mutate({ layoutId: 'v-1', note: '' }))
+
+    await waitFor(() => expect(hook.current.isError).toBe(true))
+    expect((hook.current.error as ApiError).title).toBe(
+      'Publishing blocked: 1 error(s). Fix them first.',
+    )
+    expect(draftOf(client)?.status).toBe('DRAFT')
+  })
+})
+
+describe('useRestoreVersion', () => {
+  it('posts discardDraft and puts the new draft in the cache', async () => {
+    const client = createTestClient()
+    let body: unknown
+    server.use(
+      http.post(`${API}/v1/layouts/v-1/restore`, async ({ request }) => {
+        body = await request.json()
+        return HttpResponse.json(
+          {
+            ...layoutWire({ ...layoutFixture, versionId: 'd-3', number: 3 }),
+            message:
+              'Revision 1 loaded. Asset IDs are unchanged. Save the draft or publish to keep it.',
+          },
+          { status: 201 },
+        )
+      }),
+    )
+    const { result } = renderHook(() => useRestoreVersion('westports'), {
+      wrapper: wrapperFor(client),
+    })
+
+    act(() => result.current.mutate({ versionId: 'v-1', discardDraft: true }))
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(body).toEqual({ discardDraft: true })
+    expect(draftOf(client)).toMatchObject({ versionId: 'd-3', number: 3 })
+  })
+
+  it('does not discard an open draft unless asked', async () => {
+    const client = seededClient()
+    let body: unknown
+    server.use(
+      http.post(`${API}/v1/layouts/v-1/restore`, async ({ request }) => {
+        body = await request.json()
+        return problem(409, 'A draft already exists for this layout')
+      }),
+    )
+    const { result } = renderHook(() => useRestoreVersion('westports'), {
+      wrapper: wrapperFor(client),
+    })
+
+    act(() => result.current.mutate({ versionId: 'v-1' }))
 
     await waitFor(() => expect(result.current.isError).toBe(true))
-    expect(draftOf(client)?.status).toBe('DRAFT')
-    expect(client.getQueryData(queryKeys.published('westports'))).toBeUndefined()
+    expect(body).toEqual({ discardDraft: false })
+    expect(draftOf(client)?.versionId).toBe('v-1')
+  })
+})
+
+describe('useStartBlankLayout', () => {
+  it('discards the open draft and creates a blank one', async () => {
+    const client = seededClient()
+    const calls: string[] = []
+    server.use(
+      http.delete(`${API}/v1/layouts/v-1`, () => {
+        calls.push('delete')
+        return new HttpResponse(null, { status: 204 })
+      }),
+      http.post(`${API}/v1/ports/westports/layouts`, async ({ request }) => {
+        calls.push(`post ${JSON.stringify(await request.json())}`)
+        return HttpResponse.json(
+          layoutWire(
+            { ...layoutFixture, versionId: 'd-2', number: 2, assets: [] },
+            { basedOnVersionNo: null },
+          ),
+          { status: 201 },
+        )
+      }),
+    )
+    const { result } = renderHook(() => useStartBlankLayout('westports'), {
+      wrapper: wrapperFor(client),
+    })
+
+    act(() => result.current.mutate('v-1'))
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(calls).toEqual(['delete', 'post {"basedOn":"blank"}'])
+    expect(draftOf(client)).toMatchObject({ versionId: 'd-2', basedOnVersionNo: null })
   })
 })

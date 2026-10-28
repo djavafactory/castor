@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { toast } from 'sonner'
+import { checkAndSave } from '@/features/design/check-and-save'
 import { guardLayerEdit, LAYER_LOCKED_MESSAGE } from '@/components/scene/layers'
 import { useCameraStore } from '@/components/scene/stage/view-state'
 import { useUiStore } from '@/lib/stores/ui-store'
@@ -10,6 +11,7 @@ import { wrapperFor } from '@/test/query-wrapper'
 import { FULLSCREEN_REFUSED } from './fullscreen'
 import { ToolStrip } from './tool-strip'
 
+vi.mock('@/features/design/check-and-save', () => ({ checkAndSave: vi.fn() }))
 vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { error: vi.fn() }) }))
 
 function renderStrip() {
@@ -222,5 +224,41 @@ describe('locked layers', () => {
     expect(guardLayerEdit('BERTH', 'MARINE')).toBe(false)
     expect(toast).toHaveBeenCalledWith(LAYER_LOCKED_MESSAGE)
     expect(LAYER_LOCKED_MESSAGE).toBe('That layer is locked. Unlock it in Layers to edit.')
+  })
+})
+
+describe('tool strip (Design): draft buttons', () => {
+  beforeEach(() =>
+    useUiStore.setState({ mode: 'design', panelHidden: true, rightTab: 'inspector' }),
+  )
+
+  it('has Save draft (check and save) and a primary Publish with their tooltips', async () => {
+    renderStrip()
+
+    const save = screen.getByRole('button', { name: 'Save draft' })
+    expect(save).toHaveAttribute('title', 'Check and save (Ctrl+S)')
+    await userEvent.click(save)
+    expect(checkAndSave).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('button', { name: 'Publish' })).toHaveAttribute(
+      'title',
+      'Validate and publish an immutable version',
+    )
+  })
+
+  it('opens the Versions tab first when Publish is pressed, showing the panel if it was hidden', async () => {
+    renderStrip()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Publish' }))
+
+    expect(useUiStore.getState().rightTab).toBe('versions')
+    expect(useUiStore.getState().panelHidden).toBe(false)
+  })
+
+  it('does not show the draft buttons in Monitor', () => {
+    useUiStore.setState({ mode: 'monitor' })
+    renderStrip()
+
+    expect(screen.queryByRole('button', { name: 'Publish' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Save draft' })).not.toBeInTheDocument()
   })
 })

@@ -170,7 +170,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * The versions of a port, newest first
+         * @description Drafts and discarded versions are listed for EDITOR and above only; a viewer sees published and superseded versions.
+         */
+        get: operations["listLayoutVersions"];
         put?: never;
         /**
          * Start the draft of a port (EDITOR and above)
@@ -241,6 +245,103 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/layouts/{layoutId}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Publish a draft (PUBLISHER and above)
+         * @description Runs the whole rule catalogue first; any error answers 422 "Publishing blocked: N error(s). Fix them first." with the issues and changes nothing. Otherwise, in one transaction, the draft becomes PUBLISHED, the previous published version SUPERSEDED, and a LAYOUT_PUBLISHED audit row is written.
+         */
+        post: operations["publishLayout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/layouts/{layoutId}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Load an older version into a new draft (PUBLISHER and above)
+         * @description The draft is a copy of the version with the same asset ids. An open draft is a 409 unless discardDraft is true. Writes a LAYOUT_RESTORED audit row.
+         */
+        post: operations["restoreLayout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/layouts/{layoutId}/diff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What differs between two versions
+         * @description Added are in this version but not in the other, removed the other way round. Without against the published version is the other side.
+         */
+        get: operations["diffLayout"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assets/{assetId}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One asset in every version that holds it, newest first */
+        get: operations["getAssetHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reviewers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Who may be named as reviewer when publishing (PUBLISHER and above)
+         * @description Publishers and admins, the caller left out.
+         */
+        get: operations["listReviewers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/layouts/{layoutId}/validate": {
         parameters: {
             query?: never;
@@ -265,6 +366,69 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        LayoutVersionSummary: {
+            /** Format: uuid */
+            id: string;
+            versionNo: number;
+            /** @enum {string} */
+            status: "DRAFT" | "PUBLISHED" | "SUPERSEDED" | "DISCARDED";
+            createdBy: string;
+            /** Format: date-time */
+            createdAt: string;
+            publishedBy?: string | null;
+            /** Format: date-time */
+            publishedAt?: string | null;
+            reviewedBy?: string | null;
+            /** @description Set when the version was made by restoring an older one */
+            restoredFromVersionNo?: number | null;
+            note?: string | null;
+            assetCount: number;
+        };
+        PublishRequest: {
+            note?: string;
+            /** @description Username of a publisher or admin other than the caller */
+            reviewedBy?: string | null;
+        };
+        PublishResponse: {
+            versionNo: number;
+            /** Format: date-time */
+            publishedAt: string;
+            publishedBy: string;
+            reviewedBy?: string | null;
+            assetCount: number;
+        };
+        DiffResponse: {
+            added: components["schemas"]["DiffItem"][];
+            removed: components["schemas"]["DiffItem"][];
+            changed: {
+                /** Format: uuid */
+                assetId: string;
+                code: string;
+                name: string;
+                /** @description Names of the properties that differ, for example geometry or heightM */
+                fields: string[];
+            }[];
+        };
+        DiffItem: {
+            /** Format: uuid */
+            assetId: string;
+            code: string;
+            name: string;
+            type: string;
+        };
+        AssetHistoryEntry: {
+            /** Format: uuid */
+            versionId: string;
+            versionNo: number;
+            /** @enum {string} */
+            status: "DRAFT" | "PUBLISHED" | "SUPERSEDED" | "DISCARDED";
+            name: string;
+            /** @description Short summary of the shape, for example "Polygon, 1,234 m2" */
+            geometry: string;
+            changedBy: string;
+            /** Format: date-time */
+            changedAt: string;
+        };
         Me: {
             username: string;
             roles: components["schemas"]["Role"][];
@@ -837,6 +1001,38 @@ export interface operations {
             };
         };
     };
+    listLayoutVersions: {
+        parameters: {
+            query?: {
+                status?: "DRAFT" | "PUBLISHED" | "SUPERSEDED" | "DISCARDED";
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                portCode: components["parameters"]["PortCode"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The versions */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LayoutVersionSummary"][];
+                };
+            };
+            /** @description Unknown status or limit out of range */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     createDraftLayout: {
         parameters: {
             query?: never;
@@ -1075,6 +1271,224 @@ export interface operations {
             };
             /** @description Unknown version or asset */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    publishLayout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                layoutId: components["parameters"]["LayoutId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PublishRequest"];
+            };
+        };
+        responses: {
+            /** @description Published */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublishResponse"];
+                };
+            };
+            /** @description The note is longer than 500 characters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The role is below PUBLISHER */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown version */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The version is not a draft */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Publishing blocked by errors of the rule catalogue, or the reviewer is not a publisher or admin other than the caller */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    restoreLayout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                layoutId: components["parameters"]["LayoutId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    discardDraft?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description The new draft and one feature per asset, with a message */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LayoutResponse"];
+                };
+            };
+            /** @description The version is not published or superseded */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The role is below PUBLISHER */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown version */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A draft is open; draftId in the body is its id */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    diffLayout: {
+        parameters: {
+            query?: {
+                against?: string;
+            };
+            header?: never;
+            path: {
+                layoutId: components["parameters"]["LayoutId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The difference */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiffResponse"];
+                };
+            };
+            /** @description against is not a version id, or the versions belong to different ports */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown version, or a version the role may not see */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getAssetHistory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One entry per version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetHistoryEntry"][];
+                };
+            };
+            /** @description Unknown asset */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listReviewers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The users */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        username: string;
+                        displayName: string;
+                    }[];
+                };
+            };
+            /** @description The role is below PUBLISHER */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

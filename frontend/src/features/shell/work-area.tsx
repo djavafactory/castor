@@ -2,6 +2,7 @@ import { DrawTypes } from '@/features/design/draw/draw-types'
 import { DraftSummary } from '@/features/design/draft-summary'
 import { IssuesTab } from '@/features/design/issues/issues-tab'
 import { useDraftValidation } from '@/features/design/issues/use-draft-validation'
+import { VersionsTab } from '@/features/design/versions/versions-tab'
 import { CountPill } from '@/components/ui/badge'
 import { CursorReadout } from '@/components/map/cursor-readout'
 import { Map2D } from '@/components/map/map-2d'
@@ -136,6 +137,7 @@ function RightPanel({ mode }: { mode: Mode }) {
         {(active === 'details' || active === 'inspector') && <SelectionDetails />}
         {active === 'catalogue' && <CatalogueTab />}
         {active === 'issues' && <IssuesTab />}
+        {active === 'versions' && <VersionsTab />}
       </div>
     </aside>
   )
