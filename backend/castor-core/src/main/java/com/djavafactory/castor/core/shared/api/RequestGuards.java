@@ -50,6 +50,12 @@ public class RequestGuards {
         }
     }
 
+    private static boolean importPath(ContainerRequestContext request) {
+        return IMPORT_PATH
+                .matcher(request.getUriInfo().getRequestUri().getRawPath())
+                .matches();
+    }
+
     private static long declaredLength(ContainerRequestContext request) {
         String header = request.getHeaderString("Content-Length");
         if (header == null) {
@@ -64,7 +70,10 @@ public class RequestGuards {
 
     private static boolean isAllowedType(ContainerRequestContext request) {
         MediaType type = request.getMediaType();
-        return type != null && (type.isCompatible(MediaType.APPLICATION_JSON_TYPE) || type.isCompatible(GEO_JSON));
+        return type != null
+                && (type.isCompatible(MediaType.APPLICATION_JSON_TYPE)
+                        || type.isCompatible(GEO_JSON)
+                        || (type.isCompatible(MediaType.MULTIPART_FORM_DATA_TYPE) && importPath(request)));
     }
 
     /** Counts bytes as they are read so a chunked body cannot slip past the Content-Length check. */

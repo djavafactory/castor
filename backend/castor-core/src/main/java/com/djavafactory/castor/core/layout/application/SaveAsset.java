@@ -118,6 +118,21 @@ public class SaveAsset {
      */
     @Transactional
     public Saved create(UUID layoutId, String actor, JsonNode body) {
+        return doCreate(layoutId, actor, body);
+    }
+
+    /**
+     * {@link #create} as one step of the GeoJSON import: it joins the import's transaction, and a refused feature does
+     * not roll that transaction back, so the other features of the file can still be stored.
+     */
+    @Transactional(
+            value = Transactional.TxType.MANDATORY,
+            dontRollbackOn = {RuleViolationException.class, ConflictException.class})
+    public Saved createForImport(UUID layoutId, String actor, JsonNode body) {
+        return doCreate(layoutId, actor, body);
+    }
+
+    private Saved doCreate(UUID layoutId, String actor, JsonNode body) {
         LayoutVersion draft = requireDraft(layoutId);
         Context ctx = context(draft);
         ObjectNode props = object(body);
@@ -174,6 +189,18 @@ public class SaveAsset {
     /** Applies a JSON merge patch to an asset of the draft; the If-Match row version must be the stored one. */
     @Transactional
     public Saved patch(UUID layoutId, UUID assetId, String ifMatch, String actor, JsonNode body) {
+        return doPatch(layoutId, assetId, ifMatch, actor, body);
+    }
+
+    /** {@link #patch} as one step of the GeoJSON import, with the same transaction rule as {@link #createForImport}. */
+    @Transactional(
+            value = Transactional.TxType.MANDATORY,
+            dontRollbackOn = {RuleViolationException.class, ConflictException.class})
+    public Saved patchForImport(UUID layoutId, UUID assetId, String ifMatch, String actor, JsonNode body) {
+        return doPatch(layoutId, assetId, ifMatch, actor, body);
+    }
+
+    private Saved doPatch(UUID layoutId, UUID assetId, String ifMatch, String actor, JsonNode body) {
         LayoutVersion draft = requireDraft(layoutId);
         long expected = rowVersionOf(ifMatch);
         LayoutAsset before = existing(draft, assetId);

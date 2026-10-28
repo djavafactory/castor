@@ -31,6 +31,8 @@ import { useAuthStore } from '@/lib/stores/auth-store'
 import { useEditorStore } from '@/lib/stores/editor-store'
 import { useUiStore } from '@/lib/stores/ui-store'
 import { startFreshDraft } from './fresh-draft'
+import { downloadExport } from './download-export'
+import { GeoJsonExchange } from './geojson-exchange'
 import { PublishDialog } from './publish-dialog'
 import {
   BLANK_MESSAGE,
@@ -277,25 +279,38 @@ export function VersionsTab() {
                 },
                 { key: 'note', header: 'Note', render: (v) => v.note || '-' },
                 {
-                  key: 'restore',
+                  key: 'actions',
                   header: '',
-                  render: (v) =>
-                    publisher ? (
+                  render: (v) => (
+                    <span className="flex gap-1">
                       <Button
                         size="sm"
-                        aria-label={`Restore version ${v.versionNo}`}
+                        aria-label={`Export version ${v.versionNo} as GeoJSON`}
                         disabled={busy}
-                        onClick={() => setConfirming({ kind: 'restore', version: v })}
+                        onClick={() => void downloadExport(v.id)}
                       >
-                        Restore
+                        Export
                       </Button>
-                    ) : null,
+                      {publisher && (
+                        <Button
+                          size="sm"
+                          aria-label={`Restore version ${v.versionNo}`}
+                          disabled={busy}
+                          onClick={() => setConfirming({ kind: 'restore', version: v })}
+                        >
+                          Restore
+                        </Button>
+                      )}
+                    </span>
+                  ),
                 },
               ]}
             />
           )
         }}
       </QueryBoundary>
+
+      <GeoJsonExchange draftId={draft?.versionId} disabled={busy} />
 
       {publisher && (
         <>

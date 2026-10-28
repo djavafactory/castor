@@ -124,22 +124,27 @@ class HttpHardeningIT {
     }
 
     @Test
+    @TestSecurity(user = "editor", roles = "EDITOR")
     void importEndpointAcceptsUpToTenMegabytes() {
-        given().contentType("application/geo+json")
-                .body("a".repeat(5 * 1024 * 1024))
-                .post("/api/v1/layouts/9c1/import")
+        // past the size guard the file is read: it is not JSON, which the endpoint answers with its own 400
+        given().multiPart("file", "big.geojson", "a".repeat(5 * 1024 * 1024).getBytes(), "application/geo+json")
+                .post("/api/v1/layouts/9c1a0000-0000-4000-8000-000000000001/import")
                 .then()
-                .statusCode(200)
-                .body(equalTo(String.valueOf(5 * 1024 * 1024)));
+                .statusCode(400)
+                .body("detail", containsString("not valid JSON"));
     }
 
     @Test
+    @TestSecurity(user = "editor", roles = "EDITOR")
     void importEndpointRefusesMoreThanTenMegabytes() {
         // The server may answer 413 or cut the connection while the client is still sending; both mean refused
         try {
-            given().contentType("application/geo+json")
-                    .body("a".repeat(10 * 1024 * 1024 + 1))
-                    .post("/api/v1/layouts/9c1/import")
+            given().multiPart(
+                            "file",
+                            "big.geojson",
+                            "a".repeat(10 * 1024 * 1024 + 1).getBytes(),
+                            "application/geo+json")
+                    .post("/api/v1/layouts/9c1a0000-0000-4000-8000-000000000001/import")
                     .then()
                     .statusCode(413);
         } catch (Exception connectionClosed) {

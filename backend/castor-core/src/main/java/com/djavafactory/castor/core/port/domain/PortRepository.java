@@ -19,6 +19,9 @@ public interface PortRepository {
     /** GeoJSON FeatureCollection of the control points. */
     String controlPointsGeoJson(long portId);
 
+    /** The control points of a port, typed, ordered by code; for the accuracy report (DESIGNER-11). */
+    List<ControlPoint> controlPoints(long portId);
+
     /** GeoJSON FeatureCollection of the background features; a null box means the whole port. */
     String referenceFeaturesGeoJson(long portId, Set<ReferenceKind> kinds, BoundingBox box);
 }

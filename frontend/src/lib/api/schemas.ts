@@ -426,9 +426,33 @@ export const publishResultSchema = z.object({
 /** Publishers and admins other than the caller: who may be named as reviewer. */
 export const reviewersSchema = z.array(z.object({ username: z.string(), displayName: z.string() }))
 
+/** POST /v1/layouts/{id}/import: what a GeoJSON import did or, for a dry run, would do (DESIGNER-10). */
+export const importReportSchema = z.object({
+  file: z.string(),
+  added: z.number().int(),
+  updated: z.number().int(),
+  skipped: z.number().int(),
+  skipReasons: z.array(z.string()),
+  roundTrip: z.object({ coordinates: z.number().int(), maxDifferenceMm: z.number() }),
+})
+
+/** GET /v1/layouts/{id}/accuracy-report: control point residuals and shape counts by accuracy class (DESIGNER-11). */
 export const accuracyReportSchema = z.object({
-  total: z.number().int(),
-  byAccuracy: z.record(z.string(), z.number().int()),
+  ranAt: z.string(),
+  controlPoints: z.array(
+    z.object({
+      code: z.string(),
+      name: z.string(),
+      /** Distance between the expected local position and the stored point, in the port's metric CRS; or null. */
+      residualM: z.number().nullable(),
+      roundTripMm: z.number(),
+    }),
+  ),
+  maxResidualM: z.number(),
+  maxRoundTripMm: z.number(),
+  countsByAccuracy: z.record(accuracyCodeSchema, z.number().int()),
+  approximateCount: z.number().int(),
+  note: z.string(),
 })
 
 export const placeKindSchema = z.enum(['PORT', 'CONTROL_POINT', 'ASSET', 'REFERENCE'])
@@ -470,5 +494,6 @@ export type ValidationIssue = z.infer<typeof validationIssueSchema>
 export type ValidationReport = z.infer<typeof validationSchema>
 export type LayoutVersion = z.infer<typeof layoutVersionsSchema>[number]
 export type AssetHistoryEntry = z.infer<typeof assetHistorySchema>[number]
+export type ImportReport = z.infer<typeof importReportSchema>
 export type AccuracyReport = z.infer<typeof accuracyReportSchema>
 export type SearchResult = z.infer<typeof searchResultsSchema>[number]

@@ -37,7 +37,7 @@ export class ApiError extends Error {
 
 export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
-  /** JSON-serialisable request body. */
+  /** JSON-serialisable request body, or a `FormData` (a file upload) which is sent as it is. */
   body?: unknown
   query?: Record<string, string | number | boolean | undefined>
   /** Sent as `If-Match` (quoted ETag form). Required by the API for PATCH and DELETE. */
@@ -54,6 +54,8 @@ export interface ApiResponse<T> {
   /** `ETag` response header (the row version), or null when absent. */
   etag: string | null
   status: number
+  /** File name of a download, from `Content-Disposition`. */
+  filename?: string | null
 }
 
 type UnauthorizedHandler = () => void
@@ -78,6 +80,12 @@ function buildUrl(path: string, query: RequestOptions['query']): string {
 function ifMatch(rowVersion: number | string): string {
   const value = String(rowVersion)
   return value.startsWith('"') || value.startsWith('W/') ? value : `"${value}"`
+}
+
+/** The file name of `Content-Disposition: attachment; filename="..."`, or null. */
+function filenameOf(response: Response): string | null {
+  const match = /filename="?([^";]+)"?/i.exec(response.headers.get('Content-Disposition') ?? '')
+  return match?.[1] ?? null
 }
 
 function isJson(response: Response): boolean {
@@ -126,7 +134,9 @@ export async function apiRequest<T>(
   const requestHeaders: Record<string, string> = { Accept: 'application/json', ...headers }
   const credential = useAuthStore.getState().credential
   if (credential) requestHeaders.Authorization = credential
-  if (body !== undefined) requestHeaders['Content-Type'] = 'application/json'
+  const upload = typeof FormData !== 'undefined' && body instanceof FormData
+  // a file upload sets its own Content-Type, with the multipart boundary
+  if (body !== undefined && !upload) requestHeaders['Content-Type'] = 'application/json'
   if (rowVersion !== undefined) requestHeaders['If-Match'] = ifMatch(rowVersion)
 
   const controller = new AbortController()
@@ -144,7 +154,7 @@ export async function apiRequest<T>(
     response = await fetch(buildUrl(path, query), {
       method,
       headers: requestHeaders,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : upload ? body : JSON.stringify(body),
       signal: controller.signal,
     })
 
@@ -156,7 +166,7 @@ export async function apiRequest<T>(
     const etag = response.headers.get('ETag')
     const hasBody = response.status !== 204 && response.status !== 205
     const data = (hasBody && isJson(response) ? await response.json() : undefined) as T
-    return { data, etag, status: response.status }
+    return { data, etag, status: response.status, filename: filenameOf(response) }
   } catch (error) {
     if (error instanceof ApiError) throw error
     if (timedOut) {

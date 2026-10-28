@@ -1,13 +1,17 @@
 package com.djavafactory.castor.core.layout.api;
 
+import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Files;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.PATCH;
@@ -27,9 +31,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.quarkus.security.identity.SecurityIdentity;
+import org.jboss.resteasy.reactive.RestForm;
+import org.jboss.resteasy.reactive.multipart.FileUpload;
 
+import com.djavafactory.castor.core.layout.application.AccuracyReport;
 import com.djavafactory.castor.core.layout.application.DiscardDraft;
 import com.djavafactory.castor.core.layout.application.GetLayout;
+import com.djavafactory.castor.core.layout.application.ImportGeoJson;
 import com.djavafactory.castor.core.layout.application.LayoutHistory;
 import com.djavafactory.castor.core.layout.application.LayoutValidation;
 import com.djavafactory.castor.core.layout.application.ListLayoutVersions;
@@ -39,6 +47,7 @@ import com.djavafactory.castor.core.layout.application.SaveAsset;
 import com.djavafactory.castor.core.layout.domain.IssueLevel;
 import com.djavafactory.castor.core.layout.domain.LayoutStatus;
 import com.djavafactory.castor.core.layout.domain.LayoutVersion;
+import com.djavafactory.castor.core.port.domain.AccuracyClass;
 import com.djavafactory.castor.core.shared.api.CachedJson;
 import com.djavafactory.castor.core.shared.domain.InvalidRequestException;
 import com.djavafactory.castor.core.shared.domain.ResourceNotFoundException;
@@ -67,10 +76,36 @@ public class LayoutResource {
     /** Result of a single-asset save: the feature, new ETag and any warnings. */
     public record AssetSaveResponse(ObjectNode feature, long rowVersion, List<IssueResponse> warnings) {}
 
+    /** One control point of the accuracy report: residual against its expected local position, or null. */
+    public record ControlPointAccuracyResponse(String code, String name, Double residualM, double roundTripMm) {}
+
+    public record AccuracyReportResponse(
+            Instant ranAt,
+            List<ControlPointAccuracyResponse> controlPoints,
+            double maxResidualM,
+            double maxRoundTripMm,
+            Map<AccuracyClass, Integer> countsByAccuracy,
+            int approximateCount,
+            String note) {}
+
+    /** The report of a GeoJSON import or dry run (DESIGNER-10). */
+    public record ImportReportResponse(
+            String file,
+            int added,
+            int updated,
+            int skipped,
+            List<String> skipReasons,
+            ImportGeoJson.RoundTrip roundTrip) {}
+
+    private static final long IMPORT_MAX_BYTES = 10L * 1024 * 1024;
+
     private final ListLayoutVersions listLayoutVersions;
     private final GetLayout getLayout;
     private final DiscardDraft discardDraft;
     private final LayoutValidation validation;
+    private final AccuracyReport accuracyReport;
+    private final ImportGeoJson importGeoJson;
+    private final LayoutExporter exporter;
     private final LayoutFeatureMapper mapper;
     private final SaveAsset saveAsset;
     private final PublishLayout publishLayout;
@@ -85,6 +120,9 @@ public class LayoutResource {
             GetLayout getLayout,
             DiscardDraft discardDraft,
             LayoutValidation validation,
+            AccuracyReport accuracyReport,
+            ImportGeoJson importGeoJson,
+            LayoutExporter exporter,
             LayoutFeatureMapper mapper,
             SaveAsset saveAsset,
             PublishLayout publishLayout,
@@ -97,6 +135,9 @@ public class LayoutResource {
         this.getLayout = getLayout;
         this.discardDraft = discardDraft;
         this.validation = validation;
+        this.accuracyReport = accuracyReport;
+        this.importGeoJson = importGeoJson;
+        this.exporter = exporter;
         this.mapper = mapper;
         this.saveAsset = saveAsset;
         this.publishLayout = publishLayout;
@@ -220,6 +261,90 @@ public class LayoutResource {
                 report.issues().stream()
                         .map(i -> new IssueResponse(i.code(), i.level(), i.message(), i.assetIds()))
                         .toList());
+    }
+
+    /**
+     * How well the stored coordinates match the port's control points, and how much of the layout is only
+     * approximate (DESIGNER-11). Read-only and visible to whoever may see the version.
+     */
+    @GET
+    @Path("{layoutId}/accuracy-report")
+    @RolesAllowed({"VIEWER", "EDITOR", "PUBLISHER", "ADMIN"})
+    public AccuracyReportResponse accuracyReport(
+            @PathParam("layoutId") UUID layoutId, @Context SecurityContext security) {
+        requireVisible(getLayout.byId(layoutId).view().version(), security);
+        var report = accuracyReport.execute(layoutId);
+        return new AccuracyReportResponse(
+                report.ranAt(),
+                report.controlPoints().stream()
+                        .map(p -> new ControlPointAccuracyResponse(p.code(), p.name(), p.residualM(), p.roundTripMm()))
+                        .toList(),
+                report.maxResidualM(),
+                report.maxRoundTripMm(),
+                report.countsByAccuracy(),
+                report.approximateCount(),
+                AccuracyReport.NOTE);
+    }
+
+    /**
+     * The version as a GeoJSON file with its provenance. Drafts and discarded versions are for editors and above, like
+     * the version itself.
+     */
+    @GET
+    @Path("{layoutId}/export")
+    @Produces("application/geo+json")
+    @RolesAllowed({"VIEWER", "EDITOR", "PUBLISHER", "ADMIN"})
+    public Response export(@PathParam("layoutId") UUID layoutId, @Context SecurityContext security) {
+        var version = getLayout.byId(layoutId).view().version();
+        requireVisible(version, security);
+        var file =
+                exporter.export(version, layoutId, security.getUserPrincipal().getName(), Instant.now());
+        return Response.ok(file.body().toString(), "application/geo+json")
+                .header("Content-Disposition", "attachment; filename=\"" + file.filename() + "\"")
+                .header("Cache-Control", "no-store")
+                .header("X-Castor-Feature-Count", file.featureCount())
+                .build();
+    }
+
+    /**
+     * Adds the shapes of a GeoJSON file to the draft or updates the assets they name. With {@code dryRun=true} (the
+     * default) nothing is stored and the report says what would happen; with false everything accepted is stored in one
+     * transaction.
+     */
+    @POST
+    @Path("{layoutId}/import")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    @RolesAllowed({"EDITOR", "PUBLISHER", "ADMIN"})
+    public ImportReportResponse importGeoJson(
+            @PathParam("layoutId") UUID layoutId,
+            @QueryParam("dryRun") @DefaultValue("true") boolean dryRun,
+            @RestForm("file") FileUpload file) {
+        if (file == null || file.fileName() == null || file.fileName().isBlank()) {
+            throw new InvalidRequestException("Choose a .geojson or .json file to import");
+        }
+        String name = file.fileName();
+        String lower = name.toLowerCase();
+        if (!lower.endsWith(".geojson") && !lower.endsWith(".json")) {
+            throw new InvalidRequestException("Choose a .geojson or .json file to import");
+        }
+        if (file.size() > IMPORT_MAX_BYTES) {
+            throw new InvalidRequestException("The file is larger than 10 MB");
+        }
+        byte[] content;
+        try {
+            content = Files.readAllBytes(file.uploadedFile());
+        } catch (IOException e) {
+            throw new InvalidRequestException("The file could not be read");
+        }
+        var report = importGeoJson.execute(
+                layoutId, name, content, dryRun, identity.getPrincipal().getName());
+        return new ImportReportResponse(
+                report.file(),
+                report.added(),
+                report.updated(),
+                report.skipped(),
+                report.skipReasons(),
+                report.roundTrip());
     }
 
     /** One feature of one version; its ETag is the row version of the revision. */

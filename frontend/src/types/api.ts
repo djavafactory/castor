@@ -398,6 +398,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/layouts/{layoutId}/accuracy-report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Control point residuals and shape counts by accuracy class (VIEWER and above)
+         * @description How well the stored coordinates match the port's control points (measured in its metric CRS) and how much of the layout is only approximate. Read-only.
+         */
+        get: operations["getAccuracyReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/layouts/{layoutId}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A version as a GeoJSON file with its provenance (VIEWER and above; drafts for editors)
+         * @description A FeatureCollection in CRS84 [lon, lat] with 7 decimals. The castor member holds the port frame and the version. Features from a source that may not be stored (Google Maps) are left out. The file name is in Content-Disposition as castor-<port>-v<N>-<yyyy-mm-dd>.geojson.
+         */
+        get: operations["exportLayout"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/layouts/{layoutId}/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add or update the assets of a GeoJSON file in the draft (EDITOR and above)
+         * @description A FeatureCollection or a single Feature in a .geojson or .json file of at most 10 MB. Each feature is checked with the layout rules against the draft and the features accepted earlier in the file; failures are skipped and listed. With dryRun=true (the default) nothing is stored. With dryRun=false everything accepted is stored in one transaction with one LAYOUT_IMPORTED audit row plus one row per asset.
+         */
+        post: operations["importLayout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -793,6 +853,45 @@ export interface components {
             errors: number;
             warnings: number;
             issues: components["schemas"]["ValidationIssue"][];
+        };
+        ControlPointAccuracy: {
+            code: string;
+            name: string;
+            /** @description Distance between the expected local position and the stored point, in the port's metric CRS */
+            residualM?: number | null;
+            /** @description Projection round trip of the stored point, in millimetres */
+            roundTripMm: number;
+        };
+        ImportReportResponse: {
+            file: string;
+            added: number;
+            updated: number;
+            skipped: number;
+            /** @description One line per skipped feature, all of them */
+            skipReasons: string[];
+            roundTrip: {
+                /** @description Coordinates of accepted features that were compared */
+                coordinates: number;
+                /** @description Largest difference between a coordinate of the file and the stored one, in millimetres */
+                maxDifferenceMm: number;
+            };
+        };
+        AccuracyReportResponse: {
+            /** Format: date-time */
+            ranAt: string;
+            controlPoints: components["schemas"]["ControlPointAccuracy"][];
+            maxResidualM: number;
+            maxRoundTripMm: number;
+            countsByAccuracy: {
+                SURVEYED?: number;
+                VERIFIED?: number;
+                OPERATOR?: number;
+                APPROXIMATE?: number;
+            } & {
+                [key: string]: number;
+            };
+            approximateCount: number;
+            note: string;
         };
         /** @enum {string} */
         Role: "VIEWER" | "EDITOR" | "PUBLISHER" | "ADMIN";
@@ -1891,6 +1990,121 @@ export interface operations {
             };
             /** @description Unknown version */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getAccuracyReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                layoutId: components["parameters"]["LayoutId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The accuracy report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccuracyReportResponse"];
+                };
+            };
+            /** @description Unknown version, or no version visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    exportLayout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                layoutId: components["parameters"]["LayoutId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The GeoJSON file */
+            200: {
+                headers: {
+                    "Content-Disposition"?: string;
+                    /** @description Number of features in the file */
+                    "X-Castor-Feature-Count"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/geo+json": Record<string, never>;
+                };
+            };
+            /** @description Unknown version, or no version visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    importLayout: {
+        parameters: {
+            query?: {
+                dryRun?: boolean;
+            };
+            header?: never;
+            path: {
+                layoutId: components["parameters"]["LayoutId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description What was or would be imported */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportReportResponse"];
+                };
+            };
+            /** @description Not a .geojson or .json file, not valid JSON, or not a Feature or FeatureCollection */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unknown version */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The version is not a draft */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -793,6 +793,90 @@ paths:
           description: The role is below EDITOR
         '404':
           description: Unknown version
+  /api/v1/layouts/{layoutId}/accuracy-report:
+    get:
+      operationId: getAccuracyReport
+      summary: Control point residuals and shape counts by accuracy class (VIEWER and above)
+      description: How well the stored coordinates match the port's control points (measured in its metric CRS) and how much of the layout is only approximate. Read-only.
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/LayoutId'
+      responses:
+        '200':
+          description: The accuracy report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccuracyReportResponse'
+        '404':
+          description: Unknown version, or no version visible to the caller
+  /api/v1/layouts/{layoutId}/export:
+    get:
+      operationId: exportLayout
+      summary: A version as a GeoJSON file with its provenance (VIEWER and above; drafts for editors)
+      description: A FeatureCollection in CRS84 [lon, lat] with 7 decimals. The castor member holds the port frame and the version. Features from a source that may not be stored (Google Maps) are left out. The file name is in Content-Disposition as castor-<port>-v<N>-<yyyy-mm-dd>.geojson.
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/LayoutId'
+      responses:
+        '200':
+          description: The GeoJSON file
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+            X-Castor-Feature-Count:
+              description: Number of features in the file
+              schema:
+                type: integer
+          content:
+            application/geo+json:
+              schema:
+                type: object
+        '404':
+          description: Unknown version, or no version visible to the caller
+  /api/v1/layouts/{layoutId}/import:
+    post:
+      operationId: importLayout
+      summary: Add or update the assets of a GeoJSON file in the draft (EDITOR and above)
+      description: A FeatureCollection or a single Feature in a .geojson or .json file of at most 10 MB. Each feature is checked with the layout rules against the draft and the features accepted earlier in the file; failures are skipped and listed. With dryRun=true (the default) nothing is stored. With dryRun=false everything accepted is stored in one transaction with one LAYOUT_IMPORTED audit row plus one row per asset.
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/LayoutId'
+        - name: dryRun
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: What was or would be imported
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportReportResponse'
+        '400':
+          description: Not a .geojson or .json file, not valid JSON, or not a Feature or FeatureCollection
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Unknown version
+        '409':
+          description: The version is not a draft
 components:
   parameters:
     LayoutId:
@@ -1510,6 +1594,80 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ValidationIssue'
+    ControlPointAccuracy:
+      type: object
+      required: [code, name, roundTripMm]
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        residualM:
+          type: number
+          nullable: true
+          description: Distance between the expected local position and the stored point, in the port's metric CRS
+        roundTripMm:
+          type: number
+          description: Projection round trip of the stored point, in millimetres
+    ImportReportResponse:
+      type: object
+      required: [file, added, updated, skipped, skipReasons, roundTrip]
+      properties:
+        file:
+          type: string
+        added:
+          type: integer
+        updated:
+          type: integer
+        skipped:
+          type: integer
+        skipReasons:
+          type: array
+          description: One line per skipped feature, all of them
+          items:
+            type: string
+        roundTrip:
+          type: object
+          required: [coordinates, maxDifferenceMm]
+          properties:
+            coordinates:
+              type: integer
+              description: Coordinates of accepted features that were compared
+            maxDifferenceMm:
+              type: number
+              description: Largest difference between a coordinate of the file and the stored one, in millimetres
+    AccuracyReportResponse:
+      type: object
+      required: [ranAt, controlPoints, maxResidualM, maxRoundTripMm, countsByAccuracy, approximateCount, note]
+      properties:
+        ranAt:
+          type: string
+          format: date-time
+        controlPoints:
+          type: array
+          items:
+            $ref: '#/components/schemas/ControlPointAccuracy'
+        maxResidualM:
+          type: number
+        maxRoundTripMm:
+          type: number
+        countsByAccuracy:
+          type: object
+          additionalProperties:
+            type: integer
+          properties:
+            SURVEYED:
+              type: integer
+            VERIFIED:
+              type: integer
+            OPERATOR:
+              type: integer
+            APPROXIMATE:
+              type: integer
+        approximateCount:
+          type: integer
+        note:
+          type: string
     Role:
       type: string
       enum: [VIEWER, EDITOR, PUBLISHER, ADMIN]

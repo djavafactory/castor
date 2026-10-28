@@ -5,6 +5,7 @@ import { StatusDot } from '@/components/ui/badge'
 import { SectionHeading } from '@/components/ui/card'
 import { goToAsset } from '@/features/search/go-to-place'
 import type { Layout, ValidationIssue } from '@/lib/api'
+import { AccuracyCheckSection } from './accuracy-check-section'
 import { issueNames, issueSummary } from './issue-text'
 import { useDraftValidation } from './use-draft-validation'
 
@@ -91,6 +92,7 @@ export function IssuesTab() {
           </QueryBoundary>
         )}
       </QueryBoundary>
+      <AccuracyCheckSection layoutId={draft.data?.versionId} />
     </section>
   )
 }

@@ -4,10 +4,8 @@ import { toast } from 'sonner'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/overlays'
 import { useQueryClient } from '@tanstack/react-query'
 import { IconButton } from '@/components/ui/button'
-import { queryKeys } from '@/lib/api/hooks'
-import { accuracyReportSchema } from '@/lib/api/schemas'
-import { getParsed } from '@/lib/api/validated'
-import { getEnv } from '@/lib/env'
+import { fetchAccuracyReport, queryKeys, useDraftLayout } from '@/lib/api'
+import { useEditorStore } from '@/lib/stores/editor-store'
 import { useUiStore } from '@/lib/stores/ui-store'
 import { useServerVersion } from '@/lib/version'
 import { HelpContent } from './help-content'
@@ -68,6 +66,7 @@ export function MoreMenu() {
   const mode = useUiStore((s) => s.mode)
   const setAccuracyColouring = useUiStore((s) => s.setAccuracyColouring)
   const queryClient = useQueryClient()
+  const draft = useDraftLayout(undefined, mode === 'design')
   // Asked only once the help is opened, so a closed menu costs nothing.
   const serverVersion = useServerVersion(helpOpen)
 
@@ -76,21 +75,23 @@ export function MoreMenu() {
     if (!open) setHelpOpen(false)
   }
 
+  /** DESIGNER-11: checks the draft's control points and shape accuracy, then opens the result in the Issues tab. */
   async function verifyAccuracy() {
     setMenuOpen(false)
     setAccuracyColouring(true)
+    const layoutId = draft.data?.versionId
+    if (layoutId === undefined) {
+      toast.error('The accuracy report could not be loaded')
+      return
+    }
     try {
-      const code = getEnv().VITE_PORT_CODE
-      const report = await queryClient.fetchQuery({
-        queryKey: queryKeys.accuracyReport(code),
-        queryFn: ({ signal }) =>
-          getParsed(`/v1/ports/${code}/accuracy-report`, accuracyReportSchema, { signal }),
+      await queryClient.fetchQuery({
+        queryKey: queryKeys.accuracyReport(layoutId),
+        queryFn: ({ signal }) => fetchAccuracyReport(layoutId, signal),
         staleTime: 0,
       })
-      const approximate = report.byAccuracy.APPROXIMATE ?? 0
-      toast(
-        `${approximate} of ${report.total} shapes are approximate. Outlines show each accuracy.`,
-      )
+      useUiStore.getState().setRightTab('issues')
+      useEditorStore.getState().logHistory('Ran the accuracy check')
     } catch {
       toast.error('The accuracy report could not be loaded')
     }

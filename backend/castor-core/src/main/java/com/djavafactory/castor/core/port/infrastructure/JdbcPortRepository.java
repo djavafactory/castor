@@ -13,6 +13,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 
 import com.djavafactory.castor.core.geometry.domain.LonLat;
 import com.djavafactory.castor.core.port.domain.BoundingBox;
+import com.djavafactory.castor.core.port.domain.ControlPoint;
 import com.djavafactory.castor.core.port.domain.DataSourceInfo;
 import com.djavafactory.castor.core.port.domain.Port;
 import com.djavafactory.castor.core.port.domain.PortRepository;
@@ -33,6 +34,10 @@ public class JdbcPortRepository implements PortRepository {
             + "'name', cp.name, 'expected_local_x', cp.expected_local_x, 'expected_local_y', cp.expected_local_y, "
             + "'accuracy', cp.accuracy_code, 'source', cp.source_code)) order by cp.code), '[]'::jsonb))::text "
             + "from ref.control_point cp where cp.port_id = ?";
+
+    private static final String CONTROL_POINT_ROWS_SQL =
+            "select cp.code, cp.name, ST_X(cp.geom), ST_Y(cp.geom), cp.expected_local_x, cp.expected_local_y "
+                    + "from ref.control_point cp where cp.port_id = ? order by cp.code";
 
     private static final String FEATURES_SQL = "select jsonb_build_object('type', 'FeatureCollection', "
             + "'features', coalesce(jsonb_agg(jsonb_build_object('type', 'Feature', 'id', rf.osm_ref, "
@@ -89,6 +94,19 @@ public class JdbcPortRepository implements PortRepository {
     @Override
     public String controlPointsGeoJson(long portId) {
         return db.single(CONTROL_POINTS_SQL, ps -> ps.setLong(1, portId));
+    }
+
+    @Override
+    public List<ControlPoint> controlPoints(long portId) {
+        return db.query(
+                CONTROL_POINT_ROWS_SQL,
+                ps -> ps.setLong(1, portId),
+                rs -> new ControlPoint(
+                        rs.getString(1),
+                        rs.getString(2),
+                        new LonLat(rs.getDouble(3), rs.getDouble(4)),
+                        rs.getDouble(5),
+                        rs.getDouble(6)));
     }
 
     @Override

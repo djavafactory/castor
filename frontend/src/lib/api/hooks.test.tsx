@@ -18,7 +18,7 @@ import { server } from '@/test/setup'
 import {
   BAD_SHAPE_TITLE,
   ResponseShapeError,
-  useAccuracyReport,
+  fetchAccuracyReport,
   useAssetHistory,
   useAssetTypes,
   useCurrentLayout,
@@ -264,15 +264,25 @@ describe('layout hooks', () => {
     expect(result.current.data?.[0]?.username).toBe('rita')
   })
 
-  it('useAccuracyReport reads the counts per accuracy class', async () => {
+  it('fetchAccuracyReport reads the residuals and the counts per accuracy class', async () => {
     server.use(
-      http.get(`${WESTPORTS}/accuracy-report`, () =>
-        HttpResponse.json({ total: 3, byAccuracy: { APPROXIMATE: 3 } }),
+      http.get(`${API}/v1/layouts/v-1/accuracy-report`, () =>
+        HttpResponse.json({
+          ranAt: '2026-10-27T14:05:00Z',
+          controlPoints: [
+            { code: 'CP-MAIN-GATE', name: 'Main gate', residualM: 0.08, roundTripMm: 0.001 },
+          ],
+          maxResidualM: 0.08,
+          maxRoundTripMm: 0.001,
+          countsByAccuracy: { SURVEYED: 0, VERIFIED: 0, OPERATOR: 0, APPROXIMATE: 301 },
+          approximateCount: 301,
+          note: 'The acceptance tolerance must be agreed with the customer.',
+        }),
       ),
     )
-    const { result } = renderHook(() => useAccuracyReport('westports'), { wrapper: wrapperFor() })
-    await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(result.current.data?.byAccuracy.APPROXIMATE).toBe(3)
+    const report = await fetchAccuracyReport('v-1')
+    expect(report.approximateCount).toBe(301)
+    expect(report.controlPoints[0]?.residualM).toBe(0.08)
   })
 
   it('useSearch sends nothing below two characters and the trimmed term above', async () => {

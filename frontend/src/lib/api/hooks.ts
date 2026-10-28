@@ -40,7 +40,7 @@ export const queryKeys = {
   reviewers: () => ['reviewers'] as const,
   /** The signature changes whenever the draft changes, so every save asks the server again. */
   validation: (layoutId: string, signature: string) => ['validation', layoutId, signature] as const,
-  accuracyReport: (code: string) => ['accuracy-report', code] as const,
+  accuracyReport: (layoutId: string) => ['accuracy-report', layoutId] as const,
   search: (code: string, q: string, layoutId: string | null) =>
     ['search', code, q, layoutId] as const,
 }
@@ -95,10 +95,11 @@ export function useAssetTypes() {
   })
 }
 
-export function useCatalogue() {
+export function useCatalogue(enabled = true) {
   return useQuery({
     queryKey: queryKeys.catalogue(),
     queryFn: ({ signal }) => getParsed('/v1/catalogue', catalogueSchema, { signal }),
+    enabled,
     ...staticQueryOptions,
   })
 }
@@ -229,13 +230,19 @@ export function fetchValidation(layoutId: string, signal?: AbortSignal) {
   }).then((r) => r.data)
 }
 
-export function useAccuracyReport(code: string = defaultPortCode()) {
-  return useQuery({
-    queryKey: queryKeys.accuracyReport(code),
-    queryFn: ({ signal }) =>
-      getParsed(`${portPath(code)}/accuracy-report`, accuracyReportSchema, { signal }),
-    ...layoutQueryOptions,
-  })
+/**
+ * Control point residuals and shape counts by accuracy class of a version (DESIGNER-11). Run from the More menu with
+ * `queryClient.fetchQuery` under `queryKeys.accuracyReport`, so the Issues tab's ACCURACY CHECK section can show the
+ * same answer without asking the server again.
+ */
+export function fetchAccuracyReport(layoutId: string, signal?: AbortSignal) {
+  return getParsed(
+    `/v1/layouts/${encodeURIComponent(layoutId)}/accuracy-report`,
+    accuracyReportSchema,
+    {
+      signal,
+    },
+  )
 }
 
 /**

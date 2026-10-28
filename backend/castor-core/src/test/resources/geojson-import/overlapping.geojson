@@ -1,0 +1,33 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          101.3036456,
+          2.944685
+        ]
+      },
+      "properties": {
+        "name": "Shed one",
+        "type": "WAREHOUSE"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          101.3036365,
+          2.9446694
+        ]
+      },
+      "properties": {
+        "name": "Shed two",
+        "type": "WAREHOUSE"
+      }
+    }
+  ]
+}
