@@ -4,6 +4,7 @@ import { http, HttpResponse } from 'msw'
 import { toast } from 'sonner'
 import { guardLayerEdit, LAYER_LOCKED_MESSAGE } from '@/components/scene/layers'
 import { useCameraStore } from '@/components/scene/stage/view-state'
+import { useEditorStore } from '@/lib/stores/editor-store'
 import { useUiStore } from '@/lib/stores/ui-store'
 import { server } from '@/test/setup'
 import { wrapperFor } from '@/test/query-wrapper'
@@ -204,7 +205,10 @@ describe('tool strip (Monitor)', () => {
 })
 
 describe('tool strip (Design)', () => {
-  beforeEach(() => useUiStore.setState({ mode: 'design' }))
+  beforeEach(() => {
+    useUiStore.setState({ mode: 'design' })
+    useEditorStore.getState().reset()
+  })
 
   it('has no Fullscreen, adds Verify accuracy to More and keeps the switches out of it', async () => {
     renderStrip()
@@ -212,6 +216,33 @@ describe('tool strip (Design)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'More' }))
     expect(screen.getByRole('button', { name: 'Verify accuracy' })).toBeInTheDocument()
     expect(screen.queryByRole('switch', { name: 'Envelope boxes' })).not.toBeInTheDocument()
+  })
+
+  it('disables Undo and Redo with nothing to undo or redo', () => {
+    renderStrip()
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Redo' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Undo' })).toHaveAttribute('title', 'Undo (Ctrl+Z)')
+    expect(screen.getByRole('button', { name: 'Redo' })).toHaveAttribute('title', 'Redo (Ctrl+Y)')
+  })
+
+  it('undoes and redoes a step from the toolbar', async () => {
+    const undo = vi.fn()
+    const redo = vi.fn()
+    useEditorStore.getState().pushHistory({ label: 'Moved Shed 1', undo, redo })
+    renderStrip()
+
+    const undoButton = screen.getByRole('button', { name: 'Undo' })
+    expect(undoButton).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Redo' })).toBeDisabled()
+    await userEvent.click(undoButton)
+    expect(undo).toHaveBeenCalledOnce()
+
+    const redoButton = screen.getByRole('button', { name: 'Redo' })
+    expect(redoButton).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeDisabled()
+    await userEvent.click(redoButton)
+    expect(redo).toHaveBeenCalledOnce()
   })
 })
 

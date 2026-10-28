@@ -140,6 +140,24 @@ describe('scene keys', () => {
       expect(redo).toHaveBeenCalledOnce()
     })
 
+    it('Cmd+Z undoes and Cmd+Shift+Z redoes, without the browser default (Mac)', () => {
+      const undo = vi.fn()
+      const redo = vi.fn()
+      useEditorStore.getState().pushHistory({ label: 'move', undo, redo })
+      render(<Host />)
+      const z = new KeyboardEvent('keydown', {
+        key: 'z',
+        metaKey: true,
+        cancelable: true,
+        bubbles: true,
+      })
+      document.body.dispatchEvent(z)
+      expect(z.defaultPrevented).toBe(true)
+      expect(undo).toHaveBeenCalledOnce()
+      fireEvent.keyDown(document.body, { key: 'z', metaKey: true, shiftKey: true })
+      expect(redo).toHaveBeenCalledOnce()
+    })
+
     it('leaves Ctrl+Z alone in Monitor', () => {
       useUiStore.setState({ mode: 'monitor' })
       const undo = vi.fn()

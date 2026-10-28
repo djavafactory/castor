@@ -8,8 +8,10 @@ import {
   Package,
   PanelLeft,
   PanelRight,
+  Redo2,
   RotateCcw,
   Tag,
+  Undo2,
   ZoomIn,
   ZoomOut,
 } from 'lucide-react'
@@ -22,11 +24,29 @@ import { useMapStore } from '@/components/map/map-store'
 import { PRESETS, presetByKey } from '@/components/scene/stage/camera-presets'
 import { camera, useCameraStore } from '@/components/scene/stage/view-state'
 import { containersEnabled } from '@/lib/features'
+import { useEditorStore } from '@/lib/stores/editor-store'
 import { useUiStore, type ViewMode } from '@/lib/stores/ui-store'
+import { runRedo, runUndo } from '@/features/design/history/undo-redo'
 import { toggleFullscreen, useFullscreen } from './fullscreen'
 import { LayersMenu } from './layers-menu'
 import { MoreMenu } from './more-menu'
 import { showsMap, showsScene } from './view-modes'
+
+/** Undo and redo (DESIGNER-08): disabled with nothing to undo or redo. Design mode only. */
+function UndoRedo() {
+  const canUndo = useEditorStore((s) => s.undoStack.length > 0)
+  const canRedo = useEditorStore((s) => s.redoStack.length > 0)
+  return (
+    <Group label="Undo and redo">
+      <IconButton label="Undo" tip="Undo (Ctrl+Z)" disabled={!canUndo} onClick={runUndo}>
+        <Undo2 aria-hidden="true" />
+      </IconButton>
+      <IconButton label="Redo" tip="Redo (Ctrl+Y)" disabled={!canRedo} onClick={runRedo}>
+        <Redo2 aria-hidden="true" />
+      </IconButton>
+    </Group>
+  )
+}
 
 /** The +, - and Reset buttons move whichever views are on screen: the 2D map, the 3D camera, or both. */
 function zoomViews(direction: 'in' | 'out') {
@@ -133,6 +153,7 @@ export function ToolStrip() {
             Assets
           </button>
           <Segmented label="View" value={viewMode} options={VIEW_MODES} onChange={setViewMode} />
+          <UndoRedo />
         </>
       )}
       <CameraMenu />

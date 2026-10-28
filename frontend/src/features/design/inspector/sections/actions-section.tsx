@@ -37,8 +37,9 @@ function recreateBody(a: AssetFields): NewAsset {
 
 /**
  * ACTIONS: zoom to the asset, duplicate it (20 m along both axes, "<name> copy"), delete it. Delete asks first and lists
- * the links that go with the asset. Duplicate is one undo step; delete is not undoable (its links would come back only
- * partly). Everything is disabled on a locked layer.
+ * the links that go with the asset. Duplicate and delete are each one undo step; a deleted asset comes back with the
+ * same id on undo (DESIGNER-08), but its links do not (recreateBody drops them). Everything is disabled on a locked
+ * layer.
  */
 export function ActionsSection({ ctx }: { ctx: InspectorContext }) {
   const { asset, assets, readOnly } = ctx
@@ -67,6 +68,7 @@ export function ActionsSection({ ctx }: { ctx: InspectorContext }) {
     let current: { rowVersion: number } = made
     useEditorStore.getState().pushHistory({
       label: `Duplicated ${asset.name}`,
+      assetName: made.name,
       undo: async () => {
         await remove.mutateAsync({ id: made.id, rowVersion: current.rowVersion })
       },
@@ -79,12 +81,25 @@ export function ActionsSection({ ctx }: { ctx: InspectorContext }) {
 
   async function doDelete() {
     setConfirmOpen(false)
+    const body = recreateBody(asset)
+    let current: { rowVersion: number } = asset
     try {
       await remove.mutateAsync({ id: asset.id, rowVersion: asset.rowVersion })
     } catch {
       return
     }
     useSelectionStore.getState().clear()
+    useEditorStore.getState().pushHistory({
+      label: `Deleted ${asset.name}`,
+      assetName: asset.name,
+      undo: async () => {
+        // the same id and code come back (re-create, DESIGNER-04); its links do not
+        current = await create.mutateAsync({ ...body, code: asset.code, id: asset.id })
+      },
+      redo: async () => {
+        await remove.mutateAsync({ id: asset.id, rowVersion: current.rowVersion })
+      },
+    })
   }
 
   const links = dependentsOf(asset, assets)

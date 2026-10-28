@@ -201,6 +201,7 @@ export function usePlaceAsset() {
       useSelectionStore.getState().select(current.id)
       useEditorStore.getState().pushHistory({
         label: `Placed ${name}`,
+        assetName: name,
         undo: async () => {
           await removeAsset({ id: current.id, rowVersion: current.rowVersion })
         },

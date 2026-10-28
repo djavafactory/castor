@@ -191,6 +191,7 @@ export function useAssetEdit(shapes: readonly MapShape[], frameReady: boolean) {
       }
       useEditorStore.getState().pushHistory({
         label,
+        assetName: s.name,
         undo: async () => {
           version = (await mutateAsync({ id: s.id, rowVersion: version, changes: inverse }))
             .rowVersion

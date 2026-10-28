@@ -48,6 +48,7 @@ export function useInspectorCommit() {
       }
       useEditorStore.getState().pushHistory({
         label: `${label} of ${asset.name}`,
+        assetName: asset.name,
         undo: async () => {
           version = (await mutateAsync({ id, rowVersion: version, changes: inverse })).rowVersion
         },

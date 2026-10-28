@@ -15,12 +15,25 @@ export type EditorTool =
 
 export type ToolKind = EditorTool['kind']
 
-/** One reversible edit (DESIGNER-08 defines the concrete commands). */
+/** One reversible edit. */
 export interface HistoryEntry {
   label: string
+  /** The asset the step belongs to, for the "Cannot undo/redo: <name> was changed by <user>" toast (DESIGNER-08). */
+  assetName?: string
   undo: () => void | Promise<void>
   redo: () => void | Promise<void>
 }
+
+/** One line of the edit history popover (DESIGNER-08): a label with when it happened. */
+export interface HistoryLogEntry {
+  time: number
+  label: string
+}
+
+/** Undo steps kept per editor (DESIGNER-08). */
+const MAX_UNDO_STEPS = 100
+/** Edit history entries shown in the popover (DESIGNER-08). */
+const MAX_LOG_ENTRIES = 60
 
 export interface ValidationResult {
   valid: boolean
@@ -31,6 +44,8 @@ interface EditorState {
   tool: EditorTool | null
   undoStack: HistoryEntry[]
   redoStack: HistoryEntry[]
+  /** Newest first; every pushed edit, undo, redo, basemap change and measurement (DESIGNER-08). */
+  historyLog: HistoryLogEntry[]
   /** Asset ids with a save in flight. */
   pendingSaves: string[]
   /** Asset ids whose last save failed and was not retried yet. */
@@ -55,6 +70,12 @@ interface EditorState {
   undo: () => HistoryEntry | undefined
   /** Moves the latest redo entry back to the undo stack and returns it. */
   redo: () => HistoryEntry | undefined
+  /** A step moved to the redo stack by `undo` turned out to fail (409): it is dropped, not kept for redo. */
+  discardFromRedo: (entry: HistoryEntry) => void
+  /** A step moved to the undo stack by `redo` turned out to fail (409): it is dropped, not kept for undo. */
+  discardFromUndo: (entry: HistoryEntry) => void
+  /** Adds a line to the edit history popover, without touching the undo/redo stacks. */
+  logHistory: (label: string) => void
   clearHistory: () => void
   beginSave: (assetId: string) => void
   endSave: (assetId: string) => void
@@ -77,6 +98,7 @@ const initial = {
   tool: null,
   undoStack: [],
   redoStack: [],
+  historyLog: [],
   pendingSaves: [],
   failedSaves: [],
   lastValidation: null,
@@ -116,7 +138,14 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   resetPoints: () => set((state) => (state.tool ? { tool: { ...state.tool, points: [] } } : state)),
   pushHistory: (entry) =>
     // A new edit invalidates anything that could have been redone.
-    set((state) => ({ undoStack: [...state.undoStack, entry], redoStack: [] })),
+    set((state) => ({
+      undoStack: [...state.undoStack, entry].slice(-MAX_UNDO_STEPS),
+      redoStack: [],
+      historyLog: [{ time: Date.now(), label: entry.label }, ...state.historyLog].slice(
+        0,
+        MAX_LOG_ENTRIES,
+      ),
+    })),
   undo: () => {
     const entry = get().undoStack.at(-1)
     if (!entry) return undefined
@@ -135,6 +164,14 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
     }))
     return entry
   },
+  discardFromRedo: (entry) =>
+    set((state) => ({ redoStack: state.redoStack.filter((e) => e !== entry) })),
+  discardFromUndo: (entry) =>
+    set((state) => ({ undoStack: state.undoStack.filter((e) => e !== entry) })),
+  logHistory: (label) =>
+    set((state) => ({
+      historyLog: [{ time: Date.now(), label }, ...state.historyLog].slice(0, MAX_LOG_ENTRIES),
+    })),
   clearHistory: () => set({ undoStack: [], redoStack: [] }),
   beginSave: (assetId) => {
     retries.delete(assetId)
