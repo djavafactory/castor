@@ -57,6 +57,20 @@ async function reloadAfterConflict(client: QueryClient, code: string): Promise<v
   toast(conflictMessage(user))
 }
 
+/** How many undo/redo steps (DESIGNER-08) are in flight; while positive, a 409 shows no toast of its own, since the
+ *  caller is about to show "Cannot undo/redo: <name> was changed by <user>" instead. */
+let silentConflicts = 0
+
+/** Runs `fn` without the generic conflict toast of a 409 it causes (DESIGNER-08 undo and redo). */
+export async function silently<T>(fn: () => Promise<T>): Promise<T> {
+  silentConflicts++
+  try {
+    return await fn()
+  } finally {
+    silentConflicts--
+  }
+}
+
 /** A save that ended in error: a conflict reloads the draft, anything else waits for Retry. */
 function saveFailed(
   client: QueryClient,
@@ -68,7 +82,7 @@ function saveFailed(
   const editor = useEditorStore.getState()
   if (error instanceof ApiError && error.status === 409) {
     editor.endSave(saveId)
-    void reloadAfterConflict(client, code)
+    if (silentConflicts === 0) void reloadAfterConflict(client, code)
     return
   }
   editor.failSave(saveId, retry)

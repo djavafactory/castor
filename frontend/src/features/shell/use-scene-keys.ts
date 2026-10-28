@@ -6,6 +6,7 @@ import { useEditorStore } from '@/lib/stores/editor-store'
 import { useSelectionStore } from '@/lib/stores/selection-store'
 import { useUiStore } from '@/lib/stores/ui-store'
 import { rotated } from '@/features/design/place/placement-plan'
+import { runRedo, runUndo } from '@/features/design/history/undo-redo'
 import { toggleFullscreen } from './fullscreen'
 
 const ROTATE_STEP_DEG = 15
@@ -16,14 +17,9 @@ function typing(target: EventTarget | null): boolean {
   return target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)
 }
 
-function undoOrRedo(which: 'undo' | 'redo') {
-  const entry = useEditorStore.getState()[which]()
-  if (entry) void (which === 'undo' ? entry.undo() : entry.redo())
-}
-
 /**
- * The shortcuts of both modes. Ignored while typing in a field, with Alt or Meta, with Ctrl (other than the
- * Design undo, redo and save keys) and when signed out.
+ * The shortcuts of both modes. Ignored while typing in a field, with Alt, with Ctrl/Cmd (other than the Design
+ * undo, redo and save keys) and when signed out.
  */
 export function useSceneKeys() {
   useEffect(() => {
@@ -33,12 +29,12 @@ export function useSceneKeys() {
       const design = ui.mode === 'design'
       const key = event.key
 
-      if (event.ctrlKey && !event.metaKey && !event.altKey) {
+      if ((event.ctrlKey || event.metaKey) && !event.altKey) {
         if (!design) return
         const lower = key.toLowerCase()
         if (lower === 'z' || lower === 'y' || lower === 's') event.preventDefault()
-        if (lower === 'z') undoOrRedo(event.shiftKey ? 'redo' : 'undo')
-        else if (lower === 'y') undoOrRedo('redo')
+        if (lower === 'z') (event.shiftKey ? runRedo : runUndo)()
+        else if (lower === 'y') runRedo()
         else if (lower === 's') useEditorStore.getState().requestSave()
         return
       }

@@ -54,6 +54,7 @@ export function useFinishDraw() {
       useSelectionStore.getState().select(current.id)
       useEditorStore.getState().pushHistory({
         label: `Drew ${name}`,
+        assetName: name,
         undo: async () => {
           await removeAsset({ id: current.id, rowVersion: current.rowVersion })
         },

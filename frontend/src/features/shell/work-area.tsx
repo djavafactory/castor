@@ -12,6 +12,7 @@ import { Tabs } from '@/components/ui/tabs'
 import { LayoutAssetDetails } from '@/components/scene/layout/asset-details'
 import { BuildingDetails } from '@/components/scene/buildings/building-details'
 import { PortScene } from '@/components/scene/port-scene'
+import { HistoryPopover } from '@/features/design/history/history-popover'
 import { BasemapSelect } from './basemap-select'
 import { CatalogueTab } from './catalogue-tab'
 import { DebugSwitches } from './more-menu'
@@ -98,6 +99,7 @@ export function WorkArea() {
           <DraftSummary />
           <span className="ml-auto flex items-center gap-3 font-sans text-[13px] text-ink">
             <CursorReadout />
+            <HistoryPopover />
             <BasemapSelect />
             <DebugSwitches compact />
           </span>

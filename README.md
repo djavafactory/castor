@@ -231,6 +231,13 @@ actions/checkout v7, actions/setup-java v6, actions/setup-node v7, actions/uploa
 
 Record decisions and behaviour changes here, newest first.
 
+#### DESIGNER-08: Undo/redo and edit history
+
+1. Every user action is one undo step: place, finished drawing, one drag, one field change, one vertex removal, duplicate, delete and import (DESIGNER-07, DESIGNER-06, DESIGNER-04). Undo applies the inverse API call (DELETE a created asset, PATCH back the previous values, re-create a deleted asset with the same id via POST with an id); redo re-applies it. Steps are kept in memory, last 100; a new action clears the redo stack.
+2. A step that hits a 409 on undo or redo (another editor changed or deleted the asset since) is dropped, not kept for a later retry: a toast says "Cannot undo/redo: `<name>` was changed by `<user>`" instead of the generic conflict message.
+3. Ctrl/Cmd+Z undoes, Ctrl/Cmd+Y or Ctrl/Cmd+Shift+Z redoes; the toolbar Undo and Redo buttons are disabled with nothing to undo or redo. Ctrl+S still means "Check and save" (DESIGNER-07); the browser's own save is prevented.
+4. The "History (N)" popover of the bottom strip lists the last 60 entries, newest first, as "HH:MM `<label>`": edits, "Undo: `<label>`", "Redo: `<label>`" and basemap changes (DESIGNER-02); it does not undo anything itself.
+
 #### DESIGNER-07: Inspector
 
 1. Every field saves itself: one PATCH per change and one undo step "<Label> of <name>" (the provenance is one step, "Provenance of <name>"). Detail groups and the provenance are sent whole, so the undo puts back the group as it was. A value the rules refuse is not stored: the field keeps the stored value and the toast gives the reason.
@@ -238,7 +245,7 @@ Record decisions and behaviour changes here, newest first.
 3. A storage record is created by the first cargo choice, with the type's default capacity (0 t when the type has none), usable share 100 %, design fill 0 %, exposed to the weather.
 4. Warehouse door side is the compass side (NORTH, EAST, SOUTH, WEST), not rotated with the quay frame. Existing warehouses get NORTH.
 5. Minimums: the catalogue's, plus bay and row pitch 5 m, pad max height 1 m, berth length 20 m and berth depth 1 m. The server applies the same rules to every save.
-6. Delete asks first and lists the links that go with the asset. It is not undoable: the links of other assets would not come back whole. Duplicate is one undo step.
+6. Delete asks first and lists the links that go with the asset. Duplicate and delete are each one undo step (DESIGNER-08); a deleted asset comes back with the same id, but its own links do not.
 7. An exclusion override needs a reason of 10 to 500 characters, is audited and is not undoable.
 8. Check and save waits for the saves in flight, re-reads the draft and re-validates it, then reports the largest rounding change of the session (mm, one decimal).
 9. The Inspector reads shapes in the quay frame, so it shows and checks nothing before the port has loaded it.

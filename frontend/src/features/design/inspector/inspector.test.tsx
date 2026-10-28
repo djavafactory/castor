@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { toast } from 'sonner'
@@ -190,6 +190,46 @@ describe('DesignInspector', () => {
     expect(screen.getByRole('textbox', { name: 'Name' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Duplicate' })).toBeDisabled()
+  })
+
+  it('delete is one undo step: undo re-creates the asset with the same id (DESIGNER-08)', async () => {
+    let deleted = false
+    let recreateBody: Record<string, unknown> | null = null
+    server.use(
+      http.delete(`${ASSETS}/wh-1`, () => {
+        deleted = true
+        return new HttpResponse(null, { status: 204 })
+      }),
+      http.post(ASSETS, async ({ request }) => {
+        recreateBody = (await request.json()) as Record<string, unknown>
+        return HttpResponse.json(
+          {
+            feature: {
+              type: 'Feature',
+              id: 'wh-1',
+              geometry: { type: 'Polygon', coordinates: SQUARE },
+              properties: { type: 'WAREHOUSE', rowVersion: 0 },
+            },
+            warnings: [],
+          },
+          { status: 201 },
+        )
+      }),
+    )
+    useSelectionStore.getState().select('wh-1')
+    renderInspector()
+    await userEvent.click(await screen.findByRole('button', { name: 'Delete' }))
+    const dialog = screen.getByRole('alertdialog')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(deleted).toBe(true))
+    expect(useEditorStore.getState().undoStack.at(-1)).toMatchObject({
+      label: 'Deleted Warehouse 1',
+      assetName: 'Warehouse 1',
+    })
+
+    await useEditorStore.getState().undo()!.undo()
+
+    expect(recreateBody).toMatchObject({ id: 'wh-1', code: 'WH-1', type: 'WAREHOUSE' })
   })
 
   it('Check and save reports that every change is saved with the largest adjustment', async () => {
