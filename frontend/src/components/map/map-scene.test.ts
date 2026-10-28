@@ -227,6 +227,7 @@ describe('labels', () => {
     minSideM: 52,
     berthLengthM: null,
     lineWidthM: null,
+    accuracy: null,
     ...extra,
   })
 

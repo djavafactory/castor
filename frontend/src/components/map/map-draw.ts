@@ -49,6 +49,8 @@ export interface DrawInput {
   handles?: readonly Handle[]
   /** The line of the Measure tool, if any. */
   measure?: MeasureDraw | null
+  /** Outlines in the accuracy colours, approximate ones dashed (the Accuracy checkbox). */
+  accuracy?: boolean
 }
 
 /** The Measure line in local metres with its label. */
@@ -79,6 +81,8 @@ export interface PreviewDraw {
 
 /** Outline widths in pixels (DESIGNER-06): the selection in signal orange, errors and refused edits in red. */
 const OUTLINE_PX = 2.5
+/** Accuracy outlines sit under the selection and error outlines. */
+const ACCURACY_PX = 2
 
 /** The outline in progress: vertices and the cursor in local metres. */
 export interface Sketch {
@@ -250,6 +254,20 @@ function drawQuayLine(input: DrawInput, visible: LocalBox) {
   ctx.strokeStyle = palette.blue
   ctx.lineWidth = 1.5 / view.k
   ctx.stroke()
+  ctx.setLineDash([])
+}
+
+/** Every asset outline in its accuracy colour; APPROXIMATE dashed, as the 3D outlines. */
+function drawAccuracy(input: DrawInput, visible: LocalBox) {
+  const { ctx, view } = input
+  for (const shape of input.assets) {
+    if (shape.accuracy === null || !boxesTouch(shape.box, visible)) continue
+    const colour =
+      palette.accuracy[shape.accuracy as keyof typeof palette.accuracy] ??
+      palette.accuracy.APPROXIMATE
+    ctx.setLineDash(shape.accuracy === 'APPROXIMATE' ? [6 / view.k, 4 / view.k] : [])
+    strokeShape(ctx, shape, colour, ACCURACY_PX, view.k)
+  }
   ctx.setLineDash([])
 }
 
@@ -444,6 +462,7 @@ export function drawMap(input: DrawInput): void {
   }
   drawQuayLine(input, visible)
   localTransform(ctx, view, size, dpr)
+  if (input.accuracy) drawAccuracy(drawn, visible)
   drawSelection(drawn)
   drawLabels(drawn, visible)
   if (input.handles && input.handles.length > 0) drawHandles(input, input.handles)

@@ -103,6 +103,7 @@ export function Map2D() {
   const layerVisibility = useUiStore((s) => s.layerVisibility)
   const isolatedLayer = useUiStore((s) => s.isolatedLayer)
   const basemap = useUiStore((s) => s.basemap)
+  const accuracyColouring = useUiStore((s) => s.accuracyColouring)
   const selectedAssetId = useSelectionStore((s) => s.selectedAssetId)
   const selectedReferenceId = useSelectionStore((s) => s.selectedReferenceId)
   const placed = useMapStore((s) => s.placed)
@@ -225,6 +226,7 @@ export function Map2D() {
             )
           : undefined,
         measure: measureLine(cursor),
+        accuracy: ui.accuracyColouring,
       })
     }
     schedule.current = () => {
@@ -249,6 +251,7 @@ export function Map2D() {
     assets,
     background,
     basemap,
+    accuracyColouring,
     selectedAssetId,
     selectedReferenceId,
     frameReady,

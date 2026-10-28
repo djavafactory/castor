@@ -435,6 +435,53 @@ describe('labels', () => {
   })
 })
 
+describe('accuracy outlines', () => {
+  const shapes = () =>
+    assetShapes(
+      [
+        asset('s1', 'SILO', rect(0, 100, 40, 40), {
+          provenance: { source: 'SURVEY', accuracy: 'SURVEYED' },
+        }),
+        asset('p1', 'STORAGE_PAD', rect(100, 100, 80, 60), {
+          provenance: { source: 'SYNTHETIC', accuracy: 'APPROXIMATE' },
+        }),
+      ],
+      TYPES,
+      palette.pad,
+    )
+
+  it('reads the accuracy label of each asset', () => {
+    expect(shapes().map((s) => [s.id, s.accuracy])).toEqual(
+      expect.arrayContaining([
+        ['s1', 'SURVEYED'],
+        ['p1', 'APPROXIMATE'],
+      ]),
+    )
+  })
+
+  it('strokes each outline in its accuracy colour, approximate dashed, only when switched on', () => {
+    const off = new RecordingContext()
+    drawMap(input({ ctx: off, assets: shapes() }))
+    expect(off.ops('stroke').some((c) => c.style === palette.accuracy.SURVEYED)).toBe(false)
+
+    const ctx = new RecordingContext()
+    drawMap(input({ ctx, assets: shapes(), accuracy: true }))
+    const surveyed = ctx.ops('stroke').find((c) => c.style === palette.accuracy.SURVEYED)!
+    expect(surveyed.dash).toEqual([])
+    const approximate = ctx.ops('stroke').find((c) => c.style === palette.accuracy.APPROXIMATE)!
+    expect(approximate.dash?.length).toBe(2)
+  })
+
+  it('keeps the selection outline on top', () => {
+    const ctx = new RecordingContext()
+    drawMap(input({ ctx, assets: shapes(), accuracy: true, selectedAssetId: 'p1' }))
+    const strokes = ctx.ops('stroke').map((c) => c.style)
+    expect(strokes.lastIndexOf(palette.signal)).toBeGreaterThan(
+      strokes.lastIndexOf(palette.accuracy.APPROXIMATE),
+    )
+  })
+})
+
 describe('measure line', () => {
   it('draws a dashed signal line between the ends with its label on top', () => {
     const ctx = new RecordingContext()
