@@ -27,8 +27,9 @@ class DemoLoginOffIT {
     void demoUsersAreNotCreatedAndTheBootstrapAdminExistsOnce() throws Exception {
         try (var c = dataSource.getConnection();
                 var s = c.createStatement();
-                var rs = s.executeQuery("select count(*) filter (where username = 'admin'), "
-                        + "count(*) filter (where username in ('editor', 'viewer')) from security.user_account")) {
+                var rs = s.executeQuery(
+                        "select count(*) filter (where username = 'admin'), "
+                                + "count(*) filter (where username in ('publisher', 'editor', 'viewer')) from security.user_account")) {
             assertTrue(rs.next());
             assertEquals(1, rs.getInt(1));
             assertEquals(0, rs.getInt(2), "no demo users");

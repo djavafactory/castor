@@ -29,6 +29,13 @@ public class IdentityUseCases {
         return users.findByUsername(username).orElse(null);
     }
 
+    /** The people who may review a draft before it is published, the caller left out. */
+    public List<UserSummary> reviewersFor(String username) {
+        return users.findReviewers().stream()
+                .filter(u -> !u.username().equalsIgnoreCase(username))
+                .toList();
+    }
+
     /** Empty when demo login is off, so the endpoint answers 404. */
     public List<DemoUser> demoUsers() {
         return castor.demoLoginActive() ? DemoUser.ALL : List.of();

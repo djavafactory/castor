@@ -6,9 +6,10 @@ import { defaultPortCode, fetchDraftLayout, queryKeys } from './hooks'
 import {
   savedAssetSchema,
   layoutDocumentSchema,
-  layoutSchema,
+  publishResultSchema,
   type Layout,
   type LayoutAsset,
+  type PublishResult,
 } from './schemas'
 import { parseResponse } from './validated'
 
@@ -300,41 +301,81 @@ export function useDiscardDraft(code: string = defaultPortCode()) {
   })
 }
 
-/** Publishes the draft: the draft becomes the published layout in the cache and goes away as a draft. */
+/** Everything a new published version changes: what Monitor shows, the port's pointer and the version list. */
+function invalidatePublished(client: QueryClient, code: string): Promise<unknown> {
+  return Promise.all([
+    client.invalidateQueries({ queryKey: queryKeys.published(code) }),
+    client.invalidateQueries({ queryKey: queryKeys.current(code) }),
+    client.invalidateQueries({ queryKey: queryKeys.versions(code) }),
+    client.invalidateQueries({ queryKey: queryKeys.port(code) }),
+  ])
+}
+
+export type PublishInput = { layoutId: string; note: string; reviewedBy?: string | null }
+
+/**
+ * Publishes the draft (PUBLISHER). The server checks the whole rule catalogue first: a 422 means nothing changed and
+ * the draft stays. On success the draft is gone from the cache; the version list and the published layout are read
+ * again.
+ */
 export function usePublishLayout(code: string = defaultPortCode()) {
   const client = useQueryClient()
-  const draftKey = queryKeys.draft(code)
-  const publishedKey = queryKeys.published(code)
   return useMutation({
-    mutationFn: async (): Promise<Layout> => {
+    mutationFn: async ({ layoutId, note, reviewedBy }: PublishInput): Promise<PublishResult> => {
       const response = await apiRequest<unknown>(
-        `/v1/ports/${encodeURIComponent(code)}/layout/publish`,
-        { method: 'POST' },
+        `/v1/layouts/${encodeURIComponent(layoutId)}/publish`,
+        {
+          method: 'POST',
+          body: { note, ...(reviewedBy ? { reviewedBy } : {}) },
+        },
       )
-      return parseResponse('POST publish', layoutSchema, response.data)
+      return parseResponse('POST publish', publishResultSchema, response.data)
     },
-    onMutate: async () => {
-      const draft = await applyOptimistic(client, draftKey, (layout) => layout)
-      const published = await applyOptimistic(client, publishedKey, (layout) => layout)
-      if (draft.previous) {
-        client.setQueryData<Layout>(publishedKey, { ...draft.previous, status: 'PUBLISHED' })
-        published.changed = true
-        client.removeQueries({ queryKey: draftKey, exact: true })
+    onSuccess: () => {
+      client.removeQueries({ queryKey: queryKeys.draft(code), exact: true })
+      return invalidatePublished(client, code)
+    },
+  })
+}
+
+export type RestoreInput = { versionId: string; discardDraft?: boolean }
+
+/**
+ * Loads an older version into a new draft (PUBLISHER). Asset ids are those of that version. An open draft is a 409
+ * unless discardDraft is set; then it is discarded first by the server.
+ */
+export function useRestoreVersion(code: string = defaultPortCode()) {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ versionId, discardDraft }: RestoreInput): Promise<Layout> => {
+      const response = await apiRequest<unknown>(
+        `/v1/layouts/${encodeURIComponent(versionId)}/restore`,
+        { method: 'POST', body: { discardDraft: discardDraft === true } },
+      )
+      return parseResponse('POST restore', layoutDocumentSchema, response.data)
+    },
+    onSuccess: (draft) => {
+      client.setQueryData<Layout>(queryKeys.draft(code), draft)
+      return client.invalidateQueries({ queryKey: queryKeys.versions(code) })
+    },
+  })
+}
+
+/** Starts a blank draft: the open draft, if any, is discarded first. */
+export function useStartBlankLayout(code: string = defaultPortCode()) {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: async (openDraftId: string | null): Promise<Layout> => {
+      if (openDraftId !== null) {
+        await apiRequest<unknown>(`/v1/layouts/${encodeURIComponent(openDraftId)}`, {
+          method: 'DELETE',
+        })
       }
-      return { draft, published }
+      return createDraft(code, 'blank')
     },
-    onError: (_error, _vars, context) => {
-      if (!context) return
-      rollback(client, context.draft)
-      rollback(client, context.published)
+    onSuccess: (draft) => {
+      client.setQueryData<Layout>(queryKeys.draft(code), draft)
+      return client.invalidateQueries({ queryKey: queryKeys.versions(code) })
     },
-    onSettled: () =>
-      Promise.all([
-        client.invalidateQueries({ queryKey: publishedKey }),
-        client.invalidateQueries({ queryKey: queryKeys.current(code) }),
-        client.invalidateQueries({ queryKey: draftKey }),
-        client.invalidateQueries({ queryKey: queryKeys.versions(code) }),
-        client.invalidateQueries({ queryKey: queryKeys.port(code) }),
-      ]),
   })
 }

@@ -26,7 +26,9 @@ import {
   useCatalogue,
   useControlPoints,
   useDraftLayout,
+  useLayoutDiff,
   useLayoutVersions,
+  useReviewers,
   usePort,
   usePublishedLayout,
   useReferenceFeatures,
@@ -176,30 +178,47 @@ describe('layout hooks', () => {
     expect(result.current.fetchStatus).toBe('idle')
   })
 
-  it('useLayoutVersions reads the version list', async () => {
+  it('useLayoutVersions reads the version list newest first', async () => {
+    let limit: string | null = null
     server.use(
-      http.get(`${WESTPORTS}/layout/versions`, () =>
-        HttpResponse.json([
+      http.get(`${WESTPORTS}/layouts`, ({ request }) => {
+        limit = new URL(request.url).searchParams.get('limit')
+        return HttpResponse.json([
           {
-            id: 'v-1',
-            number: 1,
+            id: 'v-2',
+            versionNo: 2,
             status: 'PUBLISHED',
-            createdAt: '2026-10-01T00:00:00Z',
-            publishedAt: null,
+            createdBy: 'ada',
+            createdAt: '2026-10-02T00:00:00Z',
+            publishedBy: 'pat',
+            publishedAt: '2026-10-02T01:00:00Z',
+            reviewedBy: 'rita',
+            restoredFromVersionNo: 1,
+            note: 'Moved gate',
+            assetCount: 301,
           },
-        ]),
-      ),
+        ])
+      }),
     )
     const { result } = renderHook(() => useLayoutVersions('westports'), { wrapper: wrapperFor() })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(result.current.data?.[0]?.number).toBe(1)
+    expect(result.current.data?.[0]).toMatchObject({ versionNo: 2, reviewedBy: 'rita' })
+    expect(limit).toBe('100')
   })
 
   it('useAssetHistory waits for an asset id', async () => {
     server.use(
-      http.get(`${WESTPORTS}/assets/a-1/history`, () =>
+      http.get(`${API}/v1/assets/a-1/history`, () =>
         HttpResponse.json([
-          { revision: 2, at: '2026-10-02T00:00:00Z', actor: 'ada', action: 'MOVE' },
+          {
+            versionId: 'v-2',
+            versionNo: 2,
+            status: 'PUBLISHED',
+            name: 'Hall',
+            geometry: 'Polygon, 1,234 m2',
+            changedBy: 'ada',
+            changedAt: '2026-10-02T00:00:00Z',
+          },
         ]),
       ),
     )
@@ -210,7 +229,39 @@ describe('layout hooks', () => {
       wrapper: wrapperFor(),
     })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(result.current.data?.[0]?.actor).toBe('ada')
+    expect(result.current.data?.[0]?.changedBy).toBe('ada')
+  })
+
+  it('useLayoutDiff asks for the difference against another version and waits for both ids', async () => {
+    let against: string | null = null
+    server.use(
+      http.get(`${API}/v1/layouts/d-1/diff`, ({ request }) => {
+        against = new URL(request.url).searchParams.get('against')
+        return HttpResponse.json({
+          added: [],
+          removed: [{ assetId: 'a-2', code: 'B', name: 'B', type: 'BUILDING' }],
+          changed: [{ assetId: 'a-1', code: 'A', name: 'A', fields: ['geometry'] }],
+        })
+      }),
+    )
+    const idle = renderHook(() => useLayoutDiff('d-1', null), { wrapper: wrapperFor() })
+    expect(idle.result.current.fetchStatus).toBe('idle')
+
+    const { result } = renderHook(() => useLayoutDiff('d-1', 'v-1'), { wrapper: wrapperFor() })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(against).toBe('v-1')
+    expect(result.current.data?.changed[0]?.fields).toEqual(['geometry'])
+  })
+
+  it('useReviewers reads the people who may review', async () => {
+    server.use(
+      http.get(`${API}/v1/reviewers`, () =>
+        HttpResponse.json([{ username: 'rita', displayName: 'Rita' }]),
+      ),
+    )
+    const { result } = renderHook(() => useReviewers(), { wrapper: wrapperFor() })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data?.[0]?.username).toBe('rita')
   })
 
   it('useAccuracyReport reads the counts per accuracy class', async () => {

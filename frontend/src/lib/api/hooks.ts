@@ -9,8 +9,10 @@ import {
   catalogueSchema,
   controlPointsSchema,
   layoutDocumentSchema,
+  layoutDiffSchema,
   currentLayoutSchema,
   layoutVersionsSchema,
+  reviewersSchema,
   validationSchema,
   portSchema,
   referenceFeaturesSchema,
@@ -32,6 +34,10 @@ export const queryKeys = {
   draft: (code: string) => ['layout', code, 'draft'] as const,
   versions: (code: string) => ['layout', code, 'versions'] as const,
   assetHistory: (code: string, assetId: string) => ['asset-history', code, assetId] as const,
+  /** The signature changes whenever the draft changes, so each save asks the server for the diff again. */
+  diff: (layoutId: string, againstId: string, signature: string) =>
+    ['layout-diff', layoutId, againstId, signature] as const,
+  reviewers: () => ['reviewers'] as const,
   /** The signature changes whenever the draft changes, so every save asks the server again. */
   validation: (layoutId: string, signature: string) => ['validation', layoutId, signature] as const,
   accuracyReport: (code: string) => ['accuracy-report', code] as const,
@@ -159,25 +165,58 @@ export function useDraftLayout(
   })
 }
 
-export function useLayoutVersions(code: string = defaultPortCode()) {
+/** The versions of the port, newest first. Drafts and discarded versions come with it for editors. */
+export function useLayoutVersions(code: string = defaultPortCode(), enabled = true) {
   return useQuery({
     queryKey: queryKeys.versions(code),
     queryFn: ({ signal }) =>
-      getParsed(`${portPath(code)}/layout/versions`, layoutVersionsSchema, { signal }),
+      getParsed(`${portPath(code)}/layouts`, layoutVersionsSchema, {
+        signal,
+        query: { limit: 100 },
+      }),
+    enabled,
     ...layoutQueryOptions,
   })
 }
 
+/** One asset in every version that holds it, newest first. */
 export function useAssetHistory(assetId: string | null, code: string = defaultPortCode()) {
   return useQuery({
     queryKey: queryKeys.assetHistory(code, assetId ?? ''),
     queryFn: ({ signal }) =>
-      getParsed(
-        `${portPath(code)}/assets/${encodeURIComponent(assetId ?? '')}/history`,
-        assetHistorySchema,
-        { signal },
-      ),
+      getParsed(`/v1/assets/${encodeURIComponent(assetId ?? '')}/history`, assetHistorySchema, {
+        signal,
+      }),
     enabled: assetId !== null,
+    ...layoutQueryOptions,
+  })
+}
+
+/** What the version has that another lacks (added), lacks (removed) and changed. Waits for both ids. */
+export function useLayoutDiff(
+  layoutId: string | null,
+  againstId: string | null,
+  signature = '',
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: queryKeys.diff(layoutId ?? '', againstId ?? '', signature),
+    queryFn: ({ signal }) =>
+      getParsed(`/v1/layouts/${encodeURIComponent(layoutId ?? '')}/diff`, layoutDiffSchema, {
+        signal,
+        query: { against: againstId ?? undefined },
+      }),
+    enabled: enabled && layoutId !== null && againstId !== null,
+    ...layoutQueryOptions,
+  })
+}
+
+/** Who may be named as reviewer in the publish dialog (PUBLISHER and ADMIN may ask). */
+export function useReviewers(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.reviewers(),
+    queryFn: ({ signal }) => getParsed('/v1/reviewers', reviewersSchema, { signal }),
+    enabled,
     ...layoutQueryOptions,
   })
 }

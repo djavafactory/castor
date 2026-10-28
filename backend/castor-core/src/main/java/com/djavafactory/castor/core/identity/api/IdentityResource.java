@@ -29,6 +29,8 @@ public class IdentityResource {
 
     public record DemoUserResponse(String username, String label) {}
 
+    public record ReviewerResponse(String username, String displayName) {}
+
     private final IdentityUseCases identity;
     private final SecurityIdentity current;
 
@@ -53,6 +55,16 @@ public class IdentityResource {
                 user.username(),
                 sorted(user.roles().stream().map(Role::name).collect(java.util.stream.Collectors.toSet())),
                 user.displayName());
+    }
+
+    /** Who may be named as reviewer when publishing: publishers and admins, not the caller. */
+    @GET
+    @Path("/reviewers")
+    @RolesAllowed({"PUBLISHER", "ADMIN"})
+    public List<ReviewerResponse> reviewers() {
+        return identity.reviewersFor(current.getPrincipal().getName()).stream()
+                .map(u -> new ReviewerResponse(u.username(), u.displayName()))
+                .toList();
     }
 
     /** Public: the login page reads it before anyone is signed in. 404 unless demo login is on in local or dev. */

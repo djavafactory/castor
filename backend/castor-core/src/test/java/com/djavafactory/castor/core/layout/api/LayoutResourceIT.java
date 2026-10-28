@@ -192,10 +192,15 @@ class LayoutResourceIT {
                 before,
                 given().when().get("/api/v1/ports/westports/layouts/current").getHeader("ETag"));
         // publishing something else would change it; a status change of the version row is enough here
-        try (Connection c = dataSource.getConnection()) {
-            c.createStatement()
-                    .execute(
-                            "update layout.layout_version set row_version = row_version + 1 " + "where version_no = 1");
+        try (Connection c = dataSource.getConnection();
+                var s = c.createStatement()) {
+            // the guard refuses any change of a published row, so the replica role stands in for "something changed"
+            s.execute("set session_replication_role = replica");
+            try {
+                s.execute("update layout.layout_version set row_version = row_version + 1 where version_no = 1");
+            } finally {
+                s.execute("set session_replication_role = default");
+            }
         }
         assertTrue(!before.equals(
                 given().when().get("/api/v1/ports/westports/layouts/current").getHeader("ETag")));

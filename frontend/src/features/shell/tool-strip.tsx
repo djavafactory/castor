@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button, IconButton } from '@/components/ui/button'
+import { PUBLISH_TIP } from '@/features/design/versions/versions-text'
 import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui/overlays'
 import { Segmented } from '@/components/ui/segmented'
 import { CONTAINERS_LAYER } from '@/components/scene/layers'
@@ -131,6 +132,7 @@ export function ToolStrip() {
   const setLayerVisible = useUiStore((s) => s.setLayerVisible)
   const paletteHidden = useUiStore((s) => s.paletteHidden)
   const setPaletteHidden = useUiStore((s) => s.setPaletteHidden)
+  const setRightTab = useUiStore((s) => s.setRightTab)
   const rotating = useCameraStore((s) => s.autoRotate)
   const fullscreen = useFullscreen()
 
@@ -206,6 +208,28 @@ export function ToolStrip() {
         <LayersMenu />
       </Group>
       <span className="ml-auto" />
+      {mode === 'design' && (
+        <>
+          <Button
+            size="sm"
+            title="Check and save (Ctrl+S)"
+            onClick={() => useEditorStore.getState().requestSave()}
+          >
+            Save draft
+          </Button>
+          <Button
+            size="sm"
+            variant="primary"
+            title={PUBLISH_TIP}
+            onClick={() => {
+              setPanelHidden(false)
+              setRightTab('versions')
+            }}
+          >
+            Publish
+          </Button>
+        </>
+      )}
       <Button
         size="sm"
         variant="ghost"

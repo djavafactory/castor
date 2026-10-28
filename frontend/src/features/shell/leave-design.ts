@@ -9,7 +9,7 @@ export const NOT_AN_EDITOR_MESSAGE =
 
 const SAVE_WAIT_MS = 10_000
 
-function waitForSaves(timeoutMs: number): Promise<void> {
+export function waitForSaves(timeoutMs: number): Promise<void> {
   return new Promise((resolve) => {
     const done = () => {
       clearTimeout(timer)

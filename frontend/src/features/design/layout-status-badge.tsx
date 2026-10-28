@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { useDraftLayout } from '@/lib/api'
 import { useEditorStore } from '@/lib/stores/editor-store'
 import { useUiStore } from '@/lib/stores/ui-store'
+import { draftStatusText } from './versions/versions-text'
 
 export const LAYOUT_STATUS_TIP = 'State of the layout you are editing'
 
@@ -27,11 +28,7 @@ export function LayoutStatusBadge() {
     )
   }
   if (!draft) return null
-  return draft.basedOnVersionNo == null ? (
-    <Pill variant="neutral">Blank draft</Pill>
-  ) : (
-    <Pill variant="neutral">{`Draft (based on v${draft.basedOnVersionNo})`}</Pill>
-  )
+  return <Pill variant="neutral">{draftStatusText(draft.basedOnVersionNo)}</Pill>
 }
 
 function Pill({

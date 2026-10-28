@@ -121,6 +121,37 @@ class LayoutValidatorTest {
             public LayoutVersion discard(LayoutVersion draft) {
                 throw new UnsupportedOperationException();
             }
+
+            @Override
+            public void markRestored(UUID draftId, UUID sourceVersionId) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public LayoutVersion publish(LayoutVersion draft, String publishedBy, String note, String reviewedBy) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public List<VersionSummary> listVersions(
+                    String portCode, java.util.Collection<LayoutStatus> statuses, int limit) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public List<AssetHistoryEntry> assetHistory(UUID assetId, java.util.Collection<LayoutStatus> statuses) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public boolean assetExists(UUID assetId) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public int countAssets(UUID layoutId) {
+                throw new UnsupportedOperationException();
+            }
         };
         return new LayoutValidator(repository, TYPES, site, Set.of(untraceable), facts);
     }

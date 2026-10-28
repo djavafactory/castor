@@ -8,6 +8,8 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +27,7 @@ import org.locationtech.jts.geom.Point;
 
 import com.djavafactory.castor.core.geometry.domain.LonLat;
 import com.djavafactory.castor.core.layout.domain.AssetDetails;
+import com.djavafactory.castor.core.layout.domain.AssetHistoryEntry;
 import com.djavafactory.castor.core.layout.domain.AssetMeasures;
 import com.djavafactory.castor.core.layout.domain.Footprints;
 import com.djavafactory.castor.core.layout.domain.LayoutAsset;
@@ -33,6 +36,7 @@ import com.djavafactory.castor.core.layout.domain.LayoutStatus;
 import com.djavafactory.castor.core.layout.domain.LayoutVersion;
 import com.djavafactory.castor.core.layout.domain.LayoutView;
 import com.djavafactory.castor.core.layout.domain.StoragePadCapacity;
+import com.djavafactory.castor.core.layout.domain.VersionSummary;
 import com.djavafactory.castor.core.shared.domain.ConflictException;
 import com.djavafactory.castor.core.shared.domain.DraftAlreadyExistsException;
 import com.djavafactory.castor.core.shared.domain.ResourceNotFoundException;
@@ -297,6 +301,151 @@ public class JpaLayoutRepository implements LayoutRepository {
         } catch (SQLException e) {
             throw new IllegalStateException("Writing the details of " + a.id() + " failed", e);
         }
+    }
+
+    @Override
+    @Transactional
+    public void markRestored(UUID draftId, UUID sourceVersionId) {
+        em.createNativeQuery("update layout.layout_version set restored_from_version_id = :src, "
+                        + "row_version = row_version + 1 where id = :id and status = 'DRAFT'")
+                .setParameter("src", sourceVersionId)
+                .setParameter("id", draftId)
+                .executeUpdate();
+    }
+
+    @Override
+    @Transactional
+    public LayoutVersion publish(LayoutVersion draft, String publishedBy, String note, String reviewedBy) {
+        // the port row serialises publishers, so two of them never both see their draft as the next published one
+        Object portId = em.createNativeQuery("select id from ref.port where code = :code for update")
+                .setParameter("code", draft.portCode())
+                .getSingleResult();
+        long port = ((Number) portId).longValue();
+        em.createNativeQuery("update layout.layout_version set status = 'SUPERSEDED', row_version = row_version + 1 "
+                        + "where port_id = :port and status = 'PUBLISHED'")
+                .setParameter("port", port)
+                .executeUpdate();
+        int changed = em.createNativeQuery("update layout.layout_version set status = 'PUBLISHED', "
+                        + "published_by = :by, published_at = now(), note = :note, reviewed_by = :reviewer, "
+                        + "row_version = row_version + 1 where id = :id and status = 'DRAFT'")
+                .setParameter("by", publishedBy)
+                .setParameter("note", note)
+                .setParameter("reviewer", reviewedBy)
+                .setParameter("id", draft.id())
+                .executeUpdate();
+        if (changed != 1) {
+            throw new ConflictException("The draft was already published or discarded");
+        }
+        em.createNativeQuery("update ref.port set current_published_layout_id = :id, updated_at = now() "
+                        + "where id = :port")
+                .setParameter("id", draft.id())
+                .setParameter("port", port)
+                .executeUpdate();
+        return findVersion(draft.id()).orElseThrow();
+    }
+
+    @Override
+    @Transactional
+    public List<VersionSummary> listVersions(String portCode, Collection<LayoutStatus> statuses, int limit) {
+        String sql = "select v.id, v.version_no, v.status, v.created_by, v.created_at, "
+                + "v.published_by, v.published_at, v.reviewed_by, rf.version_no, v.note, "
+                + "(select count(*) from layout.asset_revision r where r.layout_version_id = v.id) "
+                + "from layout.layout_version v join ref.port p on p.id = v.port_id "
+                + "left join layout.layout_version rf on rf.id = v.restored_from_version_id where p.code = ? "
+                + statusFilter(statuses, "v.status") + "order by v.version_no desc limit ?";
+        try (Connection c = dataSource.getConnection();
+                PreparedStatement ps = c.prepareStatement(sql)) {
+            int i = 1;
+            ps.setString(i++, portCode);
+            for (LayoutStatus s : statuses) {
+                ps.setString(i++, s.name());
+            }
+            ps.setInt(i, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                List<VersionSummary> out = new ArrayList<>();
+                while (rs.next()) {
+                    out.add(new VersionSummary(
+                            rs.getObject(1, UUID.class),
+                            rs.getInt(2),
+                            LayoutStatus.valueOf(rs.getString(3)),
+                            rs.getString(4),
+                            instant(rs, 5),
+                            rs.getString(6),
+                            instant(rs, 7),
+                            rs.getString(8),
+                            (Integer) rs.getObject(9),
+                            rs.getString(10),
+                            rs.getInt(11)));
+                }
+                return out;
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("Reading the versions of " + portCode + " failed", e);
+        }
+    }
+
+    @Override
+    @Transactional
+    public List<AssetHistoryEntry> assetHistory(UUID assetId, Collection<LayoutStatus> statuses) {
+        String sql = "select v.id, v.version_no, v.status, r.name, GeometryType(r.geom), "
+                + "ST_Area(r.geom::geography), ST_Length(r.geom::geography), "
+                + "coalesce(r.updated_by, r.created_by), coalesce(r.updated_at, r.created_at) "
+                + "from layout.asset_revision r join layout.layout_version v on v.id = r.layout_version_id "
+                + "where r.asset_id = ? " + statusFilter(statuses, "v.status") + "order by v.version_no desc";
+        try (Connection c = dataSource.getConnection();
+                PreparedStatement ps = c.prepareStatement(sql)) {
+            int i = 1;
+            ps.setObject(i++, assetId);
+            for (LayoutStatus s : statuses) {
+                ps.setString(i++, s.name());
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                List<AssetHistoryEntry> out = new ArrayList<>();
+                while (rs.next()) {
+                    out.add(new AssetHistoryEntry(
+                            rs.getObject(1, UUID.class),
+                            rs.getInt(2),
+                            LayoutStatus.valueOf(rs.getString(3)),
+                            rs.getString(4),
+                            rs.getString(5),
+                            rs.getDouble(6),
+                            rs.getDouble(7),
+                            rs.getString(8),
+                            instant(rs, 9)));
+                }
+                return out;
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("Reading the history of asset " + assetId + " failed", e);
+        }
+    }
+
+    @Override
+    @Transactional
+    public boolean assetExists(UUID assetId) {
+        return ((Number) em.createNativeQuery("select count(*) from layout.asset where id = :id")
+                                .setParameter("id", assetId)
+                                .getSingleResult())
+                        .longValue()
+                > 0;
+    }
+
+    @Override
+    @Transactional
+    public int countAssets(UUID layoutId) {
+        return ((Number)
+                        em.createNativeQuery("select count(*) from layout.asset_revision where layout_version_id = :id")
+                                .setParameter("id", layoutId)
+                                .getSingleResult())
+                .intValue();
+    }
+
+    /** "and status in (?, ?) " with one marker per status; an empty set matches nothing. */
+    private static String statusFilter(Collection<LayoutStatus> statuses, String column) {
+        if (statuses.isEmpty()) {
+            return "and false ";
+        }
+        return "and " + column + " in (" + String.join(", ", Collections.nCopies(statuses.size(), "?")) + ") ";
     }
 
     private LayoutView assemble(LayoutVersion version, UUID only) {

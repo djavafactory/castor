@@ -87,11 +87,14 @@ class AuthenticationIT {
                 .get("/api/v1/auth/demo-users")
                 .then()
                 .statusCode(200)
-                .body("username", contains("admin", "editor", "viewer"))
+                .body("username", contains("admin", "publisher", "editor", "viewer"))
                 .body(
                         "label",
                         containsInAnyOrder(
-                                "Admin: full access", "Editor: edits layout drafts", "Viewer: monitor only"));
+                                "Admin: full access",
+                                "Publisher: publishes and restores layouts",
+                                "Editor: edits layout drafts",
+                                "Viewer: monitor only"));
     }
 
     @Test
