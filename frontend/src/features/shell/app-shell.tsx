@@ -5,17 +5,22 @@ import { DESIGN_NARROW_NOTICE, NARROW_NOTICE } from './screen-text'
 import { ToolStrip } from './tool-strip'
 import { WorkArea } from './work-area'
 
-/** Below 1024 px only (CSS): Castor is a desktop tool; in Design, editing needs the room. */
+/**
+ * Below 1024 px only (CSS): Castor is a desktop tool; in Design, editing needs the room. The wrapper is always a grid
+ * item (0 px high when the note is hidden), so the work area keeps the last row.
+ */
 function NarrowNotice({ mode }: { mode: Mode }) {
   return (
-    <p
-      role="note"
-      data-testid="narrow-notice"
-      className="hidden border-b border-line-soft bg-warn-soft px-4 py-1.5 text-[13px] text-warn-soft-fg max-lg:block"
-    >
-      {NARROW_NOTICE}
-      {mode === 'design' && ` ${DESIGN_NARROW_NOTICE}`}
-    </p>
+    <div>
+      <p
+        role="note"
+        data-testid="narrow-notice"
+        className="hidden border-b border-line-soft bg-warn-soft px-4 py-1.5 text-[13px] text-warn-soft-fg max-lg:block"
+      >
+        {NARROW_NOTICE}
+        {mode === 'design' && ` ${DESIGN_NARROW_NOTICE}`}
+      </p>
+    </div>
   )
 }
 

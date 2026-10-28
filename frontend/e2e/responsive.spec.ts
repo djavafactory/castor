@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { openDesign, signInAsDemo } from './helpers/stack'
+import { expectStripAtBottom, openDesign, signInAsDemo } from './helpers/stack'
 import { expectScreen, stableNetwork } from './helpers/visual'
 
 // The laptop layout (JOIN-03) against the dev stack: layout checks and a baseline per width.
@@ -53,6 +53,7 @@ for (const w of WIDTHS) {
       await openDesign(page)
       expect(await pageWidth(page)).toBeLessThanOrEqual(w.width)
       expect(await widthOf(page, 'Asset palette')).toBeCloseTo(w.palette, 0)
+      await expectStripAtBottom(page)
       const status = page.getByLabel('Status')
       await expect(status.getByRole('button', { name: /errors?, \d+ warnings?$/ })).toBeInViewport({
         ratio: 1,

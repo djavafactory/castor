@@ -83,9 +83,11 @@ test('toggles say they are pressed and menus say they open', async ({ page }) =>
   await expect(page.getByRole('dialog', { name: 'User menu' })).toBeVisible()
   await page.keyboard.press('Escape')
 
-  const camera = page.getByRole('button', { name: /^Camera position:/ })
+  // An open Radix menu hides the rest of the page from screen readers, so the trigger is found by CSS here
+  const camera = page.locator('button[aria-label^="Camera position:"]')
   await expect(camera).toHaveAttribute('aria-haspopup', 'menu')
   await camera.click()
+  await expect(page.getByRole('menu')).toBeVisible()
   await expect(camera).toHaveAttribute('aria-expanded', 'true')
 })
 

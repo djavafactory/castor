@@ -45,7 +45,11 @@ function Check({
 function Crs() {
   const port = usePort()
   return (
-    <span title={crsTip(port.data?.measureSrid ?? 3380)} className="shrink-0 cursor-help">
+    // Hidden at <= 1100 px to keep the tools in view; the Inspector's layout summary names both CRS too
+    <span
+      title={crsTip(port.data?.measureSrid ?? 3380)}
+      className="shrink-0 cursor-help max-wide:hidden"
+    >
       <span className="text-xs text-muted">CRS</span> WGS84 / metres
     </span>
   )
@@ -120,7 +124,10 @@ export function StatusStrip() {
         <Check label="Accuracy" tip={ACCURACY_TIP} checked={accuracy} onChange={setAccuracy} />
         <Check label="Envelope" tip={ENVELOPE_TIP} checked={envelope} onChange={setEnvelope} />
       </div>
-      <span className="min-w-0 flex-1 truncate pl-2 text-right font-mono text-xs text-muted">
+      <span
+        data-testid="draft-summary-slot"
+        className="min-w-0 flex-1 truncate pl-2 text-right font-mono text-xs text-muted"
+      >
         <DraftSummary />
       </span>
       <HistoryPopover />

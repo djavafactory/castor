@@ -234,7 +234,7 @@ Record decisions and behaviour changes here, newest first.
 #### JOIN-03: Laptop layout, accessibility and visual baseline
 
 1. Target width is 1024 px and up. At 1100 px and below the right panel is 300 px, the palette 220 px and the tool strip shows icons only (the names stay for screen readers, the tooltips are unchanged); "Save draft" and "Publish" keep their text. Below 1024 px a notice sits under the tool strip, the right panel is a drawer over the stage (`min(340px, 92vw)`, with a close button), the SYNTHETIC badge is hidden and Design adds that editing needs 1024 px. Design is warned, not blocked.
-2. The Design bottom strip cuts its left-hand tools before History and the issues button when the window is too narrow.
+2. The Design bottom strip cuts its left-hand tools before History and the issues button when the window is too narrow. At 1100 px and below it drops the "CRS WGS84 / metres" text (the Inspector's layout summary names both CRS) and the word "Basemap", and the basemap select is narrower, so every tool fits at 1024 px.
 3. Reduced motion (OS setting): Rotate and R are refused with the toast "Auto-rotate is off because reduced motion is on"; presets jump instead of flying; the hover glow is steady; the water stands still.
 4. WCAG 2.2 AA: axe-core runs in Playwright on login, Monitor and Design (`e2e/a11y.spec.ts`); a serious or critical issue fails the build.
 

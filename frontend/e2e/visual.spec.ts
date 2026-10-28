@@ -1,5 +1,11 @@
 import { expect, test } from '@playwright/test'
-import { cameraPreset, openDesign, signInAsDemo, viewButton } from './helpers/stack'
+import {
+  cameraPreset,
+  expectStripAtBottom,
+  openDesign,
+  signInAsDemo,
+  viewButton,
+} from './helpers/stack'
 import { expectScreen, stableNetwork } from './helpers/visual'
 
 // Screenshot baselines (JOIN-03) against the dev stack, which resets to the same seed on start. The baselines are
@@ -85,6 +91,8 @@ test.describe('Design', () => {
     await page.mouse.click(box.x + box.width * 0.4, box.y + box.height * 0.4)
     await page.mouse.click(box.x + box.width * 0.6, box.y + box.height * 0.4)
     await page.mouse.move(box.x + box.width * 0.6, box.y + box.height * 0.6)
+    // a short (filtered) palette must not shrink the work area
+    await expectStripAtBottom(page)
     await expectScreen(page, 'design-drawing')
     await page.keyboard.press('Escape')
   })

@@ -15,6 +15,12 @@ export async function openDesign(page: Page) {
   await expect(page.getByText(/Draft v\d+/)).toBeVisible({ timeout: 20_000 })
 }
 
+/** The work area fills the window whatever its content: the Design bottom strip ends at the bottom edge. */
+export async function expectStripAtBottom(page: Page) {
+  const strip = (await page.getByLabel('Status').boundingBox())!
+  expect(strip.y + strip.height).toBeCloseTo(page.viewportSize()!.height, 0)
+}
+
 export const viewButton = (page: Page, name: '2D' | '3D' | 'Split') =>
   page.getByRole('group', { name: 'View' }).getByRole('button', { name })
 
@@ -22,5 +28,8 @@ export const viewButton = (page: Page, name: '2D' | '3D' | 'Split') =>
 export async function cameraPreset(page: Page, label: string) {
   await page.getByRole('button', { name: /^Camera position:/ }).click()
   await page.getByRole('menuitem', { name: new RegExp(`^${label}`) }).click()
-  await expect(page.getByRole('button', { name: `Camera position: ${label}` })).toBeVisible()
+  const trigger = page.getByRole('button', { name: `Camera position: ${label}` })
+  await expect(trigger).toBeVisible()
+  // the closed menu hands focus back to its trigger; its ring is not part of the picture
+  await trigger.blur()
 }

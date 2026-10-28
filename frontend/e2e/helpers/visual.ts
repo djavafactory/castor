@@ -11,8 +11,11 @@ import {
  */
 export async function stableNetwork(page: Page) {
   const origin = new URL(process.env.E2E_BASE_URL!).origin
+  // The local run (Vite on :5173) calls the API on another localhost port
+  const local = (url: URL) =>
+    url.origin === origin || url.hostname === 'localhost' || url.hostname === '127.0.0.1'
   await page.route('**/*', (route) =>
-    new URL(route.request().url()).origin === origin ? route.continue() : route.abort(),
+    local(new URL(route.request().url())) ? route.continue() : route.abort(),
   )
 }
 
@@ -20,8 +23,11 @@ export async function stableNetwork(page: Page) {
 export function volatile(page: Page): Locator[] {
   return [
     page.getByText(/^Published v\d+/),
+    // the port details: "v1, published 28 Oct 2026 14:46 by seed"
+    page.getByText(/^v\d+, published /),
     page.getByText(/^Castor v\d/),
-    page.getByText(/Draft v\d+/),
+    // the slot, not the text: the text runs on under History and the issues, which must stay in the picture
+    page.getByTestId('draft-summary-slot'),
     page.getByTestId('cursor-readout'),
   ]
 }
