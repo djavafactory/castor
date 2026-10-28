@@ -105,9 +105,9 @@ export function StatusStrip() {
   return (
     <footer
       aria-label="Status"
-      className="flex h-8 shrink-0 items-center gap-2.5 border-t border-line-soft bg-paper px-4 text-[13px] whitespace-nowrap text-ink"
+      className="flex h-8 min-w-0 shrink-0 items-center gap-2.5 overflow-hidden border-t border-line-soft bg-paper px-4 text-[13px] whitespace-nowrap text-ink"
     >
-      <span className="shrink-0 font-mono text-xs">
+      <span className="min-w-[46ch] shrink-0 font-mono text-xs">
         <CursorReadout />
       </span>
       <Divider />

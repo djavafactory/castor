@@ -51,7 +51,7 @@ export function WorkArea() {
   const showScene = showsScene(mode, viewMode)
   const showMap = showsMap(mode, viewMode)
   return (
-    <div className="flex min-h-0 flex-col">
+    <div className="flex min-h-0 min-w-0 flex-col">
       <div className="flex min-h-0 flex-1">
         {mode === 'design' && <PlacementHost />}
         {mode === 'design' && <CheckAndSaveKey />}

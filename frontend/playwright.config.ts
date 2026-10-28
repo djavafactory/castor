@@ -15,6 +15,7 @@ const STACK_SPECS = [
   '**/place.spec.ts',
   '**/inspector.spec.ts',
   '**/gizmo-3d.spec.ts',
+  '**/split-view.spec.ts',
 ]
 
 export default defineConfig({
