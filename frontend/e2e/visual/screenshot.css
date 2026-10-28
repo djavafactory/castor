@@ -1,0 +1,4 @@
+/* Applied to every screenshot (JOIN-03): toasts come and go with timing, so they are left out of the picture. */
+[data-sonner-toaster] {
+  display: none !important;
+}
