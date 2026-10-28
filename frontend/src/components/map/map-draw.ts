@@ -10,7 +10,8 @@ import {
   type TileId,
 } from '../scene/stage/tiles'
 import type { Local } from '@/lib/geo'
-import { boxesTouch, labelFits, type MapShape } from './map-scene'
+import { HANDLE_PX, KNOB_RADIUS_PX, type Handle } from '@/features/design/edit/edit-ops'
+import { boxOf, boxesTouch, labelFits, type MapShape } from './map-scene'
 import {
   localToScreen,
   tileMatrix,
@@ -38,7 +39,23 @@ export interface DrawInput {
   selectedReferenceId: string | null
   /** The outline being drawn (DESIGNER-05), if any. */
   sketch?: Sketch | null
+  /** Assets with an error in the validation: outlined red. */
+  errorIds?: ReadonlySet<string>
+  /** The shape being dragged (DESIGNER-06): drawn instead of the stored one. */
+  preview?: PreviewDraw | null
+  /** Editing handles of the selected asset. */
+  handles?: readonly Handle[]
 }
+
+export interface PreviewDraw {
+  assetId: string
+  rings: Local[][]
+  closed: boolean
+  valid: boolean
+}
+
+/** Outline widths in pixels (DESIGNER-06): the selection in signal orange, errors and refused edits in red. */
+const OUTLINE_PX = 2.5
 
 /** The outline in progress: vertices and the cursor in local metres. */
 export interface Sketch {
@@ -215,6 +232,10 @@ function drawQuayLine(input: DrawInput, visible: LocalBox) {
 
 function drawSelection(input: DrawInput) {
   const { ctx, view } = input
+  // Shapes with an error get a red outline; the selection draws over it
+  for (const shape of input.assets) {
+    if (input.errorIds?.has(shape.id)) strokeShape(ctx, shape, palette.brick, OUTLINE_PX, view.k)
+  }
   const shapes = [
     ...input.assets.filter((s) => s.id === input.selectedAssetId),
     ...input.background.filter((s) => s.id === input.selectedReferenceId),
@@ -224,7 +245,38 @@ function drawSelection(input: DrawInput) {
       ctx.fillStyle = withAlpha(palette.select.designFill, 0.3)
       ctx.fill(pathOf(shape), 'evenodd')
     }
-    strokeShape(ctx, shape, palette.select.designEdge, 3, view.k)
+    strokeShape(ctx, shape, palette.signal, OUTLINE_PX, view.k)
+  }
+  const refused = input.preview && !input.preview.valid
+  const dragged = refused && input.assets.find((s) => s.id === input.preview?.assetId)
+  if (dragged) strokeShape(ctx, dragged, palette.brick, OUTLINE_PX, view.k)
+}
+
+/** The handles: white squares, the rotation knob on a stem, smaller squares on the middle of each edge. */
+function drawHandles(input: DrawInput, handles: readonly Handle[]) {
+  const { ctx, view, size, dpr } = input
+  screenTransform(ctx, dpr)
+  ctx.lineWidth = 1
+  ctx.strokeStyle = palette.ink
+  ctx.fillStyle = 'white'
+  for (const h of handles) {
+    const [px, py] = localToScreen(view, size, h.at[0], h.at[1])
+    if (h.kind === 'rotate' && h.stemFrom) {
+      const [sx, sy] = localToScreen(view, size, h.stemFrom[0], h.stemFrom[1])
+      ctx.beginPath()
+      ctx.moveTo(sx, sy)
+      ctx.lineTo(px, py)
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.arc(px, py, KNOB_RADIUS_PX, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.stroke()
+      continue
+    }
+    const side = h.kind === 'mid' ? HANDLE_PX - 4 : HANDLE_PX
+    ctx.fillStyle = h.kind === 'mid' ? withAlpha(palette.paper, 0.75) : 'white'
+    ctx.fillRect(px - side / 2, py - side / 2, side, side)
+    ctx.strokeRect(px - side / 2, py - side / 2, side, side)
   }
 }
 
@@ -290,14 +342,27 @@ export function drawMap(input: DrawInput): void {
 
   const visible = viewBox(view, size)
   drawBackground(input, visible)
+  // The dragged asset is drawn where the pointer has put it; a refused position is faded
+  const { preview } = input
+  const assets = preview
+    ? input.assets.map((shape) => {
+        if (shape.id !== preview.assetId) return shape
+        return { ...shape, rings: preview.rings, closed: preview.closed, box: boxOf(preview.rings) }
+      })
+    : input.assets
+  const drawn: DrawInput = { ...input, assets }
   localTransform(ctx, view, size, dpr)
   ctx.lineJoin = 'round'
-  for (const shape of input.assets) {
+  for (const shape of assets) {
+    const refused = preview && !preview.valid && shape.id === preview.assetId
+    if (refused) ctx.globalAlpha = 0.7
     if (boxesTouch(shape.box, visible)) drawAsset(ctx, shape, view.k)
+    ctx.globalAlpha = 1
   }
   drawQuayLine(input, visible)
   localTransform(ctx, view, size, dpr)
-  drawSelection(input)
-  drawLabels(input, visible)
+  drawSelection(drawn)
+  drawLabels(drawn, visible)
+  if (input.handles && input.handles.length > 0) drawHandles(input, input.handles)
   if (input.sketch) drawSketch(input, input.sketch)
 }

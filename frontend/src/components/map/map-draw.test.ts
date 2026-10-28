@@ -343,12 +343,41 @@ describe('shapes', () => {
     expect(strokes[grey].width! * 0.5).toBeCloseTo(1, 9)
   })
 
-  it('highlight the selected shape', () => {
+  it('outlines the selected shape in signal at 2.5 px', () => {
     const ctx = new RecordingContext()
     drawMap(input({ ctx, assets: shapes, selectedAssetId: 'pad' }))
-    const edge = ctx.ops('stroke').filter((c) => c.style === palette.select.designEdge)
+    const edge = ctx.ops('stroke').filter((c) => c.style === palette.signal)
     expect(edge).toHaveLength(1)
-    expect(edge[0].width! * 0.5).toBeCloseTo(3, 9)
+    expect(edge[0].width! * 0.5).toBeCloseTo(2.5, 9)
+  })
+
+  it('outlines a shape with an error in red at 2.5 px', () => {
+    const ctx = new RecordingContext()
+    drawMap(input({ ctx, assets: shapes, errorIds: new Set(['pad']) }))
+    const red = ctx.ops('stroke').filter((c) => c.style === palette.brick)
+    expect(red).toHaveLength(1)
+    expect(red[0].width! * 0.5).toBeCloseTo(2.5, 9)
+  })
+
+  it('draws the dragged shape where the pointer put it, and a refused one faded with a red outline', () => {
+    const ctx = new RecordingContext()
+    const moved = {
+      assetId: 'pad',
+      rings: [
+        [
+          [0, 0],
+          [10, 0],
+          [10, 10],
+        ],
+      ] as [number, number][][],
+      closed: true,
+    }
+    drawMap(
+      input({ ctx, assets: shapes, selectedAssetId: 'pad', preview: { ...moved, valid: false } }),
+    )
+    const red = ctx.ops('stroke').filter((c) => c.style === palette.brick)
+    expect(red).toHaveLength(1)
+    expect(red[0].width! * 0.5).toBeCloseTo(2.5, 9)
   })
 })
 

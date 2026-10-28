@@ -279,7 +279,27 @@ describe('hit testing', () => {
   it('hits a line within half its width, or the reach, of it', () => {
     expect(hits(road, 0, 53, 0)).toBe(true) // inside the 8 m road
     expect(hits(road, 0, 56, 0)).toBe(false)
-    expect(hits(road, 0, 56, 3)).toBe(true) // 4 m of road plus 3 m of reach
+    expect(hits(road, 0, 56, 3)).toBe(false) // the larger of the two, not their sum
+    expect(hits(road, 0, 56, 6)).toBe(true)
+  })
+
+  it('hits a berth within 6 m of its quay line, or the reach when that is more', () => {
+    const berth = {
+      ...road,
+      id: 'berth',
+      typeCode: 'BERTH',
+      lineWidthM: null,
+      rings: [
+        [
+          [0, 0],
+          [100, 0],
+        ] as [number, number][],
+      ],
+      box: { x0: 0, x1: 100, y0: 0, y1: 0 },
+    }
+    expect(hits(berth, 50, 5.9, 0)).toBe(true)
+    expect(hits(berth, 50, 6.5, 0)).toBe(false)
+    expect(hits(berth, 50, 9, 14)).toBe(true) // 7 px at 0.5 px/m
   })
 
   it('hits a terminal on its edge only: it encloses everything else', () => {

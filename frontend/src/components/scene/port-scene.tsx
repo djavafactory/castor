@@ -20,6 +20,7 @@ import { landSceneBox, stageExtent } from './stage/stage-extent'
 import { StageCanvas } from './stage/stage-canvas'
 import { Water } from './stage/water'
 import { draftFeatures } from './layout/draft-features'
+import { EditGhost } from './layout/edit-ghost'
 import { LayoutLayer, type LayoutHover } from './layout/layout-layer'
 import { BUILDINGS_LAYER, useLayerVisible, visibleFeatures, ROADS_LAYER } from './layers'
 import { hoverLines, humanKey } from './layout/asset-rows'
@@ -118,6 +119,7 @@ function Scene() {
         {frameReady && features && (
           <LayoutLayer features={features} typeColours={typeColours} onHover={setAssetHover} />
         )}
+        <EditGhost />
         {selected && <MonitorSelection ring={selected.ring} height={selected.height} />}
         {frameReady && <GroundCursor />}
       </StageCanvas>

@@ -2,3 +2,7 @@ node_modules
 .env
 .expo
 .rork
+
+# Env
+.env.*
+!.env.example

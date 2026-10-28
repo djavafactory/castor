@@ -237,12 +237,17 @@ function distanceToSegment(x: number, y: number, a: Local, b: Local): number {
   return Math.hypot(x - (a[0] + t * dx), y - (a[1] + t * dy))
 }
 
+/** How far from its quay line a click still selects a berth, metres. */
+export const BERTH_REACH_M = 6
+
 /** Whether a local point hits the shape: inside a polygon (holes count), or within `reachM` of a line or edge. */
 export function hits(shape: MapShape, x: number, y: number, reachM: number): boolean {
   // A terminal boundary encloses everything else: only its edge is clickable
   const edgeOnly = !shape.closed || shape.rank === RANK.terminal
-  // A wide line is hit across its whole width, and a little beyond it by the reach
-  const reach = edgeOnly ? reachM + (shape.lineWidthM ?? 0) / 2 : reachM
+  // A line is hit within its half width or the reach, whichever is more; a berth within 6 m of its quay line
+  const reach = !edgeOnly
+    ? reachM
+    : Math.max(reachM, (shape.lineWidthM ?? 0) / 2, shape.typeCode === 'BERTH' ? BERTH_REACH_M : 0)
   const { box } = shape
   if (x < box.x0 - reach || x > box.x1 + reach || y < box.y0 - reach || y > box.y1 + reach) {
     return false

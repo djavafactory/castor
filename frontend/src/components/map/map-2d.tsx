@@ -34,6 +34,12 @@ import {
   type DrawShape,
 } from '@/features/design/draw/draw-rules'
 import { useFinishDraw } from '@/features/design/draw/use-finish-draw'
+import type { EditSubject } from '@/features/design/edit/edit-model'
+import { useEditPreview } from '@/features/design/edit/edit-preview-store'
+import { EditReason } from '@/features/design/edit/edit-reason'
+import { editableHandles } from '@/features/design/edit/edit-ops'
+import { useAssetEdit } from '@/features/design/edit/use-asset-edit'
+import { useDraftValidation } from '@/features/design/issues/use-draft-validation'
 import { useEditorStore } from '@/lib/stores/editor-store'
 import { drawMap, type Sketch } from './map-draw'
 import { MapFurniture } from './map-furniture-view'
@@ -51,7 +57,7 @@ import { localToScreen, screenToLocal, wheelFactor } from './map-view'
 /** A pointer that moves less than this between press and release is a click, not a drag. */
 const CLICK_SLOP_PX = 4
 /** How near a click must be to a line or an edge to hit it. */
-const REACH_PX = 5
+const REACH_PX = 7
 const MAX_DPR = 2
 
 interface Drag {
@@ -98,7 +104,10 @@ export function Map2D() {
   const [tiles] = useState(() => new MapTiles())
   const tool = useEditorStore((s) => s.tool)
   const sketch = useRef<Omit<Sketch, 'cursor'> | null>(null)
+  const errors = useRef<ReadonlySet<string>>(new Set())
+  const editing = useRef<EditSubject | null>(null)
   const { finish, place, typeOf } = useFinishDraw()
+  const mode = useUiStore((s) => s.mode)
 
   // What the draw tool is doing: the shape kind of its type, and the sketch drawn from its vertices
   const drawing = useMemo((): DrawShape | 'point' | null => {
@@ -118,6 +127,17 @@ export function Map2D() {
   const allAssets = useMemo(
     () => (frameReady && draft.data ? assetShapes(draft.data.assets, types.data, palette.pad) : []),
     [frameReady, draft.data, types.data],
+  )
+  const edit = useAssetEdit(allAssets, frameReady)
+  const validation = useDraftValidation(mode === 'design')
+  const errorIds = useMemo(
+    () =>
+      new Set(
+        (validation.query.data?.issues ?? [])
+          .filter((issue) => issue.level === 'ERROR')
+          .flatMap((issue) => issue.assetIds),
+      ),
+    [validation.query.data],
   )
   // A hidden layer is not drawn and cannot be hit
   const assets = useMemo(() => {
@@ -148,6 +168,8 @@ export function Map2D() {
       const { view, size, cursor } = useMapStore.getState()
       const ui = useUiStore.getState()
       const selection = useSelectionStore.getState()
+      const preview = useEditPreview.getState().preview
+      const subject = editing.current
       drawMap({
         ctx,
         size,
@@ -164,6 +186,22 @@ export function Map2D() {
           ...sketch.current,
           cursor: cursor ? [cursor.x, cursor.y] : null,
         },
+        errorIds: errors.current,
+        preview: preview && {
+          assetId: preview.assetId,
+          rings: preview.rings,
+          closed: preview.closed,
+          valid: preview.valid,
+        },
+        handles: subject
+          ? editableHandles(
+              {
+                ...subject,
+                shape: preview?.assetId === subject.id ? preview.shape : subject.shape,
+              },
+              view.k,
+            )
+          : undefined,
       })
     }
     schedule.current = () => {
@@ -181,14 +219,29 @@ export function Map2D() {
   useEffect(() => {
     scene.current = { assets, background }
     sketch.current = sketchBase
+    errors.current = errorIds
+    editing.current = edit.subject
     schedule.current()
-  }, [assets, background, basemap, selectedAssetId, selectedReferenceId, frameReady, sketchBase])
+  }, [
+    assets,
+    background,
+    basemap,
+    selectedAssetId,
+    selectedReferenceId,
+    frameReady,
+    sketchBase,
+    errorIds,
+    edit.subject,
+  ])
 
   // The view and the size move often; they never go through React
   useEffect(() => {
     const unsubscribe = useMapStore.subscribe(() => schedule.current())
+    // A drag in progress paints through the preview store, not through React
+    const unsubscribePreview = useEditPreview.subscribe(() => schedule.current())
     return () => {
       unsubscribe()
+      unsubscribePreview()
       cancelAnimationFrame(frame.current)
       frame.current = 0
     }
@@ -265,6 +318,15 @@ export function Map2D() {
     // Middle button would start the browser's auto-scroll
     if (event.button === 1) event.preventDefault()
     event.currentTarget.setPointerCapture(event.pointerId)
+    // A handle, or the selected shape, takes the press before the map can pan
+    if (event.button === 0 && drawing === null) {
+      const { px, py, local } = localAt(event)
+      const { view, size } = useMapStore.getState()
+      if (edit.press(event, px, py, local, view, size) === 'gesture') {
+        drag.current = null
+        return
+      }
+    }
     drag.current = {
       pointerId: event.pointerId,
       button: event.button,
@@ -278,11 +340,12 @@ export function Map2D() {
 
   function onPointerMove(event: PointerEvent<HTMLCanvasElement>) {
     const map = useMapStore.getState()
-    const { local } = localAt(event)
+    const { px, py, local } = localAt(event)
     if (frameReady) {
       const [lon, lat] = toLonLat(local[0], local[1])
       map.setCursor({ lon, lat, x: local[0], y: local[1] })
     }
+    if (edit.drag(event, px, py, local)) return
     const d = drag.current
     if (!d || d.pointerId !== event.pointerId) return
     if (
@@ -297,7 +360,9 @@ export function Map2D() {
   }
 
   function onPointerUp(event: PointerEvent<HTMLCanvasElement>) {
-    const d = drag.current
+    const released = edit.release(event)
+    if (released.handled && !released.click) return
+    const d = released.click ? { moved: false, button: 0 } : drag.current
     drag.current = null
     if (!d || d.moved || d.button !== 0) return
     if (drawing !== null) {
@@ -332,6 +397,8 @@ export function Map2D() {
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    // Escape drops a drag in progress: the shape snaps back
+    if (event.key === 'Escape') edit.cancel()
     if (event.key === 'Enter' && (drawing === 'polygon' || drawing === 'line')) {
       event.preventDefault()
       void finish()
@@ -382,7 +449,10 @@ export function Map2D() {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerCancel={() => (drag.current = null)}
+        onPointerCancel={() => {
+          drag.current = null
+          edit.cancel()
+        }}
         onDoubleClick={() => {
           if (drawing === 'polygon' || drawing === 'line') void finish()
         }}
@@ -392,6 +462,7 @@ export function Map2D() {
       <div className="absolute top-3 left-3 z-overlay">
         <PlaceSearch />
       </div>
+      <EditReason />
       <DrawReadout onFinish={() => void finish()} />
       <MapFurniture
         frameRotDeg={port.data?.frameRotDeg ?? 0}
