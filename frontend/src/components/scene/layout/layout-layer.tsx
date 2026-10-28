@@ -1,6 +1,7 @@
 import type { ThreeEvent } from '@react-three/fiber'
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
+import { prefersReducedMotion } from '@/lib/motion'
 import {
   BoxGeometry,
   EdgesGeometry,
@@ -162,6 +163,8 @@ export function LayoutLayer({ features, typeColours, onHover, onBuilt }: LayoutL
         <mesh
           name="layout-pick"
           geometry={pick.geometry}
+          // The 3D gizmo picks the asset under a press itself, before the orbit controls see it
+          userData={{ assetAt: pick.assetAtFace }}
           onPointerMove={(event) => {
             const id = hit(event)
             if (!id) return
@@ -246,10 +249,11 @@ function Caption({
   )
 }
 
-/** Pulsing signal pad on the ground plus three edge shells around the hovered asset. */
+/** Pulsing signal pad on the ground plus three edge shells around the hovered asset; steady with reduced motion. */
 function HoverGlow({ boxes }: { boxes: readonly PickBox[] }) {
   const invalidate = useThree((s) => s.invalidate)
   const materials = useRef<MeshBasicMaterial[]>([])
+  const still = useMemo(() => prefersReducedMotion(), [])
   const parts = useMemo(
     () =>
       boxes.map((b) => {
@@ -270,6 +274,7 @@ function HoverGlow({ boxes }: { boxes: readonly PickBox[] }) {
     [parts],
   )
   useFrame(({ clock }) => {
+    if (still) return // drawn once at GLOW_MAX; no frames are asked for
     const wave = (Math.sin((clock.elapsedTime * 2 * Math.PI) / GLOW_PERIOD_S) + 1) / 2
     for (const m of materials.current) if (m) m.opacity = GLOW_MIN + (GLOW_MAX - GLOW_MIN) * wave
     invalidate() // the stage renders on demand: keep it breathing while hovered

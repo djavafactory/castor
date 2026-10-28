@@ -18,7 +18,7 @@ export function PublishedVersion() {
   const header = data.data.layout
   return (
     <span
-      className="text-xs text-muted"
+      className="min-w-0 truncate text-xs text-muted"
       title={header.note || undefined}
       tabIndex={header.note ? 0 : undefined}
     >

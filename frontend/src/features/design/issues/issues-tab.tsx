@@ -1,3 +1,4 @@
+import { RefreshCw } from 'lucide-react'
 import { QueryBoundary } from '@/components/states/query-boundary'
 import { EmptyState } from '@/components/states/states'
 import { Button } from '@/components/ui/button'
@@ -6,6 +7,7 @@ import { SectionHeading } from '@/components/ui/card'
 import { goToAsset } from '@/features/search/go-to-place'
 import type { Layout, ValidationIssue } from '@/lib/api'
 import { AccuracyCheckSection } from './accuracy-check-section'
+import { cn } from '@/lib/utils'
 import { issueNames, issueSummary } from './issue-text'
 import { useDraftValidation } from './use-draft-validation'
 
@@ -64,8 +66,21 @@ export function IssuesTab() {
     <section aria-label="Issues">
       <div className="flex items-center justify-between gap-2">
         <SectionHeading className="mt-0 mb-0">Geometry and placement</SectionHeading>
-        <Button size="sm" disabled={query.isFetching} onClick={() => void query.refetch()}>
-          {query.isFetching ? 'Checking...' : 'Check again'}
+        {/* The name stays "Check again" while it runs (a spinner says so); a press then starts the check over */}
+        <Button
+          size="sm"
+          aria-busy={query.isFetching}
+          title={query.isFetching ? 'Checking the draft...' : 'Check the draft again'}
+          onClick={() => void query.refetch()}
+        >
+          <RefreshCw
+            aria-hidden="true"
+            className={cn(
+              'size-3.5',
+              query.isFetching && 'animate-spin motion-reduce:animate-none',
+            )}
+          />
+          Check again
         </Button>
       </div>
       <QueryBoundary query={draft}>

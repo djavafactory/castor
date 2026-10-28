@@ -231,6 +231,13 @@ actions/checkout v7, actions/setup-java v6, actions/setup-node v7, actions/uploa
 
 Record decisions and behaviour changes here, newest first.
 
+#### JOIN-03: Laptop layout, accessibility and visual baseline
+
+1. Target width is 1024 px and up. At 1100 px and below the right panel is 300 px, the palette 220 px and the tool strip shows icons only (the names stay for screen readers, the tooltips are unchanged); "Save draft" and "Publish" keep their text. Below 1024 px a notice sits under the tool strip, the right panel is a drawer over the stage (`min(340px, 92vw)`, with a close button), the SYNTHETIC badge is hidden and Design adds that editing needs 1024 px. Design is warned, not blocked.
+2. The Design bottom strip cuts its left-hand tools before History and the issues button when the window is too narrow. At 1100 px and below it drops the "CRS WGS84 / metres" text (the Inspector's layout summary names both CRS) and the word "Basemap", and the basemap select is narrower, so every tool fits at 1024 px.
+3. Reduced motion (OS setting): Rotate and R are refused with the toast "Auto-rotate is off because reduced motion is on"; presets jump instead of flying; the hover glow is steady; the water stands still.
+4. WCAG 2.2 AA: axe-core runs in Playwright on login, Monitor and Design (`e2e/a11y.spec.ts`); a serious or critical issue fails the build.
+
 #### DESIGNER-08: Undo/redo and edit history
 
 1. Every user action is one undo step: place, finished drawing, one drag, one field change, one vertex removal, duplicate, delete and import (DESIGNER-07, DESIGNER-06, DESIGNER-04). Undo applies the inverse API call (DELETE a created asset, PATCH back the previous values, re-create a deleted asset with the same id via POST with an id); redo re-applies it. Steps are kept in memory, last 100; a new action clears the redo stack.
@@ -388,6 +395,19 @@ Implemented by CORE-04 and DESIGNER-01..04.
 6. Exclusion zones list allowed types (default for an exclusion zone: liquid tank, pipeline, pump station, exclusion zone). An override needs a written reason, is shown in the inspector and is audited.
 
 DESIGNER-03 implements the catalogue; the frontend uses the same codes.
+
+### Design review
+
+The look is guarded by Playwright screenshot baselines (`frontend/e2e/visual.spec.ts`: login, Monitor Overview / Top / Quay, Design 2D / 3D / Split / inspector open / drawing in progress; `frontend/e2e/responsive.spec.ts`: Monitor and Design at 1024, 1280, 1440 and 1920 px, Monitor at 900 px). They run on the dev stack with WebGL (software), its fixed seed, fixed camera presets, reduced motion, CSS animations off, other hosts blocked (no satellite tiles) and dates and versions masked. More than 0.5 % of the pixels different fails the e2e job.
+
+- Baselines are made only by the manual GitHub workflow "Visual baselines" (the same Linux image as CI; pictures made on Windows or macOS differ in fonts and are not used). Download its artifact, copy it over `frontend/e2e/` and commit it in a PR: the reviewer looks at every changed picture.
+- The product owner signs off the baselines once; afterwards a PR that changes them names the reason in its description.
+
+Accepted differences (product owner review, newest first):
+
+| Date | Screen | Difference | Why it is accepted |
+| ---- | ------ | ---------- | ------------------ |
+| -    | -      | None yet: the first baselines wait for the product owner review. | - |
 
 ### Credits and origins
 

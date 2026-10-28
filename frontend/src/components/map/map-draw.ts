@@ -47,6 +47,17 @@ export interface DrawInput {
   preview?: PreviewDraw | null
   /** Editing handles of the selected asset. */
   handles?: readonly Handle[]
+  /** The line of the Measure tool, if any. */
+  measure?: MeasureDraw | null
+  /** Outlines in the accuracy colours, approximate ones dashed (the Accuracy checkbox). */
+  accuracy?: boolean
+}
+
+/** The Measure line in local metres with its label. */
+export interface MeasureDraw {
+  from: Local
+  to: Local
+  label: string
 }
 
 /** The ghost of the placement tool in local metres. A footprint has a ring, a line asset a line. */
@@ -70,6 +81,8 @@ export interface PreviewDraw {
 
 /** Outline widths in pixels (DESIGNER-06): the selection in signal orange, errors and refused edits in red. */
 const OUTLINE_PX = 2.5
+/** Accuracy outlines sit under the selection and error outlines. */
+const ACCURACY_PX = 2
 
 /** The outline in progress: vertices and the cursor in local metres. */
 export interface Sketch {
@@ -244,6 +257,20 @@ function drawQuayLine(input: DrawInput, visible: LocalBox) {
   ctx.setLineDash([])
 }
 
+/** Every asset outline in its accuracy colour; APPROXIMATE dashed, as the 3D outlines. */
+function drawAccuracy(input: DrawInput, visible: LocalBox) {
+  const { ctx, view } = input
+  for (const shape of input.assets) {
+    if (shape.accuracy === null || !boxesTouch(shape.box, visible)) continue
+    const colour =
+      palette.accuracy[shape.accuracy as keyof typeof palette.accuracy] ??
+      palette.accuracy.APPROXIMATE
+    ctx.setLineDash(shape.accuracy === 'APPROXIMATE' ? [6 / view.k, 4 / view.k] : [])
+    strokeShape(ctx, shape, colour, ACCURACY_PX, view.k)
+  }
+  ctx.setLineDash([])
+}
+
 function drawSelection(input: DrawInput) {
   const { ctx, view } = input
   // Shapes with an error get a red outline; the selection draws over it
@@ -363,6 +390,48 @@ function drawGhost(input: DrawInput, ghost: Ghost2D) {
   ctx.stroke()
 }
 
+/** The Measure line: dashed signal orange with white end ticks, the label in a pill above its middle. */
+function drawMeasure(input: DrawInput, measure: MeasureDraw) {
+  const { ctx, view, size, dpr } = input
+  const [ax, ay] = localToScreen(view, size, measure.from[0], measure.from[1])
+  const [bx, by] = localToScreen(view, size, measure.to[0], measure.to[1])
+  screenTransform(ctx, dpr)
+  ctx.beginPath()
+  ctx.moveTo(ax, ay)
+  ctx.lineTo(bx, by)
+  ctx.setLineDash([8, 5])
+  ctx.lineWidth = 2
+  ctx.strokeStyle = palette.signal
+  ctx.stroke()
+  ctx.setLineDash([])
+  ctx.lineWidth = 1
+  ctx.strokeStyle = palette.ink
+  ctx.fillStyle = 'white'
+  for (const [x, y] of [
+    [ax, ay],
+    [bx, by],
+  ]) {
+    ctx.beginPath()
+    ctx.arc(x, y, 4, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.stroke()
+  }
+  ctx.font = '600 12px "Be Vietnam Pro", system-ui, sans-serif'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  const w = ctx.measureText(measure.label).width + 14
+  const mx = (ax + bx) / 2
+  const my = (ay + by) / 2 - 16
+  ctx.fillStyle = withAlpha(palette.paper, 0.95)
+  ctx.strokeStyle = palette.signal
+  ctx.beginPath()
+  ctx.roundRect(mx - w / 2, my - 11, w, 22, 11)
+  ctx.fill()
+  ctx.stroke()
+  ctx.fillStyle = palette.ink
+  ctx.fillText(measure.label, mx, my)
+}
+
 export function drawMap(input: DrawInput): void {
   const { ctx, size, dpr, view } = input
   ctx.setTransform(1, 0, 0, 1, 0, 0)
@@ -393,9 +462,11 @@ export function drawMap(input: DrawInput): void {
   }
   drawQuayLine(input, visible)
   localTransform(ctx, view, size, dpr)
+  if (input.accuracy) drawAccuracy(drawn, visible)
   drawSelection(drawn)
   drawLabels(drawn, visible)
   if (input.handles && input.handles.length > 0) drawHandles(input, input.handles)
   if (input.sketch) drawSketch(input, input.sketch)
   if (input.ghost) drawGhost(input, input.ghost)
+  if (input.measure) drawMeasure(input, input.measure)
 }

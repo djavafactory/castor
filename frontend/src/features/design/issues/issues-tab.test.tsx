@@ -195,6 +195,35 @@ describe('Issues tab', () => {
     await waitFor(() => expect(validations).toBe(2))
   })
 
+  it('keeps its name while checking, says it is busy and can be pressed again', async () => {
+    answer([])
+    renderTab()
+    await screen.findByText('No issues. The layout can be published.')
+    // The next answers wait until the test lets them go
+    const held: (() => void)[] = []
+    const release = () => held.splice(0).forEach((go) => go())
+    server.use(
+      http.post(VALIDATE, async () => {
+        validations += 1
+        await new Promise<void>((resolve) => held.push(resolve))
+        return HttpResponse.json({ errors: 1, warnings: 0, issues: [OVERLAP] })
+      }),
+    )
+    const button = screen.getByRole('button', { name: 'Check again' })
+
+    await userEvent.click(button)
+    await waitFor(() => expect(button).toHaveAttribute('aria-busy', 'true'))
+    expect(button).toHaveAccessibleName('Check again')
+    expect(button).toBeEnabled()
+
+    // a press while checking starts the check over
+    await userEvent.click(button)
+    await waitFor(() => expect(validations).toBe(3))
+    release()
+    expect(await screen.findByText('Overlaps Warehouse B')).toBeInTheDocument()
+    expect(button).toHaveAttribute('aria-busy', 'false')
+  })
+
   it('shows an overlap made by moving a warehouse as soon as the save is read back', async () => {
     answer([])
     const { client } = renderTab()

@@ -8,7 +8,6 @@ export function CursorReadout() {
     <span
       data-testid="cursor-readout"
       title={CURSOR_TOOLTIP}
-      aria-label="Cursor position"
       className="min-w-[27ch] text-left whitespace-nowrap"
     >
       {cursor ? cursorReadout(cursor.lon, cursor.lat, cursor.x, cursor.y) : 'Cursor: -'}

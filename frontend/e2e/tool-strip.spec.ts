@@ -146,10 +146,9 @@ test('Design: A hides the palette, the strip has no Fullscreen and offers Verify
   await expect(page.getByLabel('Asset palette')).toBeVisible()
 
   await expect(page.getByRole('button', { name: 'Fullscreen' })).toHaveCount(0)
-  // The envelope and accuracy switches live in the bottom strip
-  await expect(
-    page.getByLabel('Status').getByRole('switch', { name: 'Envelope boxes' }),
-  ).toBeVisible()
+  // The envelope and accuracy checkboxes live in the bottom strip
+  await expect(page.getByLabel('Status').getByRole('checkbox', { name: 'Envelope' })).toBeVisible()
+  await expect(page.getByLabel('Status').getByRole('checkbox', { name: 'Accuracy' })).toBeVisible()
   await page.getByRole('button', { name: 'More' }).click()
   await expect(page.getByRole('button', { name: 'Verify accuracy' })).toBeVisible()
 })

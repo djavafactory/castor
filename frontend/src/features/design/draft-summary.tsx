@@ -7,5 +7,7 @@ export function DraftSummary() {
   const changed = draft.updatedAt
     ? ` · last change by ${draft.updatedBy ?? 'unknown'} at ${new Date(draft.updatedAt).toLocaleTimeString()}`
     : ''
-  return <span>{`Draft v${draft.number} · ${draft.assets.length} assets${changed}`}</span>
+  const text = `Draft v${draft.number} · ${draft.assets.length} assets${changed}`
+  // The bottom strip may cut it short; the tooltip has it whole
+  return <span title={text}>{text}</span>
 }

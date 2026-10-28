@@ -16,17 +16,13 @@ function Switch({
   label,
   checked,
   onChange,
-  compact,
 }: {
   label: string
   checked: boolean
   onChange: (on: boolean) => void
-  compact?: boolean
 }) {
   return (
-    <label
-      className={`flex cursor-pointer items-center gap-2 rounded-md hover:bg-paper-2 ${compact ? 'px-1' : 'px-2 py-[7px]'}`}
-    >
+    <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-[7px] hover:bg-paper-2">
       <input
         type="checkbox"
         role="switch"
@@ -39,21 +35,16 @@ function Switch({
   )
 }
 
-/** Envelope boxes and accuracy outlines: the debug layers. Design shows them in its bottom strip. */
-export function DebugSwitches({ compact }: { compact?: boolean }) {
+/** Envelope boxes and accuracy outlines: the debug layers of Monitor. Design has them in its bottom strip. */
+export function DebugSwitches() {
   const envelope = useUiStore((s) => s.envelope)
   const setEnvelope = useUiStore((s) => s.setEnvelope)
   const accuracy = useUiStore((s) => s.accuracyColouring)
   const setAccuracy = useUiStore((s) => s.setAccuracyColouring)
   return (
     <>
-      <Switch label="Envelope boxes" checked={envelope} onChange={setEnvelope} compact={compact} />
-      <Switch
-        label="Accuracy outlines"
-        checked={accuracy}
-        onChange={setAccuracy}
-        compact={compact}
-      />
+      <Switch label="Envelope boxes" checked={envelope} onChange={setEnvelope} />
+      <Switch label="Accuracy outlines" checked={accuracy} onChange={setAccuracy} />
     </>
   )
 }

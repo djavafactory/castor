@@ -69,17 +69,20 @@ export function MonitorSelection({ ring, height }: { ring: Local[]; height: numb
   )
 }
 
-/** Design selection: the bounding box of the asset, translucent blue with edges. */
+/** Design selection: the bounding box of the asset, translucent blue with edges; red while an edit is refused. */
 export function DesignSelection({
   size,
   position,
   rotationY = 0,
+  invalid = false,
 }: {
   size: [number, number, number]
   position: [number, number, number]
   rotationY?: number
+  invalid?: boolean
 }) {
-  const box = useMemo(() => new BoxGeometry(...size), [size])
+  const [length, height, width] = size
+  const box = useMemo(() => new BoxGeometry(length, height, width), [length, height, width])
   const edges = useMemo(() => new EdgesGeometry(box), [box])
   useEffect(
     () => () => {
@@ -92,14 +95,14 @@ export function DesignSelection({
     <group position={position} rotation={[0, rotationY, 0]} name="selection-design">
       <mesh geometry={box} renderOrder={5}>
         <meshBasicMaterial
-          color={hex(palette.select.designFill)}
+          color={hex(invalid ? palette.brick : palette.select.designFill)}
           transparent
           opacity={DESIGN_OPACITY}
           depthWrite={false}
         />
       </mesh>
       <lineSegments geometry={edges} renderOrder={6}>
-        <lineBasicMaterial color={hex(palette.select.designEdge)} />
+        <lineBasicMaterial color={hex(invalid ? palette.brick : palette.select.designEdge)} />
       </lineSegments>
     </group>
   )

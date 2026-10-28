@@ -148,4 +148,16 @@ describe('tool strip buttons move the views that are shown', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Reset' }))
     expect(useMapStore.getState().view).toEqual({ x: 10, y: 20, k: INITIAL_K })
   })
+
+  it('Reset in Split puts the 3D camera back on Overview and the 2D map on its first view', async () => {
+    useMapStore.setState({ view: { x: 900, y: -400, k: 7 } })
+    useCameraStore.setState({ autoRotate: true })
+    renderWith(<ToolStrip />)
+    await userEvent.click(screen.getByRole('button', { name: 'Reset' }))
+    expect(useMapStore.getState().view).toEqual({ x: 10, y: 20, k: INITIAL_K })
+    expect(useCameraStore.getState()).toMatchObject({
+      autoRotate: false,
+      command: { type: 'preset', key: 'overview' },
+    })
+  })
 })

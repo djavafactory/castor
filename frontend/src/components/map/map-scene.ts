@@ -25,6 +25,8 @@ export interface MapShape {
   berthLengthM: number | null
   /** Width of a line asset, metres. */
   lineWidthM: number | null
+  /** Accuracy label of an asset (SURVEYED ... APPROXIMATE); null for background shapes. */
+  accuracy: string | null
 }
 
 /** Draw order bottom to top: terminal boundaries, surface areas, roads, flat assets, pads, buildings, others, berths, quay cranes. */
@@ -118,6 +120,14 @@ export interface MapAssetSource {
   widthM?: unknown
   radiusM?: unknown
   lineWidthM?: unknown
+  provenance?: unknown
+}
+
+function accuracyOf(provenance: unknown): string | null {
+  if (typeof provenance !== 'object' || provenance === null || !('accuracy' in provenance)) {
+    return null
+  }
+  return typeof provenance.accuracy === 'string' ? provenance.accuracy : null
 }
 
 function isGeometry(value: unknown): value is { type: string; coordinates: unknown } {
@@ -167,6 +177,7 @@ export function assetShapes(
             : bboxSide,
       berthLengthM: a.typeCode === 'BERTH' ? length : null,
       lineWidthM: parts.closed ? null : num(a.lineWidthM),
+      accuracy: accuracyOf(a.provenance),
     })
   }
   return out.sort((p, q) => p.rank - q.rank)
@@ -199,6 +210,7 @@ export function osmShapes(features: readonly OsmSource[], colour: string): MapSh
       minSideM: parts.closed ? Math.min(box.x1 - box.x0, box.y1 - box.y0) : null,
       berthLengthM: null,
       lineWidthM: null,
+      accuracy: null,
     })
   }
   return out

@@ -246,3 +246,6 @@ export function checkEdit(subject: EditSubject, shape: EditShape, ctx: RuleConte
 
 /** The text of the toast for a refused edit. */
 export const notMoved = (reason: string) => `Not moved: ${reason}`
+
+/** The text of the toast for a refused edit of the 3D gizmo. */
+export const notChanged = (reason: string) => `Not changed: ${reason}`

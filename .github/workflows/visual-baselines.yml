@@ -1,0 +1,53 @@
+# Makes the screenshot baselines of e2e/visual.spec.ts and e2e/responsive.spec.ts (JOIN-03) in the same Playwright
+# Linux image and dev stack as the CI e2e job. It commits nothing: download the artifact, copy it over frontend/e2e and
+# commit it in a PR, where the new pictures are reviewed like code.
+name: Visual baselines
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  baselines:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Create .env with random secrets
+        run: |
+          cp .env.example .env
+          while grep -q CHANGE_ME .env; do
+            sed -i "0,/CHANGE_ME[A-Z_]*/s//$(openssl rand -hex 12)/" .env
+          done
+      - name: Start the dev stack (fresh data)
+        run: |
+          eval "$(scripts/build-stamp.sh)"
+          export BUILD_VERSION GIT_COMMIT BUILD_TIME
+          docker compose --profile dev up -d --build --wait
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Write the baselines
+        working-directory: frontend
+        run: |
+          set -a
+          . ../.env
+          set +a
+          PW_VERSION=$(node -p "require('@playwright/test/package.json').version")
+          IMAGE="mcr.microsoft.com/playwright:v$PW_VERSION-noble"
+          docker run --rm --ipc=host --network host -v "$GITHUB_WORKSPACE":/work -w /work/frontend \
+            -e E2E_BASE_URL="http://localhost:${DEV_WEB_PORT:-8080}" \
+            "$IMAGE" npx playwright test e2e/visual.spec.ts e2e/responsive.spec.ts --update-snapshots=all
+      - uses: actions/upload-artifact@v5
+        with:
+          name: visual-baselines
+          path: frontend/e2e/*-snapshots
+          if-no-files-found: error
+      - if: always()
+        run: docker compose --profile dev down -v

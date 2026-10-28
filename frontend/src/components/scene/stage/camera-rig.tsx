@@ -15,11 +15,8 @@ import {
   type View,
 } from './camera-presets'
 import { NEAR_DISTANCE_M } from './tiles'
+import { prefersReducedMotion } from '@/lib/motion'
 import { useCameraStore, view, type CameraCommand } from './view-state'
-
-export function prefersReducedMotion(): boolean {
-  return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
-}
 
 interface Fly {
   from: View

@@ -55,6 +55,8 @@ export const palette = {
     designFill: '#5BA8F5',
     designEdge: '#2F7FD6',
   },
+  /** The 3D editing gizmo (JOIN-01): one colour per part. */
+  gizmo: { length: '#E5483D', width: '#2B6FE0', height: '#2FB26B', rotate: '#F2A33A' },
   light: { sky: '#FFF8EA', ground: '#C9BFA8', sun: '#FFF4E0' },
   tankMetalness: 0.2,
   /** Labels: pill background and border are rgba strings. */

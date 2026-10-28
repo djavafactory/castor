@@ -1,6 +1,6 @@
 import { expect, type Page } from '@playwright/test'
 
-export { expectNoA11yViolations } from './axe'
+export { expectNoA11yViolations, expectNoSeriousA11yViolations } from './axe'
 
 export type Role = 'ADMIN' | 'DESIGNER' | 'VIEWER'
 
