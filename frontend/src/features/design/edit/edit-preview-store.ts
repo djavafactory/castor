@@ -11,6 +11,8 @@ export interface EditPreview {
   /** False when a rule refuses the position: it is drawn faded with a red outline. */
   valid: boolean
   reason: string | null
+  /** The height being dragged in 3D, metres; absent when the height does not change. */
+  heightM?: number
   /** Where the pointer is on the canvas, in pixels, for the reason tooltip. */
   px: number
   py: number
