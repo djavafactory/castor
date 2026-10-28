@@ -46,6 +46,8 @@ public final class LayoutValidator {
     public static final double BERTH_OVERLAP_M = 0.05;
     /** A bay or row pitch below this cannot hold a pile of bulk cargo. */
     public static final double MIN_PILE_SLOT_M = 10;
+    /** A storage pad's bay and row pitch may not be below this (the editor's minimum). */
+    public static final double MIN_PAD_PITCH_M = 5;
     /** A rail quay crane stands within this distance of the berth line (gauge 16 m plus the rail and apron). */
     public static final double RAIL_CRANE_MAX_OFFSET_M = 30;
 
@@ -185,6 +187,7 @@ public final class LayoutValidator {
         }
         Geometry local = geometryRules(a, type, name, single, out);
         dimensionRules(a, type, local, out);
+        detailRules(a, out);
         return local == null ? null : new Subject(a, type, name, local);
     }
 
@@ -273,6 +276,35 @@ public final class LayoutValidator {
             default -> {}
         }
         size(a, "Height", a.heightM(), type.min().heightM(), type.max().heightM(), false, out);
+    }
+
+    /**
+     * Minimums of the typed details that the editor also enforces: a pad's bays, rows and pitches and its height, and a
+     * berth's depth. Each is checked only when it is present; a missing value is the database's NOT NULL to refuse.
+     */
+    private void detailRules(LayoutAsset a, List<ValidationIssue> out) {
+        AssetDetails d = a.details();
+        if (d == null) {
+            return;
+        }
+        if (d.storagePad() != null) {
+            var pad = d.storagePad();
+            atLeast(a, "Bays", BigDecimal.valueOf(pad.bays()), 1, out);
+            atLeast(a, "Rows", BigDecimal.valueOf(pad.rows()), 1, out);
+            atLeast(a, "Bay pitch", pad.bayPitchM(), MIN_PAD_PITCH_M, out);
+            atLeast(a, "Row pitch", pad.rowPitchM(), MIN_PAD_PITCH_M, out);
+            atLeast(a, "Max height", pad.maxHeightM(), 1, out);
+        }
+        if (d.berth() != null) {
+            atLeast(a, "Depth", d.berth().depthM(), 1, out);
+        }
+    }
+
+    private void atLeast(LayoutAsset a, String label, BigDecimal value, double min, List<ValidationIssue> out) {
+        if (value != null && value.compareTo(BigDecimal.valueOf(min)) < 0) {
+            out.add(error(
+                    "DIM_OUT_OF_RANGE", variant("DIM_OUT_OF_RANGE", "min", "label", label, "limit", number(min)), a));
+        }
     }
 
     private void size(
@@ -416,6 +448,8 @@ public final class LayoutValidator {
         }
         AssetDetails.StoragePad pad = a.details() == null ? null : a.details().storagePad();
         if (pad != null
+                && pad.bayPitchM() != null
+                && pad.rowPitchM() != null
                 && (pad.bayPitchM().doubleValue() < MIN_PILE_SLOT_M
                         || pad.rowPitchM().doubleValue() < MIN_PILE_SLOT_M)) {
             out.add(new ValidationIssue(

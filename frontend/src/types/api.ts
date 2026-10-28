@@ -465,19 +465,91 @@ export interface components {
                 endM?: number;
             };
         };
-        /** @description Typed details; a group is present only when the asset type has it. Stock is never part of it in Phase 1. */
+        /** @description Typed details; a group is present only when the asset type has it. Stock is never part of it in Phase 1. Numbers are in the unit named by the field; a null number is an unknown value. */
         LayoutDetails: {
-            berth?: Record<string, never>;
-            crane?: Record<string, never>;
-            storage?: Record<string, never>;
-            storagePad?: Record<string, never>;
-            containerYard?: Record<string, never>;
-            warehouse?: Record<string, never>;
-            flow?: Record<string, never>;
-            surface?: Record<string, never>;
-            zone?: Record<string, never>;
-            mobile?: Record<string, never>;
-            equipment?: Record<string, never>;
+            berth?: {
+                /** @description Maximum draft in metres */
+                depthM: number;
+                /** @description Maximum length overall in metres; the berth length when null */
+                maxLoaM: number | null;
+                cargoFamilies: string[];
+            };
+            crane?: {
+                gaugeM: number | null;
+                outreachM: number | null;
+                backreachM: number | null;
+                reachM: number | null;
+                safeWorkingLoadT: number | null;
+            };
+            storage?: {
+                capacityValue: number;
+                /** @enum {string} */
+                capacityUnit: "t" | "m3" | "pcs" | "veh" | "TEU" | "trucks";
+                /** @description Between 0 and 1, exclusive of 0 */
+                usableRatio: number;
+                /** @description Computed, capacityValue x usableRatio */
+                usableCapacity: number;
+                /** @description Between 0 and 1 */
+                designFill: number;
+                cargoTypeCode: string | null;
+                allowedCargoTypes: string[];
+                /** @description Tonnes per square metre */
+                maxFloorLoadTM2: number | null;
+                maxStackM: number | null;
+                bearingCapacityKpa: number | null;
+                /** @description true for open storage, false when covered */
+                weatherExposed: boolean;
+            };
+            storagePad?: {
+                bays: number;
+                rows: number;
+                bayPitchM: number;
+                rowPitchM: number;
+                maxHeightM: number;
+                /** @description Read-only, computed from the cargo of the pad; null when no cargo is set */
+                capacityT: number | null;
+            };
+            containerYard?: {
+                maxTiers: number;
+                /** @description Between 0 and 1 */
+                designFill: number;
+                capacityTeu: number;
+            };
+            warehouse?: {
+                roofRiseM: number;
+                dockDoors: number;
+                /**
+                 * @description The side the dock doors face, true compass and not rotated with the asset
+                 * @enum {string}
+                 */
+                doorSide: "NORTH" | "EAST" | "SOUTH" | "WEST";
+            };
+            flow?: {
+                /** @description Greater than 0 */
+                rateValue: number;
+                /** @enum {string} */
+                rateUnit: "t/h" | "m3/h";
+            };
+            surface?: {
+                surfaceCode: string;
+            };
+            zone?: {
+                allowedTypes: string[];
+            };
+            mobile?: {
+                /** @enum {string} */
+                positionMode: "FIXED" | "PARKED";
+                uncertaintyM: number;
+            };
+            equipment?: {
+                model: string | null;
+                operator: string | null;
+                ratedThroughput: number | null;
+                /** @enum {string|null} */
+                throughputUnit: "t/h" | "lifts/h" | "m3/h" | "veh/h" | null;
+                /** @enum {string} */
+                designStatus: "ACTIVE" | "IDLE" | "OFFLINE" | "MAINTENANCE";
+            };
         };
         LayoutFeatureProperties: {
             code: string;
@@ -496,6 +568,9 @@ export interface components {
             /** @description Revision of the 3D model template the asset was placed with */
             modelRev?: number | null;
             storageZoneCode?: string | null;
+            /** @description Operator of the asset as entered in the inspector */
+            operatorName?: string | null;
+            description?: string | null;
             details: components["schemas"]["LayoutDetails"];
             links: components["schemas"]["LayoutLink"][];
             provenance: components["schemas"]["LayoutProvenance"];

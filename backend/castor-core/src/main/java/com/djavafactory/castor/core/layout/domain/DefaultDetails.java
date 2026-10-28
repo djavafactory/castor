@@ -39,7 +39,7 @@ public final class DefaultDetails {
                 crane = new Crane(num(p, "gaugeM", 16), num(p, "outreachM", 65), num(p, "backreachM", 32), null, null);
             case "WAREHOUSE" ->
                 warehouse = new Warehouse(
-                        num(p, "roofRiseM", 0), (int) num(p, "dockDoors", 0).longValue());
+                        num(p, "roofRiseM", 0), (int) num(p, "dockDoors", 0).longValue(), "NORTH");
             case "STORAGE_PAD" -> {
                 int bays = (int) num(p, "bays", 1).longValue();
                 int rows = (int) num(p, "rows", 1).longValue();

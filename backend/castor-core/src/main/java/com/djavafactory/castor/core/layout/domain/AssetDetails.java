@@ -63,7 +63,10 @@ public record AssetDetails(
 
     public record ContainerYard(int maxTiers, BigDecimal designFill, int capacityTeu) {}
 
-    public record Warehouse(BigDecimal roofRiseM, int dockDoors) {}
+    /**
+     * @param doorSide the compass side the dock doors face: NORTH, EAST, SOUTH or WEST, unrotated with the asset
+     */
+    public record Warehouse(BigDecimal roofRiseM, int dockDoors, String doorSide) {}
 
     public record Flow(BigDecimal rateValue, String rateUnit) {}
 

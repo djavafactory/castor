@@ -291,7 +291,7 @@ class LayoutSchemaIT {
             new Case("storage_allowed_cargo", "'COAL'", null, "'NO_CARGO'"),
             new Case("storage_pad_detail", "2, 1, 62, 34, 10", "2, 1, 4, 34, 10", null),
             new Case("container_yard_detail", "5, 0.5, 3000", "10, 0.5, 3000", null),
-            new Case("warehouse_detail", "3, 6", "-1, 6", null),
+            new Case("warehouse_detail", "3, 6, 'EAST'", "-1, 6, 'EAST'", null),
             new Case("flow_detail", "700, 't/h'", "700, 'kg/h'", null),
             new Case("surface_detail", "'CONCRETE'", null, "'WATER'"),
             new Case("zone_allowed_type", "'LIQUID_TANK'", null, "'NO_TYPE'"),
@@ -333,6 +333,53 @@ class LayoutSchemaIT {
                     t.table() + " must reject an unknown revision");
             run(String.format(insert, keys, t.valid()));
         }
+    }
+
+    @Test
+    void warehouseDoorSideIsOneOfTheFourCompassPointsAndDefaultsToNorth() throws SQLException {
+        UUID v;
+        UUID hall;
+        try (Connection c = dataSource.getConnection()) {
+            v = version(c, 1, "DRAFT");
+            hall = asset(c, "WH-S", "WAREHOUSE");
+            revision(c, hall, v, "Hall", localRect(0, 0, 80, 40));
+        }
+        String insert = "insert into layout.warehouse_detail (asset_id, layout_version_id, roof_rise_m, dock_doors%s) "
+                + "values ('" + hall + "', '" + v + "', 3, 6%s)";
+        assertThrows(SQLException.class, () -> run(String.format(insert, ", door_side", ", 'UP'")));
+        assertThrows(SQLException.class, () -> run(String.format(insert, ", door_side", ", NULL")));
+        run(String.format(insert, "", ""));
+        try (Connection c = dataSource.getConnection()) {
+            assertEquals(
+                    "NORTH",
+                    scalar(
+                            c,
+                            "select door_side from layout.warehouse_detail where asset_id = '" + hall + "'",
+                            String.class));
+        }
+    }
+
+    @Test
+    void copyingAVersionKeepsTheWarehouseDoorSide() throws SQLException {
+        UUID from;
+        UUID to;
+        UUID hall;
+        try (Connection c = dataSource.getConnection()) {
+            from = version(c, 1, "DRAFT");
+            hall = asset(c, "WH-W", "WAREHOUSE");
+            revision(c, hall, from, "Hall", localRect(0, 0, 80, 40));
+        }
+        run("insert into layout.warehouse_detail values ('" + hall + "', '" + from + "', 3, 6, 'WEST')");
+        run("update layout.layout_version set status = 'PUBLISHED', published_by = 'x', published_at = now() "
+                + "where id = '" + from + "'");
+        try (Connection c = dataSource.getConnection()) {
+            to = version(c, 2, "DRAFT");
+            assertEquals(1, scalar(c, "select layout.copy_revisions('" + from + "', '" + to + "')", Integer.class));
+        }
+        assertEquals(
+                1,
+                count("select count(*) from layout.warehouse_detail where layout_version_id = '" + to
+                        + "' and door_side = 'WEST'"));
     }
 
     @Test

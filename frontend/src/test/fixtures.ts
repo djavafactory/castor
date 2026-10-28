@@ -129,6 +129,35 @@ export const assetTypesFixture = [
   },
 ]
 
+/** A warehouse type as GET /api/v1/asset-types sends it (the Inspector reads its sizes and its layer). */
+export const warehouseTypeFixture = {
+  code: 'WAREHOUSE',
+  label: 'Warehouse',
+  paletteGroup: 'STORAGE',
+  category: 'STORAGE',
+  geometryKind: 'RECT',
+  placementMode: 'PLACE',
+  flags: {
+    mobile: false,
+    solid: true,
+    flat: false,
+    zone: false,
+    mayExtendOverWater: false,
+    mustBeOnBerth: false,
+  },
+  defaults: { ...noSize, lengthM: 80, widthM: 40, heightM: 12 },
+  min: { ...noSize, lengthM: 10, widthM: 10, heightM: 3 },
+  max: noSize,
+  defaultCapacityValue: null,
+  defaultCapacityUnit: null,
+  params: {},
+  modelKey: 'warehouse',
+  modelRev: 1,
+  colourHex: '#C9BFA3',
+  hint: 'Click the map to place a warehouse.',
+  sortOrder: 1,
+}
+
 export const catalogueFixture = {
   cargoTypes: [
     {

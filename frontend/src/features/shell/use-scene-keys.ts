@@ -39,6 +39,7 @@ export function useSceneKeys() {
         if (lower === 'z' || lower === 'y' || lower === 's') event.preventDefault()
         if (lower === 'z') undoOrRedo(event.shiftKey ? 'redo' : 'undo')
         else if (lower === 'y') undoOrRedo('redo')
+        else if (lower === 's') useEditorStore.getState().requestSave()
         return
       }
       if (event.ctrlKey || event.metaKey || event.altKey) return
@@ -87,6 +88,9 @@ export function useSceneKeys() {
           break
         case 'Backspace':
           if (design) useEditorStore.getState().removeLastPoint()
+          break
+        case 'Delete':
+          if (design) useEditorStore.getState().requestDelete()
           break
       }
     }

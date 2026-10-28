@@ -156,7 +156,8 @@ final class SeedLayoutParser {
             JsonNode n = d.get("warehouse");
             warehouse = new AssetDetails.Warehouse(
                     n.hasNonNull("roofRiseM") ? dec(n, "roofRiseM") : BigDecimal.ZERO,
-                    n.path("dockDoors").asInt());
+                    n.path("dockDoors").asInt(),
+                    n.hasNonNull("doorSide") ? n.get("doorSide").asText() : "NORTH");
         }
         AssetDetails.Flow flow = null;
         if (d.has("flow")) {

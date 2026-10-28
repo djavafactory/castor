@@ -31,6 +31,12 @@ async function draftLayoutId(client: QueryClient, code: string): Promise<string>
   return draft.versionId
 }
 
+/** Keeps the largest rounding change of the session for "Check and save"; returns the stored asset. */
+function noteSaved(saved: { asset: LayoutAsset; adjustmentMm?: number }): LayoutAsset {
+  useEditorStore.getState().noteAdjustment(saved.adjustmentMm ?? 0)
+  return saved.asset
+}
+
 export const conflictMessage = (user: string) =>
   `This asset was changed by ${user}. Reloaded the latest version.`
 
@@ -109,7 +115,7 @@ export function useCreateAsset(code: string = defaultPortCode()) {
           body: toWire(asset),
         },
       )
-      return parseResponse('POST assets', savedAssetSchema, response.data).asset
+      return noteSaved(parseResponse('POST assets', savedAssetSchema, response.data))
     },
     onMutate: (asset) => {
       const id = `${TEMP_ID_PREFIX}${crypto.randomUUID()}`
@@ -143,7 +149,7 @@ export function useUpdateAsset(code: string = defaultPortCode()) {
           rowVersion,
         },
       )
-      return parseResponse('PATCH asset', savedAssetSchema, response.data).asset
+      return noteSaved(parseResponse('PATCH asset', savedAssetSchema, response.data))
     },
     onMutate: ({ id, changes }) => {
       useEditorStore.getState().beginSave(id)
@@ -152,7 +158,20 @@ export function useUpdateAsset(code: string = defaultPortCode()) {
         assets: layout.assets.map((asset) => (asset.id === id ? { ...asset, ...changes } : asset)),
       }))
     },
-    onSuccess: (_asset, { id }) => useEditorStore.getState().endSave(id),
+    onSuccess: (saved, { id }) => {
+      useEditorStore.getState().endSave(id)
+      // the server's copy carries the new row version: the next change must send it, not wait for the refetch
+      client.setQueryData<Layout>(
+        key,
+        (layout) =>
+          layout && {
+            ...layout,
+            assets: layout.assets.map((asset) =>
+              asset.id === id ? { ...asset, ...saved } : asset,
+            ),
+          },
+      )
+    },
     onError: (error, patch, snapshot) => {
       rollback(client, snapshot)
       saveFailed(client, code, patch.id, error, () => mutation.mutate(patch))
@@ -203,7 +222,7 @@ export function useDuplicateAsset(code: string = defaultPortCode()) {
         `/v1/layouts/${encodeURIComponent(layoutId)}/assets/${encodeURIComponent(assetId)}/duplicate`,
         { method: 'POST' },
       )
-      return parseResponse('POST duplicate', savedAssetSchema, response.data).asset
+      return noteSaved(parseResponse('POST duplicate', savedAssetSchema, response.data))
     },
     onMutate: (assetId) => {
       useEditorStore.getState().beginSave(assetId)
