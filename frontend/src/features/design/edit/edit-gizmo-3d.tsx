@@ -153,9 +153,12 @@ export function EditGizmo3D({ frameReady }: { frameReady: boolean }) {
       g.updateMatrixWorld(true)
       rayAt(x, y)
       raycaster.layers.set(HIT_LAYER)
-      const hit = raycaster.intersectObject(g, true)[0]
+      const hits = raycaster
+        .intersectObject(g, true)
+        .map((h) => h.object.userData.part as GizmoPart | undefined)
       raycaster.layers.set(0)
-      return (hit?.object.userData.part as GizmoPart | undefined) ?? null
+      // Where an arrow crosses the ring, the arrow wins: the ring can be grabbed all the way round
+      return hits.find((p) => p && p !== 'rotate') ?? hits.find(Boolean) ?? null
     }
 
     const assetAt = (x: number, y: number) => {
@@ -384,7 +387,56 @@ export function EditGizmo3D({ frameReady }: { frameReady: boolean }) {
 
     host.addEventListener('pointerdown', onDown, true)
     host.addEventListener('pointermove', onHover)
+    // Development only (the end-to-end tests): where the gizmo parts are on the screen; not in a production build
+    const hooks = globalThis as { __castorGizmo?: unknown }
+    if (import.meta.env.DEV) {
+      const toClient = (p: Vector3) => {
+        const v = p.clone().project(camera)
+        const r = rect()
+        return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height }
+      }
+      /** A grab point of a part in the gizmo's own frame, `amount` along its axis (metres, or degrees round the ring). */
+      const grab = (part: GizmoPart, amount = 0) => {
+        const g = gizmo.current
+        if (!g) return null
+        g.updateMatrixWorld(true)
+        const s = g.scale.x
+        const at =
+          part === 'rotate'
+            ? ((a) => new Vector3(0.8 * Math.cos(a), 0, -0.8 * Math.sin(a)))(
+                ((225 + amount) * Math.PI) / 180,
+              )
+            : part === 'length'
+              ? new Vector3(0.8 + amount / s, 0, 0)
+              : part === 'width'
+                ? new Vector3(0, 0, -0.8 - amount / s)
+                : new Vector3(0, 0.8 + amount / s, 0)
+        return toClient(g.localToWorld(at))
+      }
+      /** A point on the top of the selected box with no gizmo part under it, and that point moved by local metres. */
+      const body = (dx: number, dy: number) => {
+        const { box: b, top: h } = live.current
+        if (!b) return null
+        const [c, s] = [Math.cos(b.rotationDeg * RAD), Math.sin(b.rotationDeg * RAD)]
+        for (const [u, v] of [
+          [-0.35, -0.3],
+          [-0.35, 0.3],
+          [0.35, -0.3],
+          [-0.2, -0.2],
+          [0.2, -0.3],
+        ] as const) {
+          const x = b.centre[0] + u * b.length * c - v * b.width * s
+          const y = b.centre[1] + u * b.length * s + v * b.width * c
+          const from = toClient(new Vector3(x, h, -y))
+          if (partAt(from.x, from.y)) continue
+          return { from, to: toClient(new Vector3(x + dx, h, -(y + dy))) }
+        }
+        return null
+      }
+      hooks.__castorGizmo = { grab, body, hit: partAt }
+    }
     return () => {
+      delete hooks.__castorGizmo
       host.removeEventListener('pointerdown', onDown, true)
       host.removeEventListener('pointermove', onHover)
       if (drag) {

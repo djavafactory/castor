@@ -14,6 +14,7 @@ const STACK_SPECS = [
   '**/versions.spec.ts',
   '**/place.spec.ts',
   '**/inspector.spec.ts',
+  '**/gizmo-3d.spec.ts',
 ]
 
 export default defineConfig({
