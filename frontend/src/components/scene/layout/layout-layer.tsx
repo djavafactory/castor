@@ -162,6 +162,8 @@ export function LayoutLayer({ features, typeColours, onHover, onBuilt }: LayoutL
         <mesh
           name="layout-pick"
           geometry={pick.geometry}
+          // The 3D gizmo picks the asset under a press itself, before the orbit controls see it
+          userData={{ assetAt: pick.assetAtFace }}
           onPointerMove={(event) => {
             const id = hit(event)
             if (!id) return

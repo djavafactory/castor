@@ -25,6 +25,8 @@ import { LayoutLayer, type LayoutHover } from './layout/layout-layer'
 import { BUILDINGS_LAYER, useLayerVisible, visibleFeatures, ROADS_LAYER } from './layers'
 import { hoverLines, humanKey } from './layout/asset-rows'
 import { SceneTooltip } from './scene-tooltip'
+import { EditGizmo3D } from '@/features/design/edit/edit-gizmo-3d'
+import { EditReason } from '@/features/design/edit/edit-reason'
 import { PlaceOnGround } from '@/features/design/place/place-on-ground'
 import { PlacementPill } from '@/features/design/place/placement-pill'
 import { webglAvailable } from './webgl'
@@ -126,8 +128,10 @@ function Scene() {
         {selected && <MonitorSelection ring={selected.ring} height={selected.height} />}
         {frameReady && <GroundCursor />}
         {frameReady && design && <PlaceOnGround />}
+        {frameReady && design && <EditGizmo3D frameReady={frameReady} />}
       </StageCanvas>
       {design && <PlacementPill containerRef={host} />}
+      {design && <EditReason view="3d" />}
       {layout.isError && (
         <div className="absolute top-3 right-3 z-menu w-72">
           <ErrorCard

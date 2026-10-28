@@ -9,7 +9,7 @@ import { useEditorStore } from '@/lib/stores/editor-store'
 import { useSelectionStore } from '@/lib/stores/selection-store'
 import { useUiStore } from '@/lib/stores/ui-store'
 import { inverseOf, ringsOfShape, subjectOf, type EditShape, type EditSubject } from './edit-model'
-import { useEditPreview } from './edit-preview-store'
+import { useEditPreview, type EditPreview } from './edit-preview-store'
 import { checkEdit, type Neighbour, type RuleContext, type Verdict } from './edit-rules'
 
 const reasonOf = (error: ApiError) => error.errors[0]?.message ?? error.detail ?? error.title
@@ -101,7 +101,7 @@ export function useEditSession(shapes: readonly MapShape[], frameReady: boolean)
       verdict: Verdict,
       px: number,
       py: number,
-      heightM?: number,
+      extra: Pick<EditPreview, 'heightM' | 'view'> = {},
     ) => {
       const { rings, closed } = ringsOfShape(shape)
       useEditPreview.getState().setPreview({
@@ -113,7 +113,7 @@ export function useEditSession(shapes: readonly MapShape[], frameReady: boolean)
         reason: verdict.ok ? null : verdict.reason,
         px,
         py,
-        ...(heightM === undefined ? {} : { heightM }),
+        ...extra,
       })
     },
     [],
