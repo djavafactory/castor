@@ -1,5 +1,7 @@
+import { toast } from 'sonner'
 import { Vector3 } from 'three'
 import { create } from 'zustand'
+import { prefersReducedMotion, ROTATE_REFUSED, ROTATE_REFUSED_ID } from '@/lib/motion'
 
 /** What the camera looks at right now; written every frame by the camera rig, read by light, fog and imagery. */
 export const view = { target: new Vector3(0, 0, -150), distance: 1500 }
@@ -49,7 +51,14 @@ export const camera = {
   wholePort: () => useCameraStore.getState().issue({ type: 'whole' }),
   zoomIn: () => useCameraStore.getState().issue({ type: 'zoom', factor: 1 / 1.35 }),
   zoomOut: () => useCameraStore.getState().issue({ type: 'zoom', factor: 1.35 }),
-  toggleRotate: () => useCameraStore.getState().toggleRotate(),
+  /** The Rotate button and R. With reduced motion turning it on is refused with a toast; turning it off always works. */
+  toggleRotate: () => {
+    if (!useCameraStore.getState().autoRotate && prefersReducedMotion()) {
+      toast(ROTATE_REFUSED, { id: ROTATE_REFUSED_ID })
+      return
+    }
+    useCameraStore.getState().toggleRotate()
+  },
   reset: () => useCameraStore.getState().reset(),
   /** Frames the footprint circle of an asset (centre in scene metres). */
   focusOn: (centre: [number, number, number], radius: number) =>
