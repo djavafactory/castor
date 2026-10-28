@@ -15,7 +15,6 @@ import {
 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button, IconButton } from '@/components/ui/button'
-import { checkAndSave } from '@/features/design/check-and-save'
 import { PUBLISH_TIP } from '@/features/design/versions/versions-text'
 import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui/overlays'
 import { Segmented } from '@/components/ui/segmented'
@@ -24,6 +23,7 @@ import { useMapStore } from '@/components/map/map-store'
 import { PRESETS, presetByKey } from '@/components/scene/stage/camera-presets'
 import { camera, useCameraStore } from '@/components/scene/stage/view-state'
 import { containersEnabled } from '@/lib/features'
+import { useEditorStore } from '@/lib/stores/editor-store'
 import { useUiStore, type ViewMode } from '@/lib/stores/ui-store'
 import { toggleFullscreen, useFullscreen } from './fullscreen'
 import { LayersMenu } from './layers-menu'
@@ -190,7 +190,11 @@ export function ToolStrip() {
       <span className="ml-auto" />
       {mode === 'design' && (
         <>
-          <Button size="sm" title="Check and save (Ctrl+S)" onClick={() => void checkAndSave()}>
+          <Button
+            size="sm"
+            title="Check and save (Ctrl+S)"
+            onClick={() => useEditorStore.getState().requestSave()}
+          >
             Save draft
           </Button>
           <Button

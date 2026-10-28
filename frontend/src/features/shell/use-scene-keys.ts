@@ -5,7 +5,6 @@ import { useAuthStore } from '@/lib/stores/auth-store'
 import { useEditorStore } from '@/lib/stores/editor-store'
 import { useSelectionStore } from '@/lib/stores/selection-store'
 import { useUiStore } from '@/lib/stores/ui-store'
-import { checkAndSave } from '@/features/design/check-and-save'
 import { rotated } from '@/features/design/place/placement-plan'
 import { toggleFullscreen } from './fullscreen'
 
@@ -40,7 +39,7 @@ export function useSceneKeys() {
         if (lower === 'z' || lower === 'y' || lower === 's') event.preventDefault()
         if (lower === 'z') undoOrRedo(event.shiftKey ? 'redo' : 'undo')
         else if (lower === 'y') undoOrRedo('redo')
-        else if (lower === 's') void checkAndSave()
+        else if (lower === 's') useEditorStore.getState().requestSave()
         return
       }
       if (event.ctrlKey || event.metaKey || event.altKey) return
@@ -89,6 +88,9 @@ export function useSceneKeys() {
           break
         case 'Backspace':
           if (design) useEditorStore.getState().removeLastPoint()
+          break
+        case 'Delete':
+          if (design) useEditorStore.getState().requestDelete()
           break
       }
     }

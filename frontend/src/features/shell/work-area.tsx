@@ -1,6 +1,7 @@
 import { AssetPalette, DragChip } from '@/features/design/asset-palette'
 import { usePlacementGhost } from '@/features/design/place/use-placement'
 import { DraftSummary } from '@/features/design/draft-summary'
+import { CheckAndSaveKey, DesignInspector } from '@/features/design/inspector/inspector'
 import { IssuesTab } from '@/features/design/issues/issues-tab'
 import { useDraftValidation } from '@/features/design/issues/use-draft-validation'
 import { VersionsTab } from '@/features/design/versions/versions-tab'
@@ -56,6 +57,7 @@ export function WorkArea() {
     <div className="flex min-h-0 flex-col">
       <div className="flex min-h-0 flex-1">
         {mode === 'design' && <PlacementHost />}
+        {mode === 'design' && <CheckAndSaveKey />}
         {mode === 'design' && !paletteHidden && (
           <aside
             aria-label="Asset palette"
@@ -140,7 +142,8 @@ function RightPanel({ mode }: { mode: Mode }) {
         tabIndex={0}
         className="min-h-0 flex-1 overflow-auto p-3.5"
       >
-        {(active === 'details' || active === 'inspector') && <SelectionDetails />}
+        {active === 'details' && <SelectionDetails />}
+        {active === 'inspector' && <DesignInspector />}
         {active === 'catalogue' && <CatalogueTab />}
         {active === 'issues' && <IssuesTab />}
         {active === 'versions' && <VersionsTab />}

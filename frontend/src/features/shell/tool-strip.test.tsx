@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { toast } from 'sonner'
-import { checkAndSave } from '@/features/design/check-and-save'
+import { useEditorStore } from '@/lib/stores/editor-store'
 import { guardLayerEdit, LAYER_LOCKED_MESSAGE } from '@/components/scene/layers'
 import { useCameraStore } from '@/components/scene/stage/view-state'
 import { useUiStore } from '@/lib/stores/ui-store'
@@ -11,7 +11,6 @@ import { wrapperFor } from '@/test/query-wrapper'
 import { FULLSCREEN_REFUSED } from './fullscreen'
 import { ToolStrip } from './tool-strip'
 
-vi.mock('@/features/design/check-and-save', () => ({ checkAndSave: vi.fn() }))
 vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { error: vi.fn() }) }))
 
 function renderStrip() {
@@ -235,10 +234,11 @@ describe('tool strip (Design): draft buttons', () => {
   it('has Save draft (check and save) and a primary Publish with their tooltips', async () => {
     renderStrip()
 
+    const before = useEditorStore.getState().saveRequest
     const save = screen.getByRole('button', { name: 'Save draft' })
     expect(save).toHaveAttribute('title', 'Check and save (Ctrl+S)')
     await userEvent.click(save)
-    expect(checkAndSave).toHaveBeenCalledTimes(1)
+    expect(useEditorStore.getState().saveRequest).toBe(before + 1)
     expect(screen.getByRole('button', { name: 'Publish' })).toHaveAttribute(
       'title',
       'Validate and publish an immutable version',

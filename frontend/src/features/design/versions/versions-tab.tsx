@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button'
 import { DataTable, SectionHeading } from '@/components/ui/card'
 import { Input } from '@/components/ui/field'
 import { ConfirmDialog } from '@/components/ui/overlays'
-import { checkAndSave } from '@/features/design/check-and-save'
 import { LayoutStatusBadge } from '@/features/design/layout-status-badge'
 import { draftSignature } from '@/features/design/issues/use-draft-validation'
 import { formatPublishedAt } from '@/features/shell/published-label'
@@ -29,6 +28,7 @@ import {
 } from '@/lib/api'
 import { canPublish } from '@/lib/roles'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { useEditorStore } from '@/lib/stores/editor-store'
 import { useUiStore } from '@/lib/stores/ui-store'
 import { startFreshDraft } from './fresh-draft'
 import { PublishDialog } from './publish-dialog'
@@ -80,6 +80,8 @@ export function VersionsTab() {
   )
   const reviewers = useReviewers(publisher)
 
+  const saveChecking = useEditorStore((s) => s.checking)
+  const checkMessage = useEditorStore((s) => s.checkMessage)
   const publish = usePublishLayout()
   const restore = useRestoreVersion()
   const discard = useDiscardDraft()
@@ -206,8 +208,12 @@ export function VersionsTab() {
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
-        <Button disabled={!draft || busy} onClick={() => void checkAndSave()}>
-          Check and save
+        <Button
+          disabled={!draft || busy || saveChecking}
+          title="Wait for pending saves and re-validate (Ctrl+S)"
+          onClick={() => useEditorStore.getState().requestSave()}
+        >
+          {saveChecking ? 'Checking...' : 'Check and save'}
         </Button>
         <span title={publisher ? PUBLISH_TIP : NOT_A_PUBLISHER_TIP}>
           <Button
@@ -228,6 +234,8 @@ export function VersionsTab() {
           </Button>
         )}
       </div>
+
+      {checkMessage && <p className="mt-2 text-xs text-ink">{checkMessage}</p>}
 
       <SectionHeading>Published versions</SectionHeading>
       <QueryBoundary query={versions}>

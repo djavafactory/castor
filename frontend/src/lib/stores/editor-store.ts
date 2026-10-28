@@ -36,6 +36,14 @@ interface EditorState {
   /** Asset ids whose last save failed and was not retried yet. */
   failedSaves: string[]
   lastValidation: ValidationResult | null
+  /** The largest coordinate rounding (mm) any save of this session moved a shape by; shown by Check and save. */
+  largestAdjustmentMm: number
+  /** Counts Ctrl+S and Delete presses; the Inspector acts on each change. */
+  saveRequest: number
+  deleteRequest: number
+  /** A Check and save is running; its message stays on screen until the next check. */
+  checking: boolean
+  checkMessage: string | null
   setTool: (kind: ToolKind, typeCode?: string) => void
   clearTool: () => void
   setRotation: (rotationDeg: number) => void
@@ -55,6 +63,10 @@ interface EditorState {
   /** Runs the retry of every failed save. */
   retryFailedSaves: () => void
   setValidation: (result: ValidationResult | null) => void
+  noteAdjustment: (mm: number) => void
+  requestSave: () => void
+  requestDelete: () => void
+  setChecking: (checking: boolean, checkMessage?: string | null) => void
   reset: () => void
 }
 
@@ -68,6 +80,11 @@ const initial = {
   pendingSaves: [],
   failedSaves: [],
   lastValidation: null,
+  largestAdjustmentMm: 0,
+  saveRequest: 0,
+  deleteRequest: 0,
+  checking: false,
+  checkMessage: null,
 }
 
 export const useEditorStore = create<EditorState>()((set, get) => ({
@@ -148,6 +165,15 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
     for (const retry of run) retry()
   },
   setValidation: (lastValidation) => set({ lastValidation }),
+  noteAdjustment: (mm) =>
+    set((state) => (mm > state.largestAdjustmentMm ? { largestAdjustmentMm: mm } : state)),
+  requestSave: () => set((state) => ({ saveRequest: state.saveRequest + 1 })),
+  requestDelete: () => set((state) => ({ deleteRequest: state.deleteRequest + 1 })),
+  setChecking: (checking, checkMessage) =>
+    set((state) => ({
+      checking,
+      checkMessage: checkMessage === undefined ? state.checkMessage : checkMessage,
+    })),
   reset: () => {
     retries.clear()
     set({ ...initial })

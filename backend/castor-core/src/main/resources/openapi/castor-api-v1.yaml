@@ -1219,19 +1219,154 @@ components:
               type: number
     LayoutDetails:
       type: object
-      description: Typed details; a group is present only when the asset type has it. Stock is never part of it in Phase 1.
+      description: Typed details; a group is present only when the asset type has it. Stock is never part of it in Phase 1. Numbers are in the unit named by the field; a null number is an unknown value.
       properties:
-        berth: {type: object}
-        crane: {type: object}
-        storage: {type: object}
-        storagePad: {type: object}
-        containerYard: {type: object}
-        warehouse: {type: object}
-        flow: {type: object}
-        surface: {type: object}
-        zone: {type: object}
-        mobile: {type: object}
-        equipment: {type: object}
+        berth:
+          type: object
+          required: [depthM, maxLoaM, cargoFamilies]
+          properties:
+            depthM:
+              type: number
+              description: Maximum draft in metres
+            maxLoaM:
+              type: [number, 'null']
+              description: Maximum length overall in metres; the berth length when null
+            cargoFamilies:
+              type: array
+              items: {type: string}
+        crane:
+          type: object
+          required: [gaugeM, outreachM, backreachM, reachM, safeWorkingLoadT]
+          properties:
+            gaugeM: {type: [number, 'null']}
+            outreachM: {type: [number, 'null']}
+            backreachM: {type: [number, 'null']}
+            reachM: {type: [number, 'null']}
+            safeWorkingLoadT: {type: [number, 'null']}
+        storage:
+          type: object
+          required: [capacityValue, capacityUnit, usableRatio, usableCapacity, designFill, cargoTypeCode, allowedCargoTypes, maxFloorLoadTM2, maxStackM, bearingCapacityKpa, weatherExposed]
+          properties:
+            capacityValue: {type: number}
+            capacityUnit:
+              type: string
+              enum: ['t', 'm3', 'pcs', 'veh', 'TEU', 'trucks']
+            usableRatio:
+              type: number
+              description: Between 0 and 1, exclusive of 0
+            usableCapacity:
+              type: number
+              description: Computed, capacityValue x usableRatio
+            designFill:
+              type: number
+              description: Between 0 and 1
+            cargoTypeCode: {type: [string, 'null']}
+            allowedCargoTypes:
+              type: array
+              items: {type: string}
+            maxFloorLoadTM2:
+              type: [number, 'null']
+              description: Tonnes per square metre
+            maxStackM: {type: [number, 'null']}
+            bearingCapacityKpa: {type: [number, 'null']}
+            weatherExposed:
+              type: boolean
+              description: true for open storage, false when covered
+        storagePad:
+          type: object
+          required: [bays, rows, bayPitchM, rowPitchM, maxHeightM, capacityT]
+          properties:
+            bays:
+              type: integer
+              minimum: 1
+            rows:
+              type: integer
+              minimum: 1
+            bayPitchM:
+              type: number
+              minimum: 5
+            rowPitchM:
+              type: number
+              minimum: 5
+            maxHeightM:
+              type: number
+              minimum: 1
+            capacityT:
+              type: [number, 'null']
+              description: Read-only, computed from the cargo of the pad; null when no cargo is set
+        containerYard:
+          type: object
+          required: [maxTiers, designFill, capacityTeu]
+          properties:
+            maxTiers:
+              type: integer
+              minimum: 1
+              maximum: 9
+            designFill:
+              type: number
+              description: Between 0 and 1
+            capacityTeu:
+              type: integer
+              minimum: 0
+        warehouse:
+          type: object
+          required: [roofRiseM, dockDoors, doorSide]
+          properties:
+            roofRiseM:
+              type: number
+              minimum: 0
+            dockDoors:
+              type: integer
+              minimum: 0
+            doorSide:
+              type: string
+              enum: [NORTH, EAST, SOUTH, WEST]
+              description: The side the dock doors face, true compass and not rotated with the asset
+        flow:
+          type: object
+          required: [rateValue, rateUnit]
+          properties:
+            rateValue:
+              type: number
+              description: Greater than 0
+            rateUnit:
+              type: string
+              enum: ['t/h', 'm3/h']
+        surface:
+          type: object
+          required: [surfaceCode]
+          properties:
+            surfaceCode: {type: string}
+        zone:
+          type: object
+          required: [allowedTypes]
+          properties:
+            allowedTypes:
+              type: array
+              items: {type: string}
+        mobile:
+          type: object
+          required: [positionMode, uncertaintyM]
+          properties:
+            positionMode:
+              type: string
+              enum: [FIXED, PARKED]
+            uncertaintyM:
+              type: number
+              minimum: 0
+        equipment:
+          type: object
+          required: [model, operator, ratedThroughput, throughputUnit, designStatus]
+          properties:
+            model: {type: [string, 'null']}
+            operator: {type: [string, 'null']}
+            ratedThroughput: {type: [number, 'null']}
+            throughputUnit:
+              type: [string, 'null']
+              enum: ['t/h', 'lifts/h', 'm3/h', 'veh/h', null]
+            designStatus:
+              type: string
+              enum: [ACTIVE, IDLE, OFFLINE, MAINTENANCE]
     LayoutFeatureProperties:
       type: object
       required: [code, type, name, anchor, details, links, provenance, computed, rowVersion]
@@ -1259,6 +1394,8 @@ components:
         clearanceM: {type: [number, 'null']}
         modelRev: {type: [integer, 'null'], description: Revision of the 3D model template the asset was placed with}
         storageZoneCode: {type: [string, 'null']}
+        operatorName: {type: [string, 'null'], description: Operator of the asset as entered in the inspector}
+        description: {type: [string, 'null']}
         details:
           $ref: '#/components/schemas/LayoutDetails'
         links:

@@ -149,10 +149,10 @@ final class DetailStore {
                 rs -> of.apply(id(rs)).yard = new ContainerYard(rs.getInt(2), rs.getBigDecimal(3), rs.getInt(4)));
         query(
                 c,
-                "select asset_id, roof_rise_m, dock_doors from layout.warehouse_detail where layout_version_id = ?",
+                "select asset_id, roof_rise_m, dock_doors, door_side from layout.warehouse_detail where layout_version_id = ?",
                 version,
                 only,
-                rs -> of.apply(id(rs)).warehouse = new Warehouse(rs.getBigDecimal(2), rs.getInt(3)));
+                rs -> of.apply(id(rs)).warehouse = new Warehouse(rs.getBigDecimal(2), rs.getInt(3), rs.getString(4)));
         query(
                 c,
                 "select asset_id, rate_value, rate_unit from layout.flow_detail where layout_version_id = ?",
@@ -297,11 +297,13 @@ final class DetailStore {
         if (d.warehouse() != null) {
             exec(
                     c,
-                    "insert into layout.warehouse_detail values (?,?,?,?)",
+                    "insert into layout.warehouse_detail (asset_id, layout_version_id, roof_rise_m, dock_doors, "
+                            + "door_side) values (?,?,?,?,?)",
                     asset,
                     version,
                     d.warehouse().roofRiseM(),
-                    (short) d.warehouse().dockDoors());
+                    (short) d.warehouse().dockDoors(),
+                    d.warehouse().doorSide());
         }
         if (d.flow() != null) {
             exec(

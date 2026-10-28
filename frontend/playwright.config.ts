@@ -13,6 +13,7 @@ const STACK_SPECS = [
   '**/issues.spec.ts',
   '**/versions.spec.ts',
   '**/place.spec.ts',
+  '**/inspector.spec.ts',
 ]
 
 export default defineConfig({

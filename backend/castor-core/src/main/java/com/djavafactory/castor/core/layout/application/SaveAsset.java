@@ -2,6 +2,7 @@ package com.djavafactory.castor.core.layout.application;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
@@ -11,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import jakarta.enterprise.context.ApplicationScoped;
@@ -69,6 +71,7 @@ public class SaveAsset {
     private static final double DUPLICATE_OFFSET_M = 20;
     private static final int OVERRIDE_MIN = 10;
     private static final int OVERRIDE_MAX = 500;
+    private static final Set<String> DOOR_SIDES = Set.of("NORTH", "EAST", "SOUTH", "WEST");
 
     /** The stored asset as read back, with the warnings and the largest coordinate rounding change. */
     public record Saved(LayoutAsset asset, List<ValidationIssue> warnings, double adjustmentMm) {}
@@ -157,7 +160,7 @@ public class SaveAsset {
     private Saved store(LayoutVersion draft, Context ctx, Prepared prepared, String actor) {
         LayoutAsset asset = prepared.asset();
         List<ValidationIssue> warnings = check(draft, ctx, asset);
-        long rowVersion = layouts.insert(draft, asset, actor);
+        long rowVersion = stored(() -> layouts.insert(draft, asset, actor));
         Saved saved = saved(versioned(asset, rowVersion, asset.override()), warnings, prepared.adjustmentMm());
         audit.record(
                 AuditAction.ASSET_CREATED, "ASSET", asset.id().toString(), draft.id(), null, snapshot(saved.asset()));
@@ -198,7 +201,7 @@ public class SaveAsset {
 
         LayoutAsset asset = prepared.asset();
         List<ValidationIssue> warnings = check(draft, ctx, asset);
-        long rowVersion = layouts.update(draft, asset, expected, actor);
+        long rowVersion = stored(() -> layouts.update(draft, asset, expected, actor));
         Saved saved = saved(versioned(asset, rowVersion, asset.override()), warnings, prepared.adjustmentMm());
         audit.record(
                 AuditAction.ASSET_UPDATED,
@@ -519,12 +522,57 @@ public class SaveAsset {
                                 d.storagePad().rowPitchM(),
                                 d.storagePad().maxHeightM()),
                 d.containerYard(),
-                d.warehouse(),
+                warehouse(d.warehouse()),
                 d.flow(),
                 d.surface(),
                 d.zone() == null ? null : new AssetDetails.Zone(nonNull(d.zone().allowedTypes())),
                 d.mobile(),
                 d.equipment());
+    }
+
+    /** A warehouse without a door side faces north; any other side than the four compass points is refused. */
+    private static AssetDetails.Warehouse warehouse(AssetDetails.Warehouse w) {
+        if (w == null) {
+            return null;
+        }
+        String side = w.doorSide() == null || w.doorSide().isBlank() ? "NORTH" : w.doorSide();
+        if (!DOOR_SIDES.contains(side)) {
+            throw violation(
+                    "DOOR_SIDE_INVALID",
+                    "/properties/details/warehouse/doorSide",
+                    "The door side must be NORTH, EAST, SOUTH or WEST");
+        }
+        return new AssetDetails.Warehouse(w.roofRiseM(), w.dockDoors(), side);
+    }
+
+    /**
+     * Runs a layout write. A value the database refuses (a CHECK, NOT NULL or FOREIGN KEY violation, SQLSTATE class 23,
+     * or a numeric overflow) is a rejected request, not a server fault: it becomes a 422 and the transaction rolls back.
+     */
+    private static <T> T stored(Supplier<T> write) {
+        try {
+            return write.get();
+        } catch (RuntimeException e) {
+            if (refusedByDatabase(e)) {
+                throw violation(
+                        "DETAILS_INVALID",
+                        "/properties/details",
+                        "The details are not valid: a value is outside the limits the layout accepts");
+            }
+            throw e;
+        }
+    }
+
+    private static boolean refusedByDatabase(Throwable t) {
+        for (Throwable c = t; c != null; c = c.getCause()) {
+            if (c instanceof SQLException sql && sql.getSQLState() != null) {
+                String state = sql.getSQLState();
+                if (state.startsWith("23") || "22003".equals(state)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static List<String> nonNull(List<String> list) {

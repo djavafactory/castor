@@ -78,6 +78,8 @@ public class LayoutFeatureMapper {
             p.put("modelRev", a.modelRev());
         }
         p.put("storageZoneCode", a.storageZoneCode());
+        p.put("operatorName", a.operatorName());
+        p.put("description", a.description());
         p.set("details", details(a.details()));
         ArrayNode links = json.createArrayNode();
         a.links()
@@ -177,6 +179,7 @@ public class LayoutFeatureMapper {
             ObjectNode n = out.putObject("warehouse");
             number(n, "roofRiseM", d.warehouse().roofRiseM());
             n.put("dockDoors", d.warehouse().dockDoors());
+            n.put("doorSide", d.warehouse().doorSide());
         }
         if (d.flow() != null) {
             ObjectNode n = out.putObject("flow");

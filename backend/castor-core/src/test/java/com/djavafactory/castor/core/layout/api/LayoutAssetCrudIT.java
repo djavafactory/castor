@@ -387,4 +387,198 @@ class LayoutAssetCrudIT {
                 .then()
                 .statusCode(403);
     }
+
+    // ---- CASTOR-30: every property in real units, read back from the stored draft ----
+
+    /** A warehouse with the operator, the description and the warehouse details the inspector sends. */
+    private ObjectNode warehouse(double x, double y, String doorSide) {
+        ObjectNode body = rtg(x, y);
+        body.put("type", "WAREHOUSE").put("name", "Hall");
+        body.put("operatorName", "Terminal Ops").put("description", "Cold store, north bay");
+        ObjectNode hall = body.putObject("details").putObject("warehouse");
+        hall.put("roofRiseM", 2.5).put("dockDoors", 4);
+        if (doorSide != null) {
+            hall.put("doorSide", doorSide);
+        }
+        return body;
+    }
+
+    /** A storage pad with the given bays, rows, pitches and height, placed like the other test shapes. */
+    private ObjectNode pad(double x, double y, int bays, int rows, double bayPitch, double rowPitch, double height) {
+        ObjectNode body = rtg(x, y);
+        body.put("type", "STORAGE_PAD").put("name", "Pad");
+        body.putObject("details")
+                .putObject("storagePad")
+                .put("bays", bays)
+                .put("rows", rows)
+                .put("bayPitchM", bayPitch)
+                .put("rowPitchM", rowPitch)
+                .put("maxHeightM", height);
+        return body;
+    }
+
+    /** The properties of the draft's feature with this code, read back through GET (not the create response). */
+    private JsonNode storedProperties(String code) throws Exception {
+        JsonNode draft = json.readTree(given().get("/api/v1/ports/westports/layouts/draft")
+                .then()
+                .statusCode(200)
+                .extract()
+                .asByteArray());
+        for (JsonNode f : draft.get("features").get("features")) {
+            if (code.equals(f.get("properties").get("code").asText())) {
+                return f.get("properties");
+            }
+        }
+        throw new AssertionError("no stored asset " + code);
+    }
+
+    @Test
+    void operatorDescriptionWarehouseAndPadFieldsSurviveAReload() throws Exception {
+        create(warehouse(1000, 100, "EAST"), 201);
+        String padCode = tree(create(pad(1000, 400, 2, 1, 62, 34, 10), 201))
+                .get("feature")
+                .get("properties")
+                .get("code")
+                .asText();
+
+        JsonNode hall = storedProperties("WH-0001");
+        assertEquals("Terminal Ops", hall.get("operatorName").asText());
+        assertEquals("Cold store, north bay", hall.get("description").asText());
+        JsonNode wh = hall.get("details").get("warehouse");
+        assertEquals("EAST", wh.get("doorSide").asText());
+        assertEquals(4, wh.get("dockDoors").asInt());
+        assertEquals(2.5, wh.get("roofRiseM").asDouble(), 1e-9);
+
+        JsonNode pitch = storedProperties(padCode).get("details").get("storagePad");
+        assertEquals(2, pitch.get("bays").asInt());
+        assertEquals(62, pitch.get("bayPitchM").asDouble(), 1e-9);
+        assertEquals(34, pitch.get("rowPitchM").asDouble(), 1e-9);
+    }
+
+    @Test
+    void aWarehouseWithoutADoorSideFacesNorth() throws Exception {
+        JsonNode created = tree(create(warehouse(1000, 100, null), 201));
+        assertEquals(
+                "NORTH",
+                created.get("feature")
+                        .get("properties")
+                        .get("details")
+                        .get("warehouse")
+                        .get("doorSide")
+                        .asText());
+        assertEquals(
+                "NORTH",
+                storedProperties("WH-0001")
+                        .get("details")
+                        .get("warehouse")
+                        .get("doorSide")
+                        .asText());
+    }
+
+    @Test
+    void patchChangesTheDoorSideAndTheNewSideSurvivesAReload() throws Exception {
+        String id = tree(create(warehouse(1000, 100, "NORTH"), 201))
+                .get("feature")
+                .get("id")
+                .asText();
+
+        Response r = given().contentType("application/json")
+                .header("If-Match", "\"0\"")
+                .body("{\"details\":{\"warehouse\":{\"doorSide\":\"SOUTH\"}}}")
+                .patch(assets() + "/" + id)
+                .then()
+                .statusCode(200)
+                .extract()
+                .response();
+        assertEquals("\"1\"", r.getHeader("ETag"));
+        assertEquals(
+                "SOUTH",
+                tree(r).get("feature")
+                        .get("properties")
+                        .get("details")
+                        .get("warehouse")
+                        .get("doorSide")
+                        .asText());
+
+        JsonNode stored = storedProperties("WH-0001").get("details").get("warehouse");
+        assertEquals("SOUTH", stored.get("doorSide").asText());
+        assertEquals(4, stored.get("dockDoors").asInt(), "the other warehouse fields stay");
+    }
+
+    @Test
+    void anUnknownDoorSideIs422AndNothingIsStored() throws Exception {
+        given().contentType("application/json")
+                .body(warehouse(1000, 100, "UP"))
+                .post(assets())
+                .then()
+                .statusCode(422)
+                .body("errors[0].code", equalTo("DOOR_SIDE_INVALID"))
+                .body("errors[0].pointer", equalTo("/properties/details/warehouse/doorSide"));
+        assertEquals(0, revisions());
+    }
+
+    @Test
+    void aPadBayPitchBelowFiveMetresIs422() throws Exception {
+        given().contentType("application/json")
+                .body(pad(1000, 400, 2, 1, 4, 34, 10))
+                .post(assets())
+                .then()
+                .statusCode(422)
+                .body("errors[0].code", equalTo("DIM_OUT_OF_RANGE"))
+                .body("errors[0].message", equalTo("Bay pitch: enter a number of at least 5"));
+        assertEquals(0, revisions());
+    }
+
+    @Test
+    void aPadWithNoBaysIs422NotAServerError() throws Exception {
+        given().contentType("application/json")
+                .body(pad(1000, 400, 0, 1, 62, 34, 10))
+                .post(assets())
+                .then()
+                .statusCode(422)
+                .body("errors[0].message", equalTo("Bays: enter a number of at least 1"));
+        assertEquals(0, revisions());
+    }
+
+    @Test
+    void aValueTheDatabaseRefusesIs422NotAServerError() throws Exception {
+        ObjectNode hall = warehouse(1000, 100, "NORTH");
+        ((ObjectNode) hall.get("details").get("warehouse")).put("dockDoors", -1);
+        given().contentType("application/json")
+                .body(hall)
+                .post(assets())
+                .then()
+                .statusCode(422)
+                .body("errors[0].code", equalTo("DETAILS_INVALID"));
+        assertEquals(0, revisions());
+    }
+
+    @Test
+    void aBerthDepthBelowOneMetreIs422() throws Exception {
+        ObjectNode berth = rtg(0, 0);
+        berth.put("type", "BERTH").put("name", "Berth 1");
+        berth.putObject("details").putObject("berth").put("depthM", 0.5).putArray("cargoFamilies");
+        given().contentType("application/json")
+                .body(berth)
+                .post(assets())
+                .then()
+                .statusCode(422)
+                .body("errors[0].code", equalTo("DIM_OUT_OF_RANGE"))
+                .body("errors[0].message", equalTo("Depth: enter a number of at least 1"));
+        assertEquals(0, revisions());
+    }
+
+    @Test
+    void aBerthShorterThanTwentyMetresIs422() throws Exception {
+        ObjectNode berth = rtg(0, 0);
+        berth.put("type", "BERTH").put("name", "Berth 1").put("lengthM", 10);
+        given().contentType("application/json")
+                .body(berth)
+                .post(assets())
+                .then()
+                .statusCode(422)
+                .body("errors[0].code", equalTo("DIM_OUT_OF_RANGE"))
+                .body("errors[0].message", equalTo("Length: enter a number of at least 20"));
+        assertEquals(0, revisions());
+    }
 }

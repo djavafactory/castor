@@ -231,6 +231,18 @@ actions/checkout v7, actions/setup-java v6, actions/setup-node v7, actions/uploa
 
 Record decisions and behaviour changes here, newest first.
 
+#### DESIGNER-07: Inspector
+
+1. Every field saves itself: one PATCH per change and one undo step "<Label> of <name>" (the provenance is one step, "Provenance of <name>"). Detail groups and the provenance are sent whole, so the undo puts back the group as it was. A value the rules refuse is not stored: the field keeps the stored value and the toast gives the reason.
+2. Units: metres, degrees true (heading, one decimal), percent for design fill and usable share (stored as fractions), t/m2, kPa, coordinates to 7 decimals. Areas are m2 with hectares.
+3. A storage record is created by the first cargo choice, with the type's default capacity (0 t when the type has none), usable share 100 %, design fill 0 %, exposed to the weather.
+4. Warehouse door side is the compass side (NORTH, EAST, SOUTH, WEST), not rotated with the quay frame. Existing warehouses get NORTH.
+5. Minimums: the catalogue's, plus bay and row pitch 5 m, pad max height 1 m, berth length 20 m and berth depth 1 m. The server applies the same rules to every save.
+6. Delete asks first and lists the links that go with the asset. It is not undoable: the links of other assets would not come back whole. Duplicate is one undo step.
+7. An exclusion override needs a reason of 10 to 500 characters, is audited and is not undoable.
+8. Check and save waits for the saves in flight, re-reads the draft and re-validates it, then reports the largest rounding change of the session (mm, one decimal).
+9. The Inspector reads shapes in the quay frame, so it shows and checks nothing before the port has loaded it.
+
 #### SETUP-03: Architecture decisions
 
 ##### 1. Coordinate system, port origin and quay frame
