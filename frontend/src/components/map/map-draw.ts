@@ -38,7 +38,21 @@ export interface DrawInput {
   selectedReferenceId: string | null
   /** The outline being drawn (DESIGNER-05), if any. */
   sketch?: Sketch | null
+  /** The placement ghost (DESIGNER-04): where the asset would land, green when the spot is valid. */
+  ghost?: Ghost2D | null
 }
+
+/** The ghost of the placement tool in local metres. A footprint has a ring, a line asset a line. */
+export interface Ghost2D {
+  ring: readonly Local[] | null
+  line: readonly Local[] | null
+  valid: boolean
+}
+
+export const GHOST_VALID = palette.moss
+export const GHOST_INVALID = palette.brick
+export const GHOST_ALPHA = 0.45
+export const GHOST_OUTLINE_PX = 2
 
 /** The outline in progress: vertices and the cursor in local metres. */
 export interface Sketch {
@@ -279,6 +293,24 @@ function drawSketch(input: DrawInput, sketch: Sketch) {
 }
 
 /** Paints the whole map: basemap, background outlines, assets bottom to top, quay line, selection and labels. */
+/** The placement ghost: fill at alpha 0.45 and a 2 px outline, green or red. */
+function drawGhost(input: DrawInput, ghost: Ghost2D) {
+  const { ctx, view, size, dpr } = input
+  localTransform(ctx, view, size, dpr)
+  const colour = ghost.valid ? GHOST_VALID : GHOST_INVALID
+  ctx.beginPath()
+  const points = ghost.ring ?? ghost.line ?? []
+  points.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)))
+  if (ghost.ring) ctx.closePath()
+  if (ghost.ring) {
+    ctx.fillStyle = withAlpha(colour, GHOST_ALPHA)
+    ctx.fill()
+  }
+  ctx.strokeStyle = colour
+  ctx.lineWidth = GHOST_OUTLINE_PX / view.k
+  ctx.stroke()
+}
+
 export function drawMap(input: DrawInput): void {
   const { ctx, size, dpr, view } = input
   ctx.setTransform(1, 0, 0, 1, 0, 0)
@@ -300,4 +332,5 @@ export function drawMap(input: DrawInput): void {
   drawSelection(input)
   drawLabels(input, visible)
   if (input.sketch) drawSketch(input, input.sketch)
+  if (input.ghost) drawGhost(input, input.ghost)
 }

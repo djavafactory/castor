@@ -111,6 +111,10 @@ describe('scene keys', () => {
       expect(useEditorStore.getState().tool?.kind).toBe('measure')
       fireEvent.keyDown(document.body, { key: 'r' })
       expect(useEditorStore.getState().tool?.rotationDeg).toBe(15)
+      // the turn wraps into -180..180
+      useEditorStore.getState().setRotation(170)
+      fireEvent.keyDown(document.body, { key: 'R' })
+      expect(useEditorStore.getState().tool?.rotationDeg).toBe(-175)
       useEditorStore.getState().addPoint([1, 2])
       fireEvent.keyDown(document.body, { key: 'Backspace' })
       expect(useEditorStore.getState().tool?.points).toEqual([])

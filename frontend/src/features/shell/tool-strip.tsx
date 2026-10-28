@@ -122,15 +122,17 @@ export function ToolStrip() {
     >
       {mode === 'design' && (
         <>
-          <Segmented label="View" value={viewMode} options={VIEW_MODES} onChange={setViewMode} />
-          <IconButton
-            label="Hide palette"
-            tip="Hide or show the asset palette (A)"
-            pressed={paletteHidden}
+          <button
+            type="button"
+            aria-pressed={!paletteHidden}
+            title="Show or hide the asset menu (A)"
             onClick={() => setPaletteHidden(!paletteHidden)}
+            className="inline-flex h-7 items-center gap-1.5 rounded-lg px-2 text-[13px] font-medium hover:bg-paper aria-pressed:bg-signal-soft"
           >
-            <PanelLeft aria-hidden="true" />
-          </IconButton>
+            <PanelLeft aria-hidden="true" className="size-4" />
+            Assets
+          </button>
+          <Segmented label="View" value={viewMode} options={VIEW_MODES} onChange={setViewMode} />
         </>
       )}
       <CameraMenu />

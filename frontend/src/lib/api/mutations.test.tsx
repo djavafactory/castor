@@ -11,13 +11,23 @@ import {
   useCreateAsset,
   useDeleteAsset,
   useDraftLayout,
+  useDuplicateAsset,
   usePublishLayout,
   useUpdateAsset,
   type Layout,
 } from '.'
 
-const DRAFT = `${API}/v1/ports/westports/layout/draft`
 const DRAFT_READ = `${API}/v1/ports/westports/layouts/draft`
+const LAYOUT_ID = layoutFixture.versionId
+const ASSETS_URL = `${API}/v1/layouts/${LAYOUT_ID}/assets`
+/** A stored feature as the asset endpoints answer it. */
+const feature = (id: string, rowVersion: number, extra: Record<string, unknown> = {}) => ({
+  type: 'Feature',
+  id,
+  geometry: { type: 'Point', coordinates: [101.3, 2.95] },
+  properties: { type: 'EXCAVATOR', rowVersion, ...extra },
+})
+
 const problem = (status: number, title: string) =>
   HttpResponse.json(
     { title, status },
@@ -40,13 +50,10 @@ describe('useCreateAsset', () => {
     const client = seededClient()
     let created = false
     server.use(
-      http.post(`${DRAFT}/assets`, async () => {
+      http.post(ASSETS_URL, async () => {
         await delay(300)
         created = true
-        return HttpResponse.json(
-          { id: 'a-3', typeCode: 'EXCAVATOR', rowVersion: 0 },
-          { status: 201 },
-        )
+        return HttpResponse.json({ feature: feature('a-3', 0), warnings: [] }, { status: 201 })
       }),
       http.get(DRAFT_READ, () =>
         HttpResponse.json(
@@ -59,7 +66,6 @@ describe('useCreateAsset', () => {
         ),
       ),
     )
-    // the draft is on screen, so something observes it and refetches when the mutation settles
     const observer = renderHook(() => useDraftLayout('westports'), { wrapper: wrapperFor(client) })
     await waitFor(() => expect(observer.result.current.isFetching).toBe(false))
     const { result } = renderHook(() => useCreateAsset('westports'), {
@@ -77,7 +83,7 @@ describe('useCreateAsset', () => {
   it('removes the asset again when the server refuses', async () => {
     const client = seededClient()
     server.use(
-      http.post(`${DRAFT}/assets`, () => problem(422, 'Validation failed')),
+      http.post(ASSETS_URL, () => problem(422, 'Validation failed')),
       http.get(DRAFT_READ, () => HttpResponse.json(layoutWire())),
     )
     const { result } = renderHook(() => useCreateAsset('westports'), {
@@ -93,7 +99,7 @@ describe('useCreateAsset', () => {
   it('rejects an answer of the wrong shape and rolls back', async () => {
     const client = seededClient()
     server.use(
-      http.post(`${DRAFT}/assets`, () => HttpResponse.json({ nope: true }, { status: 201 })),
+      http.post(ASSETS_URL, () => HttpResponse.json({ nope: true }, { status: 201 })),
       http.get(DRAFT_READ, () => HttpResponse.json(layoutWire())),
     )
     const { result } = renderHook(() => useCreateAsset('westports'), {
@@ -113,15 +119,13 @@ describe('useUpdateAsset', () => {
     let ifMatch: string | null = null
     let body: unknown
     server.use(
-      http.patch(`${DRAFT}/assets/a-1`, async ({ request }) => {
+      http.patch(`${ASSETS_URL}/a-1`, async ({ request }) => {
         ifMatch = request.headers.get('If-Match')
         body = await request.json()
         await delay(30)
         return HttpResponse.json({
-          id: 'a-1',
-          typeCode: 'EXCAVATOR',
-          rowVersion: 4,
-          name: 'Renamed',
+          feature: feature('a-1', 4, { name: 'Renamed' }),
+          warnings: [],
         })
       }),
       http.get(DRAFT_READ, () => HttpResponse.json(layoutWire())),
@@ -141,7 +145,7 @@ describe('useUpdateAsset', () => {
   it('puts the old value back on a 409 conflict', async () => {
     const client = seededClient()
     server.use(
-      http.patch(`${DRAFT}/assets/a-1`, () => problem(409, 'Conflict')),
+      http.patch(`${ASSETS_URL}/a-1`, () => problem(409, 'Conflict')),
       http.get(DRAFT_READ, () => HttpResponse.json(layoutWire())),
     )
     const { result } = renderHook(() => useUpdateAsset('westports'), {
@@ -159,7 +163,7 @@ describe('useDeleteAsset', () => {
   it('drops the asset at once and restores it when the delete fails', async () => {
     const client = seededClient()
     server.use(
-      http.delete(`${DRAFT}/assets/a-2`, () => problem(409, 'Conflict')),
+      http.delete(`${ASSETS_URL}/a-2`, () => problem(409, 'Conflict')),
       http.get(DRAFT_READ, () => HttpResponse.json(layoutWire())),
     )
     const { result } = renderHook(() => useDeleteAsset('westports'), {
@@ -176,7 +180,7 @@ describe('useDeleteAsset', () => {
     const client = seededClient()
     let ifMatch: string | null = null
     server.use(
-      http.delete(`${DRAFT}/assets/a-2`, ({ request }) => {
+      http.delete(`${ASSETS_URL}/a-2`, ({ request }) => {
         ifMatch = request.headers.get('If-Match')
         return new HttpResponse(null, { status: 204 })
       }),
@@ -195,6 +199,55 @@ describe('useDeleteAsset', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(ifMatch).toBe('"1"')
     await waitFor(() => expect(draftOf(client)?.assets.map((a) => a.id)).toEqual(['a-1']))
+  })
+})
+
+describe('useDuplicateAsset', () => {
+  it('duplicates the asset and shows it at once', async () => {
+    const client = seededClient()
+    let created = false
+    server.use(
+      http.post(`${ASSETS_URL}/a-1/duplicate`, async () => {
+        await delay(300)
+        created = true
+        return HttpResponse.json({ feature: feature('a-3', 0), warnings: [] }, { status: 201 })
+      }),
+      http.get(DRAFT_READ, () =>
+        HttpResponse.json(
+          layoutWire({
+            ...layoutFixture,
+            assets: created
+              ? [...layoutFixture.assets, { id: 'a-3', typeCode: 'EXCAVATOR', rowVersion: 0 }]
+              : layoutFixture.assets,
+          }),
+        ),
+      ),
+    )
+    const { result } = renderHook(() => useDuplicateAsset('westports'), {
+      wrapper: wrapperFor(client),
+    })
+
+    act(() => result.current.mutate('a-1'))
+
+    await waitFor(() => expect(draftOf(client)?.assets).toHaveLength(3))
+    expect(draftOf(client)?.assets[2]?.id.startsWith(TEMP_ID_PREFIX)).toBe(true)
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+  })
+
+  it('rolls back when the server refuses', async () => {
+    const client = seededClient()
+    server.use(
+      http.post(`${ASSETS_URL}/a-1/duplicate`, () => problem(422, 'Validation failed')),
+      http.get(DRAFT_READ, () => HttpResponse.json(layoutWire())),
+    )
+    const { result } = renderHook(() => useDuplicateAsset('westports'), {
+      wrapper: wrapperFor(client),
+    })
+
+    act(() => result.current.mutate('a-1'))
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(draftOf(client)?.assets).toHaveLength(2)
   })
 })
 

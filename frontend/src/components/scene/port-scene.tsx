@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { EmptyState, ErrorCard } from '@/components/states/states'
 import { useAssetTypes, useCurrentLayout, useDraftLayout } from '@/lib/api'
 import { usePort } from '@/lib/api'
@@ -24,6 +24,8 @@ import { LayoutLayer, type LayoutHover } from './layout/layout-layer'
 import { BUILDINGS_LAYER, useLayerVisible, visibleFeatures, ROADS_LAYER } from './layers'
 import { hoverLines, humanKey } from './layout/asset-rows'
 import { SceneTooltip } from './scene-tooltip'
+import { PlaceOnGround } from '@/features/design/place/place-on-ground'
+import { PlacementPill } from '@/features/design/place/placement-pill'
 import { webglAvailable } from './webgl'
 
 /** The 3D replica of the port. Without WebGL it says so and loads nothing. */
@@ -75,6 +77,7 @@ function Scene() {
     () => new Map((assetTypes.data ?? []).map((t) => [t.code, t.colourHex])),
     [assetTypes.data],
   )
+  const host = useRef<HTMLDivElement>(null)
   const [hover, setHover] = useState<BuildingHover | null>(null)
   const [assetHover, setAssetHover] = useState<LayoutHover | null>(null)
 
@@ -100,7 +103,7 @@ function Scene() {
   }, [showBuildings, selectedRef, buildings.data, extent])
 
   return (
-    <div className="relative h-full w-full" data-testid="port-scene">
+    <div ref={host} className="relative h-full w-full" data-testid="port-scene">
       <StageCanvas onPointerMissed={clearSelection}>
         <Lighting />
         <CameraRig whole={whole} />
@@ -120,7 +123,9 @@ function Scene() {
         )}
         {selected && <MonitorSelection ring={selected.ring} height={selected.height} />}
         {frameReady && <GroundCursor />}
+        {frameReady && design && <PlaceOnGround />}
       </StageCanvas>
+      {design && <PlacementPill containerRef={host} />}
       {layout.isError && (
         <div className="absolute top-3 right-3 z-menu w-72">
           <ErrorCard

@@ -52,11 +52,23 @@ function renderMap() {
     http.get(`${BASE}/ports/WESTPORTS/reference-features`, () =>
       HttpResponse.json({ type: 'FeatureCollection', features: [] }),
     ),
-    http.post(`${BASE}/ports/WESTPORTS/layout/draft/assets`, async ({ request }) => {
+    http.post(`${BASE}/layouts/draft-7/assets`, async ({ request }) => {
       if (refusal) return refusal
       const body = (await request.json()) as Record<string, unknown>
       posted.push(body)
-      return HttpResponse.json({ id: 'new-1', rowVersion: 1, ...body })
+      const { type, ...properties } = body
+      return HttpResponse.json(
+        {
+          feature: {
+            type: 'Feature',
+            id: 'new-1',
+            geometry: { type: 'Polygon', coordinates: [] },
+            properties: { ...properties, type, code: 'X-0001', rowVersion: 1 },
+          },
+          warnings: [],
+        },
+        { status: 201 },
+      )
     }),
   )
   return render(
@@ -225,13 +237,13 @@ describe('finishing', () => {
     await waitFor(() => expect(posted).toHaveLength(1))
 
     const body = posted[0] as {
-      typeCode: string
+      type: string
       name: string
       geometry: { type: string; coordinates: number[][][] }
       provenance: Record<string, string>
       heightM: number
     }
-    expect(body.typeCode).toBe('WAREHOUSE_POLY')
+    expect(body.type).toBe('WAREHOUSE_POLY')
     expect(body.name).toBe('Warehouse (polygon) 1')
     expect(body.heightM).toBe(9)
     expect(body.provenance).toEqual({
@@ -288,8 +300,8 @@ describe('point types', () => {
     await ready(EXCAVATOR)
     clickAt(10, 10)
     await waitFor(() => expect(posted).toHaveLength(1))
-    const body = posted[0] as { typeCode: string; geometry: { type: string }; lengthM: number }
-    expect(body.typeCode).toBe('EXCAVATOR')
+    const body = posted[0] as { type: string; geometry: { type: string }; lengthM: number }
+    expect(body.type).toBe('EXCAVATOR')
     expect(body.geometry.type).toBe('Polygon')
     expect(body.lengthM).toBe(10)
   })

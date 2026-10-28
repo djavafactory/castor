@@ -5,6 +5,7 @@ import { useAuthStore } from '@/lib/stores/auth-store'
 import { useEditorStore } from '@/lib/stores/editor-store'
 import { useSelectionStore } from '@/lib/stores/selection-store'
 import { useUiStore } from '@/lib/stores/ui-store'
+import { rotated } from '@/features/design/place/placement-plan'
 import { toggleFullscreen } from './fullscreen'
 
 const ROTATE_STEP_DEG = 15
@@ -80,7 +81,7 @@ export function useSceneKeys() {
           if (design) {
             const tool = useEditorStore.getState().tool
             if (tool) {
-              useEditorStore.getState().setRotation((tool.rotationDeg + ROTATE_STEP_DEG) % 360)
+              useEditorStore.getState().setRotation(rotated(tool.rotationDeg, ROTATE_STEP_DEG))
             }
           }
           break

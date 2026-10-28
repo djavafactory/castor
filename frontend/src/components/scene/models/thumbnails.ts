@@ -92,6 +92,32 @@ export function renderThumbnail(
   return image
 }
 
+/** At most this many thumbnails are rendered in one animation frame, so a long palette never stalls the page. */
+export const THUMBNAILS_PER_FRAME = 3
+
+const waiting: { key: string; done: (image: string | null) => void }[] = []
+let scheduled = 0
+
+function drain() {
+  scheduled = 0
+  for (let i = 0; i < THUMBNAILS_PER_FRAME && waiting.length > 0; i++) {
+    const next = waiting.shift()!
+    next.done(renderThumbnail(next.key))
+  }
+  if (waiting.length > 0) scheduled = requestAnimationFrame(drain)
+}
+
+/** Renders a thumbnail in a coming frame (three per frame); the returned function cancels it. */
+export function scheduleThumbnail(key: string, done: (image: string | null) => void): () => void {
+  const entry = { key, done }
+  waiting.push(entry)
+  if (scheduled === 0) scheduled = requestAnimationFrame(drain)
+  return () => {
+    const at = waiting.indexOf(entry)
+    if (at >= 0) waiting.splice(at, 1)
+  }
+}
+
 /** Forgets the cached images and the renderer (tests; a lost WebGL context). */
 export function resetThumbnails() {
   cache.clear()

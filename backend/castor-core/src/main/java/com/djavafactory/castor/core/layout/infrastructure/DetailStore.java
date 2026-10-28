@@ -75,6 +75,11 @@ final class DetailStore {
 
     /** Details of every asset of the version, by asset id; assets without any detail are absent from the map. */
     static Map<UUID, AssetDetails> read(Connection c, UUID version) throws SQLException {
+        return read(c, version, null);
+    }
+
+    /** Details of one asset of the version, or of every asset when {@code only} is null. */
+    static Map<UUID, AssetDetails> read(Connection c, UUID version, UUID only) throws SQLException {
         Map<UUID, Draft> drafts = new HashMap<>();
         Function<UUID, Draft> of = id -> drafts.computeIfAbsent(id, k -> new Draft());
 
@@ -82,17 +87,20 @@ final class DetailStore {
                 c,
                 "select asset_id, depth_m, max_loa_m from layout.berth_detail where layout_version_id = ?",
                 version,
+                only,
                 rs -> of.apply(id(rs)).berth = new Berth(rs.getBigDecimal(2), rs.getBigDecimal(3), List.of()));
         query(
                 c,
                 "select asset_id, family_code from layout.berth_cargo_family where layout_version_id = ? order by 2",
                 version,
+                only,
                 rs -> of.apply(id(rs)).families.add(rs.getString(2)));
         query(
                 c,
                 "select asset_id, gauge_m, outreach_m, backreach_m, reach_m, safe_working_load_t "
                         + "from layout.crane_detail where layout_version_id = ?",
                 version,
+                only,
                 rs -> of.apply(id(rs)).crane = new Crane(
                         rs.getBigDecimal(2),
                         rs.getBigDecimal(3),
@@ -105,6 +113,7 @@ final class DetailStore {
                         + "max_floor_load_t_m2, max_stack_m, bearing_capacity_kpa, weather_exposed "
                         + "from layout.storage_detail where layout_version_id = ?",
                 version,
+                only,
                 rs -> of.apply(id(rs)).storage = new Storage(
                         rs.getBigDecimal(2),
                         rs.getString(3),
@@ -121,12 +130,14 @@ final class DetailStore {
                 "select asset_id, cargo_type_code from layout.storage_allowed_cargo where layout_version_id = ? "
                         + "order by 2",
                 version,
+                only,
                 rs -> of.apply(id(rs)).allowedCargo.add(rs.getString(2)));
         query(
                 c,
                 "select asset_id, bays, rows, bay_pitch_m, row_pitch_m, max_height_m from layout.storage_pad_detail "
                         + "where layout_version_id = ?",
                 version,
+                only,
                 rs -> of.apply(id(rs)).pad = new StoragePad(
                         rs.getInt(2), rs.getInt(3), rs.getBigDecimal(4), rs.getBigDecimal(5), rs.getBigDecimal(6)));
         query(
@@ -134,27 +145,32 @@ final class DetailStore {
                 "select asset_id, max_tiers, design_fill, capacity_teu from layout.container_yard_detail "
                         + "where layout_version_id = ?",
                 version,
+                only,
                 rs -> of.apply(id(rs)).yard = new ContainerYard(rs.getInt(2), rs.getBigDecimal(3), rs.getInt(4)));
         query(
                 c,
                 "select asset_id, roof_rise_m, dock_doors from layout.warehouse_detail where layout_version_id = ?",
                 version,
+                only,
                 rs -> of.apply(id(rs)).warehouse = new Warehouse(rs.getBigDecimal(2), rs.getInt(3)));
         query(
                 c,
                 "select asset_id, rate_value, rate_unit from layout.flow_detail where layout_version_id = ?",
                 version,
+                only,
                 rs -> of.apply(id(rs)).flow = new Flow(rs.getBigDecimal(2), rs.getString(3)));
         query(
                 c,
                 "select asset_id, surface_code from layout.surface_detail where layout_version_id = ?",
                 version,
+                only,
                 rs -> of.apply(id(rs)).surface = new Surface(rs.getString(2)));
         query(
                 c,
                 "select asset_id, allowed_type_code from layout.zone_allowed_type where layout_version_id = ? "
                         + "order by 2",
                 version,
+                only,
                 rs -> {
                     Draft d = of.apply(id(rs));
                     d.zone = true;
@@ -164,12 +180,14 @@ final class DetailStore {
                 c,
                 "select asset_id, position_mode, uncertainty_m from layout.mobile_detail where layout_version_id = ?",
                 version,
+                only,
                 rs -> of.apply(id(rs)).mobile = new Mobile(rs.getString(2), rs.getBigDecimal(3)));
         query(
                 c,
                 "select asset_id, model, operator, rated_throughput, throughput_unit, design_status "
                         + "from layout.equipment_detail where layout_version_id = ?",
                 version,
+                only,
                 rs -> of.apply(id(rs)).equipment = new Equipment(
                         rs.getString(2), rs.getString(3), rs.getBigDecimal(4), rs.getString(5), rs.getString(6)));
 
@@ -180,10 +198,20 @@ final class DetailStore {
 
     /** Links of the version grouped by source asset: {kind, toAssetId} in a stable order. */
     static Map<UUID, List<Map.Entry<String, UUID>>> readLinks(Connection c, UUID version) throws SQLException {
+        return readLinks(c, version, null);
+    }
+
+    /** Links that start at one asset of the version, or at every asset when {@code only} is null. */
+    static Map<UUID, List<Map.Entry<String, UUID>>> readLinks(Connection c, UUID version, UUID only)
+            throws SQLException {
         Map<UUID, List<Map.Entry<String, UUID>>> out = new LinkedHashMap<>();
         try (PreparedStatement ps = c.prepareStatement("select from_asset_id, kind, to_asset_id from layout.asset_link "
-                + "where layout_version_id = ? order by from_asset_id, kind, to_asset_id")) {
+                + "where layout_version_id = ?" + (only == null ? "" : " and from_asset_id = ?")
+                + " order by from_asset_id, kind, to_asset_id")) {
             ps.setObject(1, version);
+            if (only != null) {
+                ps.setObject(2, only);
+            }
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     out.computeIfAbsent(rs.getObject(1, UUID.class), k -> new ArrayList<>())
@@ -321,6 +349,29 @@ final class DetailStore {
         }
     }
 
+    private static final List<String> DETAIL_TABLES = List.of(
+            "berth_detail",
+            "berth_cargo_family",
+            "crane_detail",
+            "storage_detail",
+            "storage_allowed_cargo",
+            "storage_pad_detail",
+            "container_yard_detail",
+            "warehouse_detail",
+            "flow_detail",
+            "surface_detail",
+            "zone_allowed_type",
+            "mobile_detail",
+            "equipment_detail");
+
+    /** Removes every detail row and the outgoing links of an asset revision, before they are written again. */
+    static void clear(Connection c, UUID version, UUID asset) throws SQLException {
+        for (String table : DETAIL_TABLES) {
+            exec(c, "delete from layout." + table + " where asset_id = ? and layout_version_id = ?", asset, version);
+        }
+        exec(c, "delete from layout.asset_link where from_asset_id = ? and layout_version_id = ?", asset, version);
+    }
+
     static void writeLink(Connection c, UUID version, UUID from, UUID to, String kind) throws SQLException {
         exec(c, "insert into layout.asset_link values (?,?,?,?)", version, from, to, kind);
     }
@@ -333,9 +384,16 @@ final class DetailStore {
         return rs.getObject(1, UUID.class);
     }
 
-    private static void query(Connection c, String sql, UUID version, RowHandler handler) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement(sql)) {
+    private static void query(Connection c, String sql, UUID version, UUID only, RowHandler handler)
+            throws SQLException {
+        // every detail query filters by "layout_version_id = ?": a single asset adds its own id
+        String text =
+                only == null ? sql : sql.replace("layout_version_id = ?", "layout_version_id = ? and asset_id = ?");
+        try (PreparedStatement ps = c.prepareStatement(text)) {
             ps.setObject(1, version);
+            if (only != null) {
+                ps.setObject(2, only);
+            }
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     handler.accept(rs);

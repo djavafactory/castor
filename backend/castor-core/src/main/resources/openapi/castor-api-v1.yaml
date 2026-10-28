@@ -334,6 +334,272 @@ paths:
           description: Unchanged since the ETag in If-None-Match
         '404':
           description: Unknown version or asset
+    patch:
+      operationId: updateLayoutAsset
+      summary: Update one asset of a draft with optimistic concurrency (EDITOR)
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/LayoutId'
+        - name: assetId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: If-Match
+          in: header
+          required: true
+          schema:
+            type: string
+          description: The row version (ETag) of the asset revision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                code:
+                  type: string
+                name:
+                  type: string
+                geometry:
+                  $ref: '#/components/schemas/GeoJsonGeometry'
+                anchor:
+                  type: array
+                  items:
+                    type: number
+                  minItems: 2
+                  maxItems: 2
+                headingDeg:
+                  type: number
+                lengthM:
+                  type: number
+                widthM:
+                  type: number
+                heightM:
+                  type: number
+                radiusM:
+                  type: number
+                lineWidthM:
+                  type: number
+                storageZoneCode:
+                  type: string
+                details:
+                  $ref: '#/components/schemas/LayoutDetails'
+                links:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/LayoutLink'
+                provenance:
+                  $ref: '#/components/schemas/LayoutProvenance'
+                override:
+                  type: object
+                  properties:
+                    reason:
+                      type: string
+      responses:
+        '200':
+          description: The updated feature, new ETag and warnings
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  feature:
+                    $ref: '#/components/schemas/LayoutFeature'
+                  warnings:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ValidationIssue'
+                  adjustmentMm:
+                    type: number
+        '409':
+          description: Stale If-Match or version is not a draft
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '412':
+          description: Missing If-Match header
+        '422':
+          description: Validation errors
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Unknown version or asset
+    delete:
+      operationId: deleteLayoutAsset
+      summary: Delete the revision of one asset in a draft (identity kept) (EDITOR)
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/LayoutId'
+        - name: assetId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: If-Match
+          in: header
+          required: true
+          schema:
+            type: string
+          description: The row version (ETag) of the asset revision
+      responses:
+        '204':
+          description: Revision removed
+          headers:
+            X-Castor-Dependents:
+              schema:
+                type: string
+              description: What was affected (for example links removed)
+        '409':
+          description: Stale If-Match or version is not a draft
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '412':
+          description: Missing If-Match header
+        '404':
+          description: Unknown version or asset
+  /api/v1/layouts/{layoutId}/assets:
+    post:
+      operationId: createLayoutAsset
+      summary: Create one asset in a draft (EDITOR)
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/LayoutId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, name]
+              properties:
+                type:
+                  type: string
+                  description: The asset type code
+                code:
+                  type: string
+                  description: The asset code; assigned from the type prefix if missing'
+                name:
+                  type: string
+                geometry:
+                  $ref: '#/components/schemas/GeoJsonGeometry'
+                anchor:
+                  type: array
+                  items:
+                    type: number
+                  minItems: 2
+                  maxItems: 2
+                headingDeg:
+                  type: number
+                lengthM:
+                  type: number
+                widthM:
+                  type: number
+                heightM:
+                  type: number
+                radiusM:
+                  type: number
+                lineWidthM:
+                  type: number
+                storageZoneCode:
+                  type: string
+                details:
+                  $ref: '#/components/schemas/LayoutDetails'
+                links:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/LayoutLink'
+                provenance:
+                  $ref: '#/components/schemas/LayoutProvenance'
+      responses:
+        '201':
+          description: The created feature, Location, ETag and warnings
+          headers:
+            Location:
+              schema:
+                type: string
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  feature:
+                    $ref: '#/components/schemas/LayoutFeature'
+                  warnings:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ValidationIssue'
+                  adjustmentMm:
+                    type: number
+        '409':
+          description: Version is not a draft
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Validation errors
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Unknown version
+  /api/v1/layouts/{layoutId}/assets/{assetId}/duplicate:
+    post:
+      operationId: duplicateLayoutAsset
+      summary: Duplicate one asset of a draft, offset +20 m in local x and y (EDITOR)
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/LayoutId'
+        - name: assetId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '201':
+          description: The duplicated feature, Location, ETag and warnings
+          headers:
+            Location:
+              schema:
+                type: string
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  feature:
+                    $ref: '#/components/schemas/LayoutFeature'
+                  warnings:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ValidationIssue'
+        '409':
+          description: Version is not a draft
+        '404':
+          description: Unknown version or asset
   /api/v1/layouts/{layoutId}/validate:
     post:
       operationId: validateLayout
@@ -689,6 +955,8 @@ components:
         radiusM: {type: [number, 'null']}
         lineWidthM: {type: [number, 'null']}
         elevationM: {type: [number, 'null']}
+        clearanceM: {type: [number, 'null']}
+        modelRev: {type: [integer, 'null'], description: Revision of the 3D model template the asset was placed with}
         storageZoneCode: {type: [string, 'null']}
         details:
           $ref: '#/components/schemas/LayoutDetails'

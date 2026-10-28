@@ -1,12 +1,15 @@
 package com.djavafactory.castor.core.layout.api;
 
+import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 
 import jakarta.annotation.security.RolesAllowed;
+import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HeaderParam;
+import jakarta.ws.rs.PATCH;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
@@ -15,11 +18,19 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
+import jakarta.ws.rs.core.UriInfo;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.quarkus.security.identity.SecurityIdentity;
 
 import com.djavafactory.castor.core.layout.application.DiscardDraft;
 import com.djavafactory.castor.core.layout.application.GetLayout;
 import com.djavafactory.castor.core.layout.application.LayoutValidation;
 import com.djavafactory.castor.core.layout.application.ListLayoutVersions;
+import com.djavafactory.castor.core.layout.application.SaveAsset;
 import com.djavafactory.castor.core.layout.domain.IssueLevel;
 import com.djavafactory.castor.core.layout.domain.LayoutStatus;
 import com.djavafactory.castor.core.layout.domain.LayoutVersion;
@@ -38,12 +49,18 @@ public class LayoutResource {
 
     public record ValidationResponse(int errors, int warnings, List<IssueResponse> issues) {}
 
+    /** Result of a single-asset save: the feature, new ETag and any warnings. */
+    public record AssetSaveResponse(ObjectNode feature, long rowVersion, List<IssueResponse> warnings) {}
+
     private final ListLayoutVersions listLayoutVersions;
     private final GetLayout getLayout;
     private final DiscardDraft discardDraft;
     private final LayoutValidation validation;
     private final LayoutFeatureMapper mapper;
+    private final SaveAsset saveAsset;
     private final CachedJson cache;
+    private final ObjectMapper json;
+    private final SecurityIdentity identity;
 
     public LayoutResource(
             ListLayoutVersions listLayoutVersions,
@@ -51,13 +68,19 @@ public class LayoutResource {
             DiscardDraft discardDraft,
             LayoutValidation validation,
             LayoutFeatureMapper mapper,
-            CachedJson cache) {
+            SaveAsset saveAsset,
+            CachedJson cache,
+            ObjectMapper json,
+            SecurityIdentity identity) {
         this.listLayoutVersions = listLayoutVersions;
         this.getLayout = getLayout;
         this.discardDraft = discardDraft;
         this.validation = validation;
         this.mapper = mapper;
+        this.saveAsset = saveAsset;
         this.cache = cache;
+        this.json = json;
+        this.identity = identity;
     }
 
     @GET
@@ -132,5 +155,117 @@ public class LayoutResource {
         if (!open && !editor) {
             throw new ResourceNotFoundException("No layout version " + version.id());
         }
+    }
+
+    /**
+     * Creates an asset in the draft. A body with an existing asset {@code id} re-creates an asset that has no revision
+     * here (undo of a delete). Returns 201 + Location + ETag + feature + warnings.
+     */
+    @POST
+    @Path("{layoutId}/assets")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @RolesAllowed({"EDITOR", "PUBLISHER", "ADMIN"})
+    public Response createAsset(@PathParam("layoutId") UUID layoutId, @Context UriInfo uri, JsonNode body) {
+        return created(
+                layoutId,
+                uri,
+                saveAsset.create(layoutId, identity.getPrincipal().getName(), body));
+    }
+
+    /**
+     * Merge-patches an asset of the draft; If-Match carries the row version. A body with an {@code override} records
+     * an exclusion-zone override instead. Returns 200 + new ETag + feature + warnings + adjustmentMm.
+     */
+    @PATCH
+    @Path("{layoutId}/assets/{assetId}")
+    @Consumes({MediaType.APPLICATION_JSON, "application/merge-patch+json"})
+    @RolesAllowed({"EDITOR", "PUBLISHER", "ADMIN"})
+    public Response updateAsset(
+            @PathParam("layoutId") UUID layoutId,
+            @PathParam("assetId") UUID assetId,
+            @HeaderParam("If-Match") String ifMatch,
+            JsonNode body) {
+        SaveAsset.Saved saved;
+        if (body != null && body.isObject() && body.has("override")) {
+            JsonNode o = body.get("override");
+            String reason = o != null && o.has("reason") && !o.get("reason").isNull()
+                    ? o.get("reason").asText()
+                    : null;
+            saved = saveAsset.override(
+                    layoutId, assetId, ifMatch, reason, identity.getPrincipal().getName());
+        } else {
+            saved = saveAsset.patch(
+                    layoutId, assetId, ifMatch, identity.getPrincipal().getName(), body);
+        }
+        return Response.ok(answer(layoutId, saved))
+                .header("ETag", etag(saved))
+                .type(MediaType.APPLICATION_JSON)
+                .build();
+    }
+
+    /**
+     * Removes the revision of an asset from the draft (identity kept) and the links to it. Returns 204 and lists what
+     * was affected in X-Castor-Dependents.
+     */
+    @DELETE
+    @Path("{layoutId}/assets/{assetId}")
+    @RolesAllowed({"EDITOR", "PUBLISHER", "ADMIN"})
+    public Response deleteAsset(
+            @PathParam("layoutId") UUID layoutId,
+            @PathParam("assetId") UUID assetId,
+            @HeaderParam("If-Match") String ifMatch) {
+        var deleted = saveAsset.delete(
+                layoutId, assetId, ifMatch, identity.getPrincipal().getName());
+        Response.ResponseBuilder out = Response.noContent();
+        if (!deleted.dependents().isEmpty()) {
+            out.header(
+                    "X-Castor-Dependents",
+                    deleted.dependents().size() + " link(s) removed from " + String.join(", ", deleted.dependents()));
+        }
+        return out.build();
+    }
+
+    /** Copies an asset 20 m along local x and y with the name "<name> copy" and a new code. */
+    @POST
+    @Path("{layoutId}/assets/{assetId}/duplicate")
+    @RolesAllowed({"EDITOR", "PUBLISHER", "ADMIN"})
+    public Response duplicateAsset(
+            @PathParam("layoutId") UUID layoutId, @PathParam("assetId") UUID assetId, @Context UriInfo uri) {
+        return created(
+                layoutId,
+                uri,
+                saveAsset.duplicate(layoutId, assetId, identity.getPrincipal().getName()));
+    }
+
+    private Response created(UUID layoutId, UriInfo uri, SaveAsset.Saved saved) {
+        URI location = uri.getBaseUriBuilder()
+                .path("api/v1/layouts/{id}/assets/{assetId}")
+                .build(layoutId, saved.asset().id());
+        return Response.created(location)
+                .header("ETag", etag(saved))
+                .type(MediaType.APPLICATION_JSON)
+                .entity(answer(layoutId, saved))
+                .build();
+    }
+
+    private static String etag(SaveAsset.Saved saved) {
+        return "\"" + saved.asset().rowVersion() + "\"";
+    }
+
+    /** {feature, warnings, adjustmentMm}: the feature is read back so it carries the computed measures. */
+    private ObjectNode answer(UUID layoutId, SaveAsset.Saved saved) {
+        var result = getLayout.asset(layoutId, saved.asset().id());
+        ObjectNode out = json.createObjectNode();
+        out.set(
+                "feature",
+                mapper.feature(
+                        saved.asset(),
+                        result.view().measures().get(saved.asset().id())));
+        ArrayNode warnings = out.putArray("warnings");
+        for (var w : saved.warnings()) {
+            warnings.addObject().put("code", w.code()).put("message", w.message());
+        }
+        out.put("adjustmentMm", saved.adjustmentMm());
+        return out;
     }
 }

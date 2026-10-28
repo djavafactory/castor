@@ -235,6 +235,42 @@ export interface paths {
         get: operations["getLayoutAsset"];
         put?: never;
         post?: never;
+        /** Delete the revision of one asset in a draft (identity kept) (EDITOR) */
+        delete: operations["deleteLayoutAsset"];
+        options?: never;
+        head?: never;
+        /** Update one asset of a draft with optimistic concurrency (EDITOR) */
+        patch: operations["updateLayoutAsset"];
+        trace?: never;
+    };
+    "/api/v1/layouts/{layoutId}/assets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create one asset in a draft (EDITOR) */
+        post: operations["createLayoutAsset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/layouts/{layoutId}/assets/{assetId}/duplicate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Duplicate one asset of a draft, offset +20 m in local x and y (EDITOR) */
+        post: operations["duplicateLayoutAsset"];
         delete?: never;
         options?: never;
         head?: never;
@@ -456,6 +492,9 @@ export interface components {
             radiusM?: number | null;
             lineWidthM?: number | null;
             elevationM?: number | null;
+            clearanceM?: number | null;
+            /** @description Revision of the 3D model template the asset was placed with */
+            modelRev?: number | null;
             storageZoneCode?: string | null;
             details: components["schemas"]["LayoutDetails"];
             links: components["schemas"]["LayoutLink"][];
@@ -1075,6 +1114,258 @@ export interface operations {
             };
             /** @description Unknown version or asset */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deleteLayoutAsset: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The row version (ETag) of the asset revision */
+                "If-Match": string;
+            };
+            path: {
+                layoutId: components["parameters"]["LayoutId"];
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Revision removed */
+            204: {
+                headers: {
+                    /** @description What was affected (for example links removed) */
+                    "X-Castor-Dependents"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown version or asset */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Stale If-Match or version is not a draft */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Missing If-Match header */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateLayoutAsset: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The row version (ETag) of the asset revision */
+                "If-Match": string;
+            };
+            path: {
+                layoutId: components["parameters"]["LayoutId"];
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    type?: string;
+                    code?: string;
+                    name?: string;
+                    geometry?: components["schemas"]["GeoJsonGeometry"];
+                    anchor?: number[];
+                    headingDeg?: number;
+                    lengthM?: number;
+                    widthM?: number;
+                    heightM?: number;
+                    radiusM?: number;
+                    lineWidthM?: number;
+                    storageZoneCode?: string;
+                    details?: components["schemas"]["LayoutDetails"];
+                    links?: components["schemas"]["LayoutLink"][];
+                    provenance?: components["schemas"]["LayoutProvenance"];
+                    override?: {
+                        reason?: string;
+                    };
+                };
+            };
+        };
+        responses: {
+            /** @description The updated feature, new ETag and warnings */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        feature?: components["schemas"]["LayoutFeature"];
+                        warnings?: components["schemas"]["ValidationIssue"][];
+                        adjustmentMm?: number;
+                    };
+                };
+            };
+            /** @description Unknown version or asset */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Stale If-Match or version is not a draft */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Missing If-Match header */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation errors */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    createLayoutAsset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                layoutId: components["parameters"]["LayoutId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The asset type code */
+                    type: string;
+                    /** @description The asset code; assigned from the type prefix if missing' */
+                    code?: string;
+                    name: string;
+                    geometry?: components["schemas"]["GeoJsonGeometry"];
+                    anchor?: number[];
+                    headingDeg?: number;
+                    lengthM?: number;
+                    widthM?: number;
+                    heightM?: number;
+                    radiusM?: number;
+                    lineWidthM?: number;
+                    storageZoneCode?: string;
+                    details?: components["schemas"]["LayoutDetails"];
+                    links?: components["schemas"]["LayoutLink"][];
+                    provenance?: components["schemas"]["LayoutProvenance"];
+                };
+            };
+        };
+        responses: {
+            /** @description The created feature, Location, ETag and warnings */
+            201: {
+                headers: {
+                    Location?: string;
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        feature?: components["schemas"]["LayoutFeature"];
+                        warnings?: components["schemas"]["ValidationIssue"][];
+                        adjustmentMm?: number;
+                    };
+                };
+            };
+            /** @description Unknown version */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Version is not a draft */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation errors */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    duplicateLayoutAsset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                layoutId: components["parameters"]["LayoutId"];
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The duplicated feature, Location, ETag and warnings */
+            201: {
+                headers: {
+                    Location?: string;
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        feature?: components["schemas"]["LayoutFeature"];
+                        warnings?: components["schemas"]["ValidationIssue"][];
+                    };
+                };
+            };
+            /** @description Unknown version or asset */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Version is not a draft */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

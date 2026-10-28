@@ -1,10 +1,12 @@
 package com.djavafactory.castor.core.layout.infrastructure;
 
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -18,16 +20,22 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Point;
+
 import com.djavafactory.castor.core.geometry.domain.LonLat;
 import com.djavafactory.castor.core.layout.domain.AssetDetails;
 import com.djavafactory.castor.core.layout.domain.AssetMeasures;
+import com.djavafactory.castor.core.layout.domain.Footprints;
 import com.djavafactory.castor.core.layout.domain.LayoutAsset;
 import com.djavafactory.castor.core.layout.domain.LayoutRepository;
 import com.djavafactory.castor.core.layout.domain.LayoutStatus;
 import com.djavafactory.castor.core.layout.domain.LayoutVersion;
 import com.djavafactory.castor.core.layout.domain.LayoutView;
 import com.djavafactory.castor.core.layout.domain.StoragePadCapacity;
+import com.djavafactory.castor.core.shared.domain.ConflictException;
 import com.djavafactory.castor.core.shared.domain.DraftAlreadyExistsException;
+import com.djavafactory.castor.core.shared.domain.ResourceNotFoundException;
 
 /**
  * Reads layouts: versions with SQL (they carry the port code), revisions through the {@link AssetRevisionEntity}
@@ -132,6 +140,165 @@ public class JpaLayoutRepository implements LayoutRepository {
         return findVersion(draft.id()).orElseThrow();
     }
 
+    @Override
+    @Transactional
+    public Optional<AssetIdentity> findIdentity(String portCode, UUID assetId) {
+        var a = em.find(AssetEntity.class, assetId);
+        if (a == null) {
+            return Optional.empty();
+        }
+        Object code = em.createNativeQuery("select code from ref.port where id = :id")
+                .setParameter("id", a.portId)
+                .getSingleResult();
+        return portCode.equals(code) ? Optional.of(new AssetIdentity(a.id, a.code, a.typeCode)) : Optional.empty();
+    }
+
+    @Override
+    @Transactional
+    @SuppressWarnings("unchecked")
+    public List<String> findCodes(String portCode) {
+        return em.createNativeQuery("select a.code from layout.asset a join ref.port p on p.id = a.port_id "
+                        + "where p.code = :code")
+                .setParameter("code", portCode)
+                .getResultList();
+    }
+
+    @Override
+    @Transactional
+    public Optional<Long> findRowVersion(UUID versionId, UUID assetId) {
+        var r = em.find(AssetRevisionEntity.class, new AssetRevisionId(assetId, versionId));
+        return r == null ? Optional.empty() : Optional.of(r.rowVersion);
+    }
+
+    @Override
+    @Transactional
+    public long insert(LayoutVersion draft, LayoutAsset a, String actor) {
+        if (em.find(AssetEntity.class, a.id()) == null) {
+            Number portId = (Number) em.createNativeQuery("select id from ref.port where code = :code")
+                    .setParameter("code", draft.portCode())
+                    .getSingleResult();
+            var identity = new AssetEntity();
+            identity.id = a.id();
+            identity.portId = portId.longValue();
+            identity.code = a.code();
+            identity.typeCode = a.typeCode();
+            identity.createdBy = actor;
+            em.persist(identity);
+            em.flush();
+        }
+        var r = new AssetRevisionEntity();
+        r.id = new AssetRevisionId(a.id(), draft.id());
+        r.createdBy = actor;
+        r.updatedBy = actor;
+        copy(a, r);
+        em.persist(r);
+        em.flush();
+        writeDetails(draft.id(), a, false);
+        long version = r.rowVersion;
+        em.clear();
+        return version;
+    }
+
+    @Override
+    @Transactional
+    public long update(LayoutVersion draft, LayoutAsset a, long expectedRowVersion, String actor) {
+        var r = locked(draft.id(), a.id(), expectedRowVersion);
+        copy(a, r);
+        r.updatedBy = actor;
+        r.updatedAt = Instant.now();
+        em.flush();
+        writeDetails(draft.id(), a, true);
+        long version = r.rowVersion;
+        em.clear();
+        return version;
+    }
+
+    @Override
+    @Transactional
+    public long override(
+            LayoutVersion draft, UUID assetId, long expectedRowVersion, LayoutAsset.Override o, String actor) {
+        var r = locked(draft.id(), assetId, expectedRowVersion);
+        r.overrideReason = o.reason();
+        r.overrideBy = o.by();
+        r.overrideAt = o.at();
+        r.updatedBy = actor;
+        r.updatedAt = Instant.now();
+        em.flush();
+        long version = r.rowVersion;
+        em.clear();
+        return version;
+    }
+
+    @Override
+    @Transactional
+    @SuppressWarnings("unchecked")
+    public List<String> delete(LayoutVersion draft, UUID assetId, long expectedRowVersion) {
+        var r = locked(draft.id(), assetId, expectedRowVersion);
+        List<String> dependents = em.createNativeQuery("select distinct a.code from layout.asset_link l "
+                        + "join layout.asset a on a.id = l.from_asset_id "
+                        + "where l.layout_version_id = :v and l.to_asset_id = :id order by 1")
+                .setParameter("v", draft.id())
+                .setParameter("id", assetId)
+                .getResultList();
+        em.remove(r);
+        em.flush();
+        return dependents;
+    }
+
+    private AssetRevisionEntity locked(UUID versionId, UUID assetId, long expectedRowVersion) {
+        var r = em.find(AssetRevisionEntity.class, new AssetRevisionId(assetId, versionId));
+        if (r == null) {
+            throw new ResourceNotFoundException("Layout " + versionId + " has no asset " + assetId);
+        }
+        if (r.rowVersion != expectedRowVersion) {
+            throw new ConflictException("The asset was changed by someone else, reload and try again");
+        }
+        return r;
+    }
+
+    private static void copy(LayoutAsset a, AssetRevisionEntity r) {
+        r.name = a.name();
+        r.geom = a.geom();
+        r.anchor = point(a.anchor());
+        r.headingDeg = a.headingDeg();
+        r.lengthM = a.lengthM();
+        r.widthM = a.widthM();
+        r.heightM = a.heightM();
+        r.radiusM = a.radiusM();
+        r.lineWidthM = a.lineWidthM();
+        r.elevationM = a.elevationM() == null ? BigDecimal.ZERO : a.elevationM();
+        r.clearanceM = a.clearanceM() == null ? BigDecimal.ZERO : a.clearanceM();
+        r.modelRev = a.modelRev();
+        r.storageZoneCode = a.storageZoneCode();
+        r.operatorName = a.operatorName();
+        r.description = a.description();
+        r.accuracyCode = a.provenance().accuracy();
+        r.sourceCode = a.provenance().source();
+        r.capturedOn = a.provenance().capturedOn();
+        r.provenanceNote = a.provenance().note();
+    }
+
+    private static Point point(LonLat p) {
+        Point pt = Footprints.FACTORY.createPoint(new Coordinate(p.lon(), p.lat()));
+        pt.setSRID(Footprints.SRID);
+        return pt;
+    }
+
+    /** Writes details and links once the revision is flushed; an update clears the old rows first. */
+    private void writeDetails(UUID versionId, LayoutAsset a, boolean clear) {
+        try (Connection c = dataSource.getConnection()) {
+            if (clear) {
+                DetailStore.clear(c, versionId, a.id());
+            }
+            DetailStore.write(c, versionId, a.id(), a.details());
+            for (LayoutAsset.Link l : a.links()) {
+                DetailStore.writeLink(c, versionId, a.id(), l.toAssetId(), l.kind());
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("Writing the details of " + a.id() + " failed", e);
+        }
+    }
+
     private LayoutView assemble(LayoutVersion version, UUID only) {
         var query = em.createQuery(
                 "select r from AssetRevisionEntity r join fetch r.asset a where r.id.layoutVersionId = :v "
@@ -144,9 +311,9 @@ public class JpaLayoutRepository implements LayoutRepository {
         }
         List<AssetRevisionEntity> rows = query.getResultList();
         try (Connection c = dataSource.getConnection()) {
-            Map<UUID, AssetDetails> details = DetailStore.read(c, version.id());
-            var links = DetailStore.readLinks(c, version.id());
-            Map<UUID, AssetMeasures> measures = readMeasures(c, version.id());
+            Map<UUID, AssetDetails> details = DetailStore.read(c, version.id(), only);
+            var links = DetailStore.readLinks(c, version.id(), only);
+            Map<UUID, AssetMeasures> measures = readMeasures(c, version.id(), only);
             Map<String, StoragePadCapacity.Cargo> cargo = readCargo(c);
             List<LayoutAsset> assets = new ArrayList<>(rows.size());
             for (AssetRevisionEntity r : rows) {
@@ -222,11 +389,15 @@ public class JpaLayoutRepository implements LayoutRepository {
                 d.equipment());
     }
 
-    private static Map<UUID, AssetMeasures> readMeasures(Connection c, UUID version) throws SQLException {
+    private static Map<UUID, AssetMeasures> readMeasures(Connection c, UUID version, UUID only) throws SQLException {
         Map<UUID, AssetMeasures> out = new HashMap<>();
         try (PreparedStatement ps = c.prepareStatement("select asset_id, area_m2, perimeter_m, length_m "
-                + "from layout.asset_revision_measure where layout_version_id = ?")) {
+                + "from layout.asset_revision_measure where layout_version_id = ?"
+                + (only == null ? "" : " and asset_id = ?"))) {
             ps.setObject(1, version);
+            if (only != null) {
+                ps.setObject(2, only);
+            }
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     out.put(
@@ -304,7 +475,7 @@ public class JpaLayoutRepository implements LayoutRepository {
         return rs.wasNull() ? null : v;
     }
 
-    private static java.time.Instant instant(ResultSet rs, int column) throws SQLException {
+    private static Instant instant(ResultSet rs, int column) throws SQLException {
         Timestamp t = rs.getTimestamp(column);
         return t == null ? null : t.toInstant();
     }

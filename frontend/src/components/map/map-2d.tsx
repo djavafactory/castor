@@ -34,8 +34,10 @@ import {
   type DrawShape,
 } from '@/features/design/draw/draw-rules'
 import { useFinishDraw } from '@/features/design/draw/use-finish-draw'
+import { PlacementPill } from '@/features/design/place/placement-pill'
+import { usePlaceAsset, usePlacementStore } from '@/features/design/place/use-placement'
 import { useEditorStore } from '@/lib/stores/editor-store'
-import { drawMap, type Sketch } from './map-draw'
+import { drawMap, type Ghost2D, type Sketch } from './map-draw'
 import { MapFurniture } from './map-furniture-view'
 import { PIN_MS, useMapStore } from './map-store'
 import {
@@ -99,6 +101,9 @@ export function Map2D() {
   const tool = useEditorStore((s) => s.tool)
   const sketch = useRef<Omit<Sketch, 'cursor'> | null>(null)
   const { finish, place, typeOf } = useFinishDraw()
+  const placing = tool?.kind === 'place'
+  const placeAsset = usePlaceAsset()
+  const ghost = useRef<Ghost2D | null>(null)
 
   // What the draw tool is doing: the shape kind of its type, and the sketch drawn from its vertices
   const drawing = useMemo((): DrawShape | 'point' | null => {
@@ -164,6 +169,7 @@ export function Map2D() {
           ...sketch.current,
           cursor: cursor ? [cursor.x, cursor.y] : null,
         },
+        ghost: ghost.current,
       })
     }
     schedule.current = () => {
@@ -187,8 +193,14 @@ export function Map2D() {
   // The view and the size move often; they never go through React
   useEffect(() => {
     const unsubscribe = useMapStore.subscribe(() => schedule.current())
+    // the placement ghost follows the pointer, drawn on the next frame
+    const unsubscribeGhost = usePlacementStore.subscribe((s) => {
+      ghost.current = s.plan && { ring: s.plan.ring, line: s.plan.line, valid: s.problem === null }
+      schedule.current()
+    })
     return () => {
       unsubscribe()
+      unsubscribeGhost()
       cancelAnimationFrame(frame.current)
       frame.current = 0
     }
@@ -300,6 +312,10 @@ export function Map2D() {
     const d = drag.current
     drag.current = null
     if (!d || d.moved || d.button !== 0) return
+    if (placing) {
+      void placeAsset({ keepTool: event.shiftKey })
+      return
+    }
     if (drawing !== null) {
       addVertex(event)
       return
@@ -378,7 +394,7 @@ export function Map2D() {
         ref={canvas}
         role="img"
         aria-label="Plan of the port in local metres, north arrow top right"
-        className={`block h-full w-full touch-none ${drawing ? 'cursor-crosshair' : ''}`}
+        className={`block h-full w-full touch-none ${drawing || placing ? 'cursor-crosshair' : ''}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -393,6 +409,7 @@ export function Map2D() {
         <PlaceSearch />
       </div>
       <DrawReadout onFinish={() => void finish()} />
+      <PlacementPill containerRef={container} />
       <MapFurniture
         frameRotDeg={port.data?.frameRotDeg ?? 0}
         basemap={basemap}

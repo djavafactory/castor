@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { webglAvailable } from '../webgl'
 import { CATEGORY_LABELS, MODEL_SPECS } from './registry'
 import type { ModelCategory } from './model-spec'
-import { renderThumbnail } from './thumbnails'
+import { scheduleThumbnail } from './thumbnails'
 
 const CATEGORIES = Object.keys(CATEGORY_LABELS) as ModelCategory[]
 
@@ -11,9 +11,8 @@ export function ModelThumbnail({ modelKey }: { modelKey: string }) {
   const [src, setSrc] = useState<string | null>(null)
   useEffect(() => {
     if (!webglAvailable()) return
-    // Rendered after the palette paints, one at a time, so opening Design does not stall
-    const id = window.setTimeout(() => setSrc(renderThumbnail(modelKey)), 0)
-    return () => window.clearTimeout(id)
+    // Rendered after the palette paints, three per frame, so opening Design does not stall
+    return scheduleThumbnail(modelKey, setSrc)
   }, [modelKey])
 
   return src ? (
