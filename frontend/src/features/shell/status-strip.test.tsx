@@ -7,7 +7,8 @@ import { useUiStore } from '@/lib/stores/ui-store'
 import { layoutWire, portFixture } from '@/test/fixtures'
 import { wrapperFor } from '@/test/query-wrapper'
 import { server } from '@/test/setup'
-import { ACCURACY_TIP, ENVELOPE_TIP, issuesText, StatusStrip } from './status-strip'
+import { StatusStrip } from './status-strip'
+import { ACCURACY_TIP, ENVELOPE_TIP, issuesText } from './status-text'
 
 vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { error: vi.fn() }) }))
 

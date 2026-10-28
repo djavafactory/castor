@@ -9,20 +9,7 @@ import { useEditorStore } from '@/lib/stores/editor-store'
 import { useUiStore } from '@/lib/stores/ui-store'
 import { cn } from '@/lib/utils'
 import { BasemapSelect } from './basemap-select'
-
-export function crsTip(measureSrid: number): string {
-  return `Stored as WGS84 (EPSG:4326, GeoJSON lon/lat order). Lengths and areas are computed in metres (EPSG:${measureSrid}).`
-}
-export const ACCURACY_TIP = 'Colour outlines by accuracy label; dashed = approximate'
-export const ENVELOPE_TIP =
-  "Draw each asset's bounding box (footprint x height) in 3D to catch wrong scale"
-
-const count = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
-
-/** "N errors, M warnings" text of the issues button. */
-export function issuesText(errors: number, warnings: number): string {
-  return `${count(errors, 'error')}, ${count(warnings, 'warning')}`
-}
+import { ACCURACY_TIP, crsTip, ENVELOPE_TIP, issuesText } from './status-text'
 
 function Divider() {
   return <span aria-hidden="true" className="h-4 w-px shrink-0 bg-line-soft" />
