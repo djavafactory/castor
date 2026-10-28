@@ -1,22 +1,18 @@
 import { AssetPalette, DragChip } from '@/features/design/asset-palette'
 import { usePlacementGhost } from '@/features/design/place/use-placement'
-import { DraftSummary } from '@/features/design/draft-summary'
 import { CheckAndSaveKey, DesignInspector } from '@/features/design/inspector/inspector'
 import { IssuesTab } from '@/features/design/issues/issues-tab'
 import { useDraftValidation } from '@/features/design/issues/use-draft-validation'
 import { VersionsTab } from '@/features/design/versions/versions-tab'
 import { CountPill } from '@/components/ui/badge'
-import { CursorReadout } from '@/components/map/cursor-readout'
 import { Map2D } from '@/components/map/map-2d'
 import { Tabs } from '@/components/ui/tabs'
 import { LayoutAssetDetails } from '@/components/scene/layout/asset-details'
 import { BuildingDetails } from '@/components/scene/buildings/building-details'
 import { PortScene } from '@/components/scene/port-scene'
-import { HistoryPopover } from '@/features/design/history/history-popover'
-import { BasemapSelect } from './basemap-select'
 import { CatalogueTab } from './catalogue-tab'
-import { DebugSwitches } from './more-menu'
 import { PortDetails } from './port-details'
+import { StatusStrip } from './status-strip'
 import { useSceneKeys } from './use-scene-keys'
 import { showsMap, showsScene } from './view-modes'
 import { useEffect, type ReactNode } from 'react'
@@ -91,20 +87,7 @@ export function WorkArea() {
         </main>
         {!panelHidden && <RightPanel mode={mode} />}
       </div>
-      {mode === 'design' && (
-        <footer
-          aria-label="Status"
-          className="flex h-8 shrink-0 items-center gap-3 border-t border-line-soft bg-paper px-4 font-mono text-xs text-muted"
-        >
-          <DraftSummary />
-          <span className="ml-auto flex items-center gap-3 font-sans text-[13px] text-ink">
-            <CursorReadout />
-            <HistoryPopover />
-            <BasemapSelect />
-            <DebugSwitches compact />
-          </span>
-        </footer>
-      )}
+      {mode === 'design' && <StatusStrip />}
     </div>
   )
 }
