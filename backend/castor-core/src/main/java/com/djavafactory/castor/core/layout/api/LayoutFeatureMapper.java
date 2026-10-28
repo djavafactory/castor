@@ -71,6 +71,12 @@ public class LayoutFeatureMapper {
         number(p, "radiusM", a.radiusM());
         number(p, "lineWidthM", a.lineWidthM());
         number(p, "elevationM", a.elevationM());
+        number(p, "clearanceM", a.clearanceM());
+        if (a.modelRev() == null) {
+            p.putNull("modelRev");
+        } else {
+            p.put("modelRev", a.modelRev());
+        }
         p.put("storageZoneCode", a.storageZoneCode());
         p.set("details", details(a.details()));
         ArrayNode links = json.createArrayNode();

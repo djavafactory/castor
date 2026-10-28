@@ -104,7 +104,9 @@ describe('saving into the shared draft', () => {
   it('on 409 says who changed the asset, reloads the draft and does not mark the save failed', async () => {
     const client = seeded()
     server.use(
-      http.patch(`${PORT}/layout/draft/assets/a-1`, () => problem(409, 'Conflict')),
+      http.patch(`${API}/v1/layouts/${layoutFixture.versionId}/assets/a-1`, () =>
+        problem(409, 'Conflict'),
+      ),
       http.get(`${PORT}/layouts/draft`, () =>
         HttpResponse.json(
           layoutWire(
@@ -138,11 +140,19 @@ describe('saving into the shared draft', () => {
     const client = seeded()
     let calls = 0
     server.use(
-      http.patch(`${PORT}/layout/draft/assets/a-1`, () => {
+      http.patch(`${API}/v1/layouts/${layoutFixture.versionId}/assets/a-1`, () => {
         calls += 1
         return calls === 1
           ? problem(500, 'Boom')
-          : HttpResponse.json({ id: 'a-1', typeCode: 'EXCAVATOR', rowVersion: 4 })
+          : HttpResponse.json({
+              feature: {
+                type: 'Feature',
+                id: 'a-1',
+                geometry: { type: 'Point', coordinates: [101.3, 2.95] },
+                properties: { type: 'EXCAVATOR', rowVersion: 4 },
+              },
+              warnings: [],
+            })
       }),
       http.get(`${PORT}/layouts/draft`, () => HttpResponse.json(layoutWire())),
     )
@@ -166,9 +176,17 @@ describe('saving into the shared draft', () => {
     let release = () => {}
     const gate = new Promise<void>((resolve) => (release = resolve))
     server.use(
-      http.patch(`${PORT}/layout/draft/assets/a-1`, async () => {
+      http.patch(`${API}/v1/layouts/${layoutFixture.versionId}/assets/a-1`, async () => {
         await gate
-        return HttpResponse.json({ id: 'a-1', typeCode: 'EXCAVATOR', rowVersion: 4 })
+        return HttpResponse.json({
+          feature: {
+            type: 'Feature',
+            id: 'a-1',
+            geometry: { type: 'Point', coordinates: [101.3, 2.95] },
+            properties: { type: 'EXCAVATOR', rowVersion: 4 },
+          },
+          warnings: [],
+        })
       }),
       http.get(`${PORT}/layouts/draft`, () => HttpResponse.json(layoutWire())),
     )

@@ -36,6 +36,54 @@ public interface LayoutRepository {
     /** Marks a DRAFT as DISCARDED; its rows are kept. Returns the changed version. */
     LayoutVersion discard(LayoutVersion draft);
 
+    /** The permanent identity of an asset of the port, if the port has it. */
+    default Optional<AssetIdentity> findIdentity(String portCode, UUID assetId) {
+        throw new UnsupportedOperationException();
+    }
+
+    /** Every asset code of the port, whatever version it is used in. */
+    default List<String> findCodes(String portCode) {
+        throw new UnsupportedOperationException();
+    }
+
+    /** The row version of the revision of an asset in a version, if the version has the asset. */
+    default Optional<Long> findRowVersion(UUID versionId, UUID assetId) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Stores a new asset in the draft, in the running transaction: the identity (created unless assetId is an existing
+     * one without a revision here), the revision, details and links. Returns the row version, 0.
+     */
+    default long insert(LayoutVersion draft, LayoutAsset asset, String actor) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Replaces the revision, details and links of an asset of the draft. The stored row version must equal
+     * {@code expectedRowVersion}.
+     *
+     * @return the new row version
+     * @throws com.djavafactory.castor.core.shared.domain.ConflictException when the row version differs
+     */
+    default long update(LayoutVersion draft, LayoutAsset asset, long expectedRowVersion, String actor) {
+        throw new UnsupportedOperationException();
+    }
+
+    /** Records an override on the revision; same concurrency rule as {@link #update}. Returns the new row version. */
+    default long override(
+            LayoutVersion draft, UUID assetId, long expectedRowVersion, LayoutAsset.Override override, String actor) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Removes the revision (identity kept) with its details and every link to or from it. Returns the codes of the
+     * assets that linked to it.
+     */
+    default List<String> delete(LayoutVersion draft, UUID assetId, long expectedRowVersion) {
+        throw new UnsupportedOperationException();
+    }
+
     /** Records that a draft was made by restoring a version. */
     void markRestored(UUID draftId, UUID sourceVersionId);
 
@@ -56,4 +104,7 @@ public interface LayoutRepository {
 
     /** Number of assets in a version. */
     int countAssets(UUID layoutId);
+
+    /** An asset's identity: permanent id, code and type. */
+    record AssetIdentity(UUID id, String code, String typeCode) {}
 }

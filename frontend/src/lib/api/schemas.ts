@@ -251,6 +251,9 @@ export const layoutFeaturePropertiesSchema = z.looseObject({
   radiusM: optionalMetres,
   lineWidthM: optionalMetres,
   elevationM: optionalMetres,
+  clearanceM: optionalMetres,
+  /** Revision of the 3D model template the asset was placed with. */
+  modelRev: z.number().int().nullish(),
   storageZoneCode: z.string().nullish(),
   details: layoutDetailsSchema,
   provenance: z.looseObject({
@@ -306,6 +309,17 @@ export const currentLayoutSchema = z.object({
   }),
 })
 
+/** A feature of a draft as the flat asset the editor works with. */
+function flatAsset(f: z.infer<typeof draftFeatureSchema>): LayoutAsset {
+  return {
+    ...f.properties,
+    id: f.id,
+    typeCode: f.properties.type,
+    rowVersion: f.properties.rowVersion,
+    geometry: f.geometry,
+  }
+}
+
 export const layoutDocumentSchema = z
   .object({
     layout: layoutHeaderSchema,
@@ -316,19 +330,21 @@ export const layoutDocumentSchema = z
   })
   .transform(({ layout, features }): Layout => {
     const { id, versionNo, ...header } = layout
-    return {
-      ...header,
-      versionId: id,
-      number: versionNo,
-      assets: features.features.map((f) => ({
-        ...f.properties,
-        id: f.id,
-        typeCode: f.properties.type,
-        rowVersion: f.properties.rowVersion,
-        geometry: f.geometry,
-      })),
-    }
+    return { ...header, versionId: id, number: versionNo, assets: features.features.map(flatAsset) }
   })
+
+/** The answer of POST, PATCH and duplicate of one asset: the stored feature, rule warnings and the rounding change. */
+export const savedAssetSchema = z
+  .object({
+    feature: draftFeatureSchema,
+    warnings: z.array(z.looseObject({ code: z.string(), message: z.string() })).default([]),
+    adjustmentMm: z.number().optional(),
+  })
+  .transform(({ feature, warnings, adjustmentMm }) => ({
+    asset: flatAsset(feature),
+    warnings,
+    adjustmentMm,
+  }))
 
 /** One failed rule of the catalogue (README section 6); the first asset id is the one to select. */
 export const validationIssueSchema = z.object({

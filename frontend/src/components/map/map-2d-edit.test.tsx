@@ -113,7 +113,7 @@ function renderMap() {
     http.post(`${BASE}/layouts/:id/validate`, () =>
       HttpResponse.json({ errors: 0, warnings: 0, issues: [] }),
     ),
-    http.patch(`${BASE}/ports/WESTPORTS/layout/draft/assets/:id`, async ({ request, params }) => {
+    http.patch(`${BASE}/layouts/draft-7/assets/:id`, async ({ request, params }) => {
       if (refusal) return refusal
       const body = (await request.json()) as Record<string, unknown>
       patched.push({
@@ -121,7 +121,15 @@ function renderMap() {
         rowVersion: request.headers.get('If-Match'),
         body,
       })
-      return HttpResponse.json({ id: params.id, typeCode: 'SHED', rowVersion: 4, ...body })
+      return HttpResponse.json({
+        feature: {
+          type: 'Feature',
+          id: params.id,
+          geometry: { type: 'Polygon', coordinates: [] },
+          properties: { type: 'SHED', rowVersion: 4, ...body },
+        },
+        warnings: [],
+      })
     }),
   )
   return render(

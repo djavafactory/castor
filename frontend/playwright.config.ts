@@ -12,6 +12,7 @@ const STACK_SPECS = [
   '**/map-2d.spec.ts',
   '**/issues.spec.ts',
   '**/versions.spec.ts',
+  '**/place.spec.ts',
 ]
 
 export default defineConfig({

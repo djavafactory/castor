@@ -1,4 +1,5 @@
-import { DrawTypes } from '@/features/design/draw/draw-types'
+import { AssetPalette, DragChip } from '@/features/design/asset-palette'
+import { usePlacementGhost } from '@/features/design/place/use-placement'
 import { DraftSummary } from '@/features/design/draft-summary'
 import { IssuesTab } from '@/features/design/issues/issues-tab'
 import { useDraftValidation } from '@/features/design/issues/use-draft-validation'
@@ -9,7 +10,6 @@ import { Map2D } from '@/components/map/map-2d'
 import { Tabs } from '@/components/ui/tabs'
 import { LayoutAssetDetails } from '@/components/scene/layout/asset-details'
 import { BuildingDetails } from '@/components/scene/buildings/building-details'
-import { ModelPalette } from '@/components/scene/models/model-palette'
 import { PortScene } from '@/components/scene/port-scene'
 import { BasemapSelect } from './basemap-select'
 import { CatalogueTab } from './catalogue-tab'
@@ -33,6 +33,12 @@ const TABS: Record<Mode, { value: RightTab; label: string; badge?: ReactNode }[]
   ],
 }
 
+/** Keeps the placement ghost current and shows the chip of a dragged palette tile; only Design places assets. */
+function PlacementHost() {
+  usePlacementGhost()
+  return <DragChip />
+}
+
 /**
  * The work area of both modes. Monitor: stage + right panel. Design: asset palette + stage + right panel.
  * Features plug their content into the stage, palette and tab panels.
@@ -49,6 +55,7 @@ export function WorkArea() {
   return (
     <div className="flex min-h-0 flex-col">
       <div className="flex min-h-0 flex-1">
+        {mode === 'design' && <PlacementHost />}
         {mode === 'design' && !paletteHidden && (
           <aside
             aria-label="Asset palette"
@@ -57,8 +64,7 @@ export function WorkArea() {
             <h2 className="font-brand text-[11px] font-bold tracking-[0.07em] text-muted uppercase">
               Assets
             </h2>
-            <DrawTypes />
-            <ModelPalette />
+            <AssetPalette />
           </aside>
         )}
         <main

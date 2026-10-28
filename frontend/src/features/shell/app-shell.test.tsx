@@ -274,7 +274,7 @@ describe('layout', () => {
     renderShell()
     expect(screen.getByLabelText('Status')).toHaveClass('h-8')
     expect(screen.getByLabelText('Asset palette')).toHaveClass('w-[260px]')
-    await userEvent.click(screen.getByRole('button', { name: 'Hide palette' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Assets' }))
     expect(screen.queryByLabelText('Asset palette')).not.toBeInTheDocument()
   })
 })

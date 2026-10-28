@@ -34,6 +34,8 @@ import {
   type DrawShape,
 } from '@/features/design/draw/draw-rules'
 import { useFinishDraw } from '@/features/design/draw/use-finish-draw'
+import { PlacementPill } from '@/features/design/place/placement-pill'
+import { usePlaceAsset, usePlacementStore } from '@/features/design/place/use-placement'
 import type { EditSubject } from '@/features/design/edit/edit-model'
 import { useEditPreview } from '@/features/design/edit/edit-preview-store'
 import { EditReason } from '@/features/design/edit/edit-reason'
@@ -41,7 +43,7 @@ import { editableHandles } from '@/features/design/edit/edit-ops'
 import { useAssetEdit } from '@/features/design/edit/use-asset-edit'
 import { useDraftValidation } from '@/features/design/issues/use-draft-validation'
 import { useEditorStore } from '@/lib/stores/editor-store'
-import { drawMap, type Sketch } from './map-draw'
+import { drawMap, type Ghost2D, type Sketch } from './map-draw'
 import { MapFurniture } from './map-furniture-view'
 import { PIN_MS, useMapStore } from './map-store'
 import {
@@ -107,6 +109,9 @@ export function Map2D() {
   const errors = useRef<ReadonlySet<string>>(new Set())
   const editing = useRef<EditSubject | null>(null)
   const { finish, place, typeOf } = useFinishDraw()
+  const placing = tool?.kind === 'place'
+  const placeAsset = usePlaceAsset()
+  const ghost = useRef<Ghost2D | null>(null)
   const mode = useUiStore((s) => s.mode)
 
   // What the draw tool is doing: the shape kind of its type, and the sketch drawn from its vertices
@@ -186,6 +191,7 @@ export function Map2D() {
           ...sketch.current,
           cursor: cursor ? [cursor.x, cursor.y] : null,
         },
+        ghost: ghost.current,
         errorIds: errors.current,
         preview: preview && {
           assetId: preview.assetId,
@@ -237,10 +243,16 @@ export function Map2D() {
   // The view and the size move often; they never go through React
   useEffect(() => {
     const unsubscribe = useMapStore.subscribe(() => schedule.current())
+    // the placement ghost follows the pointer, drawn on the next frame
+    const unsubscribeGhost = usePlacementStore.subscribe((s) => {
+      ghost.current = s.plan && { ring: s.plan.ring, line: s.plan.line, valid: s.problem === null }
+      schedule.current()
+    })
     // A drag in progress paints through the preview store, not through React
     const unsubscribePreview = useEditPreview.subscribe(() => schedule.current())
     return () => {
       unsubscribe()
+      unsubscribeGhost()
       unsubscribePreview()
       cancelAnimationFrame(frame.current)
       frame.current = 0
@@ -365,6 +377,10 @@ export function Map2D() {
     const d = released.click ? { moved: false, button: 0 } : drag.current
     drag.current = null
     if (!d || d.moved || d.button !== 0) return
+    if (placing) {
+      void placeAsset({ keepTool: event.shiftKey })
+      return
+    }
     if (drawing !== null) {
       addVertex(event)
       return
@@ -445,7 +461,7 @@ export function Map2D() {
         ref={canvas}
         role="img"
         aria-label="Plan of the port in local metres, north arrow top right"
-        className={`block h-full w-full touch-none select-none ${drawing ? 'cursor-crosshair' : ''}`}
+        className={`block h-full w-full touch-none select-none ${drawing || placing ? 'cursor-crosshair' : ''}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -466,6 +482,7 @@ export function Map2D() {
       </div>
       <EditReason />
       <DrawReadout onFinish={() => void finish()} />
+      <PlacementPill containerRef={container} />
       <MapFurniture
         frameRotDeg={port.data?.frameRotDeg ?? 0}
         basemap={basemap}
