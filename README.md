@@ -20,7 +20,7 @@ castor/
   frontend/                 React + Vite + Three.js, see frontend/README.md
   fixtures/                 coordinates.json shared by backend and frontend coordinate tests (CORE-01)
   scripts/                  generate-coordinate-fixtures.mjs
-  compose.yaml              local database (SETUP-08)
+  compose.yaml              local and dev database and Kafka (SETUP-08, INGEST-01)
   .env.example              placeholders only (SETUP-08)
   .github/                  ci.yml (SETUP-10), dependabot.yml, CODEOWNERS, pull_request_template.md
   .gitignore  .editorconfig  README.md  CHANGELOG.md  VERSION
@@ -53,15 +53,17 @@ cd frontend && npm ci && npm run lint && npm run typecheck && npm test
 
 Details and limits: [backend/README.md](backend/README.md#run-and-test) and [frontend/README.md](frontend/README.md#run-and-test). For a long-lived local database with the real `castor_app` and `castor_flyway` roles from `db/init/01-roles.sql`, use the Docker database below.
 
-There is no gateway in Phase 1 (see above), so it has no run instructions yet; it gets its own README when Phase 2 starts.
+Kafka needs no setup either: the same Dev Services start a throwaway single-node `apache/kafka:4.2.2` broker next to the database, for `quarkus:dev` and for every test (one broker per test JVM, never shared with a broker you started yourself). castor-core creates its four topics at start.
 
-### With a persistent Docker database
+There is no gateway yet, so it has no run instructions; it gets its own README when the gateway work starts.
 
-The database runs in Docker; backend and frontend run on your machine with hot reload. Data survives restarts.
+### With a persistent Docker database and broker
+
+The database and Kafka run in Docker; backend and frontend run on your machine with hot reload. Data survives restarts.
 
 ```
 cp .env.example .env                       # then replace every CHANGE_ME value
-docker compose --profile local up -d --wait   # PostGIS only, 127.0.0.1:${LOCAL_DB_PORT:-5432}
+docker compose --profile local up -d --wait   # castor-local-db 127.0.0.1:${LOCAL_DB_PORT:-5432}, castor-local-kafka 127.0.0.1:${LOCAL_KAFKA_PORT:-9092}
 cd backend && ./mvnw -pl castor-core quarkus:dev -Dquarkus.profile=local   # local = dev settings + the Docker database
 cd frontend && cp .env.example .env.local && npm ci && npm run dev
 ```
@@ -69,10 +71,13 @@ cd frontend && cp .env.example .env.local && npm ci && npm run dev
 | What | URL |
 | --- | --- |
 | Frontend | http://localhost:5173 |
+| Kafka (bootstrap server) | localhost:9092 (`LOCAL_KAFKA_PORT`) |
 | API, Swagger UI | http://localhost:8081, http://localhost:8081/q/swagger-ui |
 | Health (management port) | http://localhost:9000/q/health/ready |
 
-Reset local to the seeded layout (wipes the local database volume only):
+The `local` profile reads the broker address from `kafka.bootstrap.servers` (`localhost:${LOCAL_KAFKA_PORT:9092}`). Tests never use it. An exported `KAFKA_BOOTSTRAP_SERVERS` (for example the root `.env` you exported to run the local backend) switches Dev Services off, so run the backend tests in a shell where it is unset: `KafkaTestIsolationTest` fails the build otherwise.
+
+Reset local to the seeded layout (wipes the local database and Kafka volumes):
 
 ```
 docker compose --profile local down -v && docker compose --profile local up -d
@@ -80,20 +85,20 @@ docker compose --profile local down -v && docker compose --profile local up -d
 
 ## Run the dev environment
 
-The whole built app in containers (`castor-dev-db`, `castor-dev-backend`, `castor-dev-frontend`). Only the frontend port is published; the database and `/q/*` management endpoints are not reachable from the host. Runs side by side with local.
+The whole built app in containers (`castor-dev-db`, `castor-dev-kafka`, `castor-dev-backend`, `castor-dev-frontend`). Only the frontend port is published; the database, Kafka (`castor-dev-kafka:9092` on the `castor-dev-net` network) and `/q/*` management endpoints are not reachable from the host. Runs side by side with local.
 
 ```
 docker compose --profile dev up -d --build --wait   # app at http://localhost:${DEV_WEB_PORT:-8080}
 docker compose --profile dev down
 ```
 
-Every backend start in dev wipes and reseeds the data (`CASTOR_RESET_ON_START=true`, set by `compose.yaml`).
+Every backend start in dev wipes and reseeds the data (`CASTOR_RESET_ON_START=true`, set by `compose.yaml`). The dev Kafka keeps its data on tmpfs, so it is empty after every container start; the backend waits for it to be healthy and recreates the topics.
 
 ## Tests
 
 | What | Command | Needs |
 | --- | --- | --- |
-| Backend unit, ArchUnit and integration tests (throwaway PostGIS) | `cd backend && ./mvnw -B spotless:check verify` | Docker, Java 25 |
+| Backend unit, ArchUnit and integration tests (throwaway PostGIS and Kafka, see [Phase 2 test rules](#test-rules-t1-t4)) | `cd backend && ./mvnw -B spotless:check verify` | Docker, Java 25 |
 | Frontend lint, types, unit tests | `cd frontend && npm ci && npm run lint && npm run typecheck && npm test` | Node 24 |
 | Bundle size budget | `cd frontend && npm run build && npm run bundle:check` | Node 24 |
 | End to end, mocked API (login, design system) | `cd frontend && npx playwright install chromium && npm run test:e2e` | Node 24 |
@@ -110,6 +115,8 @@ Each environment is a set of variables; see `.env.example` and `frontend/.env.ex
 - `CASTOR_ENV` is `local`, `dev` or `test`. Demo login (`CASTOR_DEMO_LOGIN`, `VITE_DEMO_LOGIN`) defaults to off and works only when set to true in local or dev.
 - The backend refuses to start when `CASTOR_ENV` is anything else and demo login is on, a value contains `CHANGE_ME`, the admin password has fewer than 14 characters, or CORS origins are empty or `*`.
 - `CASTOR_RESET_ON_START=true` is allowed only in dev or test, otherwise start-up fails with "Refusing to wipe data: reset-on-start is only allowed in dev or test".
+- Kafka: `KAFKA_BOOTSTRAP_SERVERS` is required in every deployed environment (compose dev sets `castor-dev-kafka:9092`); `LOCAL_KAFKA_PORT` is the host port of `castor-local-kafka`; `CASTOR_KAFKA_REPLICATION_FACTOR` (default 1, the local and dev value) is the replication factor of the topics castor-core creates at start.
+- `CASTOR_SERVICE_TOKEN` is the shared secret of every internal API between core, gateway and emulator. CI replaces every `CHANGE_ME` value with a random one.
 
 ## Data
 
@@ -220,6 +227,37 @@ Failures, to be raised as tickets:
 
 Trunk-based with short-lived branches, Conventional Commits, squash merge. `main` is protected: green CI and one review. CODEOWNERS covers `backend/`, `frontend/`, `.github/`.
 
+## Phase 2 scope
+
+Phase 2 makes the replica live: events from the (synthetic) port systems flow through a gateway and Kafka into an operational state that the Monitor shows. This section applies to every Phase 2 ticket, which therefore says "follow R1-R9 and T1-T4" instead of repeating them. The Phase 1 rules (see [Phase 1 scope](#phase-1-scope)) still hold where R5 says so.
+
+### In scope
+
+Ingest gateway (REST and file channels), synthetic source emulator (CBAS, ITAP, SCSS, EDIC, sensors), Kafka backbone, operational state projections, snapshot REST and WebSocket deltas, live Monitor, vessel calls, metrics, flow graph, bottleneck alerts, haulier congestion, integration operations, five demo stories, resilience, observability, replica8.it deployment.
+
+### Out of scope (Phase 3+)
+
+Scenario Lab / what-if simulation, connection to real Westports systems, any command sent to a port system (Castor is read-only towards them), OIDC/Keycloak, multi-port UI, live container-terminal operations.
+
+### Rules (R1-R9)
+
+1. **R1 The backend owns operational truth.** Frontend motion is interpolation between observed states only. A 3D object never shows an invented position as an observed one.
+2. **R2 Every operational value carries quality (`OBSERVED` | `INFERRED` | `SIMULATED`), source and observedAt**, and the UI shows them next to the value. All emulator data is `SIMULATED`; the app shows a "SYNTHETIC DATA" banner while any `SIMULATED` value is on screen.
+3. **R3 Missing data is UNKNOWN, never zero.** Freshness = now - observedAt against a per-event-type SLA: `FRESH`, `STALE`, or `UNKNOWN` (never observed).
+4. **R4 Every quantity has an explicit unit code.** Units are never mixed or guessed (tonnes/h is not vehicles/h); a value that cannot be converted is rejected.
+5. **R5 Phase 1 rules 5, 8, 9 and 10 still apply:** WGS84 storage and metres in EPSG:3380, `port_id` on every table and API path, `@RolesAllowed`, REST under `/api/v1` and Flyway.
+6. **R6 Cargo families and event types are data** (`ref.cargo_family`, the contract catalogue). Nothing hard-codes conventional cargo; containers are added later as data.
+7. **R7 Browsers call castor-core only.** Services: castor-gateway (ingest), castor-core (state, API, WebSocket), castor-emulator (synthetic sources). Gateway and emulator internal APIs are never routed through the frontend nginx.
+8. **R8 Server code takes time from an injected `java.time.InstantSource`**, never `Instant.now()` or sleeps in business code (needed for stepped-clock tests and the demo clock).
+9. **R9 Flyway versions are reserved per ticket** so parallel tickets never clash. castor-core: STATE-01 V10, INGEST-03 V11, STATE-03 V12, STATE-04 V13, EMULATOR-02 V14, ANALYTICS-01 V15, ANALYTICS-02 V16, ANALYTICS-03 V17, ANALYTICS-05 V19, OPS-03 V20, OPS-01 V21. castor-gateway (own history in schema `ingest`): INGEST-02 V1, INGEST-03 V2, INGEST-04 V3, OPS-03 V4. An unused number is simply skipped.
+
+### Test rules (T1-T4)
+
+1. **T1 No screenshot, image, pixel or visual snapshot comparison in any test, and no e2e step that checks the 3D scene:** no scene probe (`window.__castorScene`), no camera, 3D positions, frame rate or WebGL checks. What the 3D view shows is tested with Vitest on the pure functions behind it (coordinates, interpolation, colours, badges, overlay geometry), without rendering. E2E checks DOM text, roles and API responses only, and never waits for the 3D scene to finish loading.
+2. **T2 Business rules are proven in backend unit/integration tests with a fixed or stepped clock.** E2E covers the user journey only: one spec per ticket, each under 90 s. UI specs get their data by posting canonical events through the gateway's canonical source (e2e helper `postCanonical()`, LIVE-02), back-dated when time must have passed, then calling the dev-only metric recompute endpoint (ANALYTICS-01). Only the demo story specs use the emulator.
+3. **T3 One PostGIS and one Kafka container per test JVM.** No test sleeps longer than 1 s; wait with polling (Awaitility, `expect.poll`).
+4. **T4 While working, run only the ticket's Test focus:** backend `./mvnw -pl <module> verify -Dtest=<pattern> -Dit.test=<pattern> -Dsurefire.failIfNoSpecifiedTests=false`; frontend `npm run test -- <path>`; e2e `npx playwright test <spec>` against the dev stack. Run the full module `verify` once before review.
+
 ## Phase 1 scope
 
 > Castor is a reusable port digital twin. The first port is Westports Malaysia (Pulau Indah, Port Klang). This section is the Phase 1 brief and applies to every Phase 1 ticket. The Portwise prototype described in the rest of this README is a separate, earlier codebase.
@@ -254,7 +292,7 @@ No conventional-cargo-only assumption may be hard-coded into the asset registry,
 ### Scope rules
 
 1. **In scope:** login, app shell, Design mode (layout designer), Monitor mode (read-only viewer of the published layout), versioned layouts (draft, publish, restore), GeoJSON import/export, accuracy checks.
-2. **Out of scope (Phase 2+):** live events, ingest gateway, Kafka, simulator, WebSocket, live positions, vessel calls, KPIs, berth schedule, alerts, flow analytics, Scenario Lab, multi-port UI, OIDC/Keycloak, deployment to replica8.it.
+2. **Out of scope in Phase 1:** everything live. Live events, the ingest gateway, Kafka, the simulator, WebSocket, vessel calls, KPIs and alerts are the subject of Phase 2: see [Phase 2 scope](#phase-2-scope) for what is in and what stays out.
 3. Monitor mode shows no live data in Phase 1: no events feed, no ships tab, no KPIs, no live bar, no "Live / Reconnecting" connection chip.
 4. The 3D ground is flat (y = 0). No bumps or waves on land, roads or pads. Waves only on water.
 5. Coordinates are stored as WGS84 [longitude, latitude] (EPSG:4326). Lengths, areas and distances are computed in metres in EPSG:3380 (GDM2000 / Selangor Grid). The 3D scene uses local metres in the quay frame (SETUP-03). Never compute metres from raw degrees.
@@ -293,14 +331,17 @@ Versions recorded 2026-10-23 from ticket SETUP-02 (re-check at kick-off and upda
 
 - Java 25 LTS; Quarkus platform BOM io.quarkus.platform:quarkus-bom 3.40.1.1 LTS; Maven 3.10.0 via wrapper
 - From the BOM, never overridden: Hibernate ORM + Spatial 7.4.9.Final, Flyway 12.0.0, PostgreSQL JDBC 42.7.13, REST Assured 6.0.1
-- Declared outside the BOM (only these): Testcontainers 2.0.5, ArchUnit 1.5.1, JTS IO (jts-io-common) 1.20.0
+- Kafka (INGEST-01): kafka-clients 4.2.1 and quarkus-messaging-kafka come from the BOM; the broker image is the newest 4.2.x patch, apache/kafka 4.2.2 (checked 2026-10-29)
+- Declared outside the BOM (only these): Testcontainers 2.0.5, ArchUnit 1.5.1, JTS IO (jts-io-common) 1.20.0, networknt json-schema-validator 2.0.8 (the 2.x line on purpose: 3.x moved to Jackson 3, the BOM ships Jackson 2)
 - Plugins: JaCoCo 0.8.15; Spotless 3.10.4 (Palantir Java Format)
-- Quarkus extensions: quarkus-rest-jackson, quarkus-hibernate-orm-panache, hibernate-spatial, quarkus-jdbc-postgresql, quarkus-flyway, quarkus-hibernate-validator, quarkus-security-jpa, quarkus-scheduler, quarkus-smallrye-health, quarkus-smallrye-openapi, quarkus-micrometer-registry-prometheus, quarkus-logging-json
-- Test: quarkus-junit5, quarkus-test-security, quarkus-jacoco
+- Quarkus extensions: quarkus-rest-jackson, quarkus-hibernate-orm-panache, hibernate-spatial, quarkus-jdbc-postgresql, quarkus-flyway, quarkus-hibernate-validator, quarkus-security-jpa, quarkus-scheduler, quarkus-smallrye-health, quarkus-smallrye-openapi, quarkus-micrometer-registry-prometheus, quarkus-logging-json, quarkus-messaging-kafka
+- Modules: castor-contracts (plain Java, no Quarkus: canonical event contract, topics, topic provisioner), castor-core
+- Test: quarkus-junit5, quarkus-test-security, quarkus-jacoco, testcontainers-kafka, awaitility
 
 **Docker images** (exact tags, never `latest`)
 
 - postgis/postgis:18-3.6 (also for Quarkus Dev Services and Testcontainers; the default image has no PostGIS)
+- apache/kafka:4.2.2 (compose local and dev, Quarkus Dev Services provider `upstream-kafka`, and the Testcontainers broker of the outage tests)
 - eclipse-temurin:25-jdk-noble (build) / eclipse-temurin:25-jre-noble (run)
 - node:24.22.0-trixie-slim (build) / nginxinc/nginx-unprivileged:1.31.7-alpine (run)
 
@@ -308,7 +349,7 @@ Versions recorded 2026-10-23 from ticket SETUP-02 (re-check at kick-off and upda
 
 actions/checkout v7, actions/setup-java v6, actions/setup-node v7, actions/upload-artifact v7, docker/setup-buildx-action v4, docker/build-push-action v7, aquasecurity/trivy-action v0.36.0, actions/dependency-review-action v5.
 
-**Not used in Phase 1:** Kafka, Kafka UI, WebSocket libraries, REST client, fault tolerance.
+**Not used in Phase 1:** Kafka (arrives with Phase 2, INGEST-01), Kafka UI, WebSocket libraries, REST client, fault tolerance.
 
 ### Conventions
 
@@ -320,6 +361,16 @@ actions/checkout v7, actions/setup-java v6, actions/setup-node v7, actions/uploa
 ### Decisions
 
 Record decisions and behaviour changes here, newest first.
+
+#### INGEST-01: Canonical event contract and its compatibility policy
+
+All services (gateway, core, emulator) share the module `backend/castor-contracts`: the envelope (`CanonicalEvent`), one JSON Schema (draft 2020-12) per event type in `schemas/v1/`, the `Unit` enum, the `Topics` constants, `CanonicalEventValidator`, `CanonicalEventCodec` and `TopicProvisioner`.
+
+- **Compatibility inside v1:** only optional fields may be added, to the envelope or to a payload. Schemas allow unknown properties and the codec ignores them, so a consumer built before the addition keeps working. Removing or renaming a field, making an optional field required, changing a type, narrowing an enum or changing a unit is a breaking change.
+- **Breaking change:** a new directory `schemas/v2`, `schemaVersion` 2 and new topic names (`castor.ingest.canonical.v2` and so on). v1 and v2 run side by side until every producer and consumer has moved; v1 topics and schemas are never edited in place.
+- **Topics (never deleted or altered by code):** `castor.ingest.canonical.v1` (6 partitions, key aggregateId, 7 d), `castor.state.changed.v1` (3, key portId, 1 d), `castor.alerts.v1` (3, 30 d), `castor.integration.dlq.v1` (3, 30 d). Every service calls `TopicProvisioner` at start; it creates what is missing and leaves existing topics alone. Replication factor: `CASTOR_KAFKA_REPLICATION_FACTOR`, 1 in local and dev.
+- **Units (R4):** every dimension has exactly one unit code (`TONNES`, `PIECES`, `CUBIC_METRES`, `VEHICLES`, `TRUCKS`, `LIFTS` and their `_PER_HOUR` rates). There is no conversion between dimensions: the schemas accept only the listed codes and `Unit.convert` throws `UnitMismatchException` for anything but the same unit.
+- **Event types are data (R6):** a new type is a constant in `EventType`, a payload schema and an example pair (`src/test/resources/examples/<type>.valid.json` and `.invalid.json`); the tests iterate the enum, so a type without them fails the build. Cargo families are codes from `ref.cargo_family`, never enums in a schema.
 
 #### JOIN-03: Laptop layout and accessibility
 

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://castor.djavafactory.com/schemas/v1/cargo.lot.registered.json",
+  "title": "cargo.lot.registered",
+  "description": "cargoFamily is a code from ref.cargo_family: data, never an enum here.",
+  "type": "object",
+  "required": ["lotCode", "cargoFamily", "commodity", "unit", "quantity"],
+  "properties": {
+    "lotCode": { "type": "string", "minLength": 1 },
+    "consignmentCode": { "type": "string", "minLength": 1 },
+    "cargoFamily": { "type": "string", "minLength": 1 },
+    "commodity": { "type": "string", "minLength": 1 },
+    "unit": { "enum": ["TONNES", "PIECES", "CUBIC_METRES"] },
+    "quantity": { "type": "number", "minimum": 0 },
+    "massBasis": { "enum": ["WET", "DRY"] }
+  }
+}

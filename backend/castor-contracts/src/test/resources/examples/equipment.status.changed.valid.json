@@ -1,0 +1,19 @@
+{
+  "eventId": "0d5c1f0e-6b0a-4d6c-8c7e-5a3d9e2b7f01",
+  "schemaVersion": 1,
+  "portId": "westports",
+  "sourceSystem": "ITAP",
+  "sourceEventId": "ITAP-EQ-88121",
+  "receptionId": "rec-20261029-0002",
+  "type": "equipment.status.changed",
+  "entityType": "EQUIPMENT",
+  "entityId": "crane-mhc-2",
+  "aggregateId": "crane-mhc-2",
+  "occurredAt": "2026-10-29T08:20:00Z",
+  "receivedAt": "2026-10-29T08:20:01Z",
+  "quality": "SIMULATED",
+  "payload": {
+    "status": "BLOCKED",
+    "reason": "Waiting for trucks"
+  }
+}

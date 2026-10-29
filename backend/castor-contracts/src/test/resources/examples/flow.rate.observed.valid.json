@@ -1,0 +1,20 @@
+{
+  "eventId": "f4a5b6c7-d8e9-4fa0-b1c2-3d4e5f607182",
+  "schemaVersion": 1,
+  "portId": "westports",
+  "sourceSystem": "SENSORS",
+  "sourceEventId": "BELT-02-1761728460",
+  "receptionId": "rec-20261029-0008",
+  "type": "flow.rate.observed",
+  "entityType": "FLOW_ASSET",
+  "entityId": "conveyor-02",
+  "aggregateId": "conveyor-02",
+  "occurredAt": "2026-10-29T09:01:00Z",
+  "receivedAt": "2026-10-29T09:01:01Z",
+  "quality": "OBSERVED",
+  "payload": {
+    "assetId": "conveyor-02",
+    "rate": 640.5,
+    "unit": "TONNES_PER_HOUR"
+  }
+}

@@ -36,14 +36,15 @@ jobs:
       TESTCONTAINERS_RYUK_DISABLED: 'true'
     steps:
       - uses: actions/checkout@v5
-      # The PostGIS image of the integration tests downloads while Maven resolves and compiles
+      # The PostGIS and Kafka images of the integration tests (Dev Services) download while Maven resolves and compiles
       - run: docker pull -q postgis/postgis:18-3.6 > /dev/null 2>&1 &
+      - run: docker pull -q apache/kafka:4.2.2 > /dev/null 2>&1 &
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '25'
           cache: maven
-      # One Maven run: format check, unit, ArchUnit, Testcontainers integration (fresh PostGIS), JaCoCo gates. The
+      # One Maven run: format check, unit, ArchUnit, Testcontainers integration (fresh PostGIS and Kafka), JaCoCo gates. The
       # runnable app is not packaged here (quarkus.build.skip): the tests do not use it and the e2e job builds the image.
       - run: ./mvnw -B -ntp spotless:check verify -Dquarkus.build.skip=true
       - if: always()

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://castor.djavafactory.com/schemas/v1/inventory.adjusted.json",
+  "title": "inventory.adjusted",
+  "description": "delta is signed: a negative value removes stock.",
+  "type": "object",
+  "required": ["storageId", "delta", "unit", "reason"],
+  "properties": {
+    "storageId": { "type": "string", "minLength": 1 },
+    "delta": { "type": "number" },
+    "unit": { "enum": ["TONNES", "PIECES", "CUBIC_METRES"] },
+    "reason": { "type": "string", "minLength": 1 }
+  }
+}

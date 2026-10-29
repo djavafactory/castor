@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://castor.djavafactory.com/schemas/v1/vessel.call.updated.json",
+  "title": "vessel.call.updated",
+  "type": "object",
+  "required": ["callCode", "vesselName", "loaM", "beamM", "status", "eta"],
+  "properties": {
+    "callCode": { "type": "string", "minLength": 1 },
+    "vesselName": { "type": "string", "minLength": 1 },
+    "imo": { "type": "string", "pattern": "^[0-9]{7}$" },
+    "loaM": { "type": "number", "exclusiveMinimum": 0 },
+    "beamM": { "type": "number", "exclusiveMinimum": 0 },
+    "status": { "enum": ["EXPECTED", "ALONGSIDE", "DEPARTED", "CANCELLED"] },
+    "eta": { "type": "string", "format": "date-time" },
+    "ata": { "type": "string", "format": "date-time" },
+    "etd": { "type": "string", "format": "date-time" },
+    "atd": { "type": "string", "format": "date-time" },
+    "berthId": { "type": "string", "minLength": 1 }
+  }
+}

@@ -12,6 +12,7 @@
   <name>Castor backend</name>
 
   <modules>
+    <module>castor-contracts</module>
     <module>castor-core</module>
   </modules>
 
@@ -32,10 +33,12 @@
     <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
     <quarkus.platform.version>3.40.1.1</quarkus.platform.version>
 
-    <!-- The only dependency versions declared outside the Quarkus BOM -->
+    <!-- The only dependency versions declared outside the Quarkus BOM (kafka-clients comes from the BOM) -->
     <testcontainers.version>2.0.5</testcontainers.version>
     <archunit.version>1.5.1</archunit.version>
     <jts-io.version>1.20.0</jts-io.version>
+    <!-- 2.x line on purpose: 3.x moved to Jackson 3 (tools.jackson), the Quarkus BOM ships Jackson 2 -->
+    <networknt-json-schema.version>2.0.8</networknt-json-schema.version>
 
     <!-- Plugin versions -->
     <compiler-plugin.version>3.15.0</compiler-plugin.version>
@@ -73,6 +76,16 @@
         <groupId>org.locationtech.jts.io</groupId>
         <artifactId>jts-io-common</artifactId>
         <version>${jts-io.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.networknt</groupId>
+        <artifactId>json-schema-validator</artifactId>
+        <version>${networknt-json-schema.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.djavafactory.castor</groupId>
+        <artifactId>castor-contracts</artifactId>
+        <version>${project.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://castor.djavafactory.com/schemas/v1/envelope.json",
+  "title": "Canonical event envelope v1",
+  "description": "Every ID is a string. The payload is validated separately against the schema of its type.",
+  "type": "object",
+  "required": [
+    "eventId", "schemaVersion", "portId", "sourceSystem", "sourceEventId", "receptionId", "type", "entityType",
+    "entityId", "aggregateId", "occurredAt", "receivedAt", "quality", "payload"
+  ],
+  "properties": {
+    "eventId": { "type": "string", "format": "uuid", "description": "Set by the gateway." },
+    "schemaVersion": { "const": 1 },
+    "portId": { "type": "string", "minLength": 1 },
+    "sourceSystem": { "type": "string", "minLength": 1 },
+    "sourceEventId": { "type": "string", "minLength": 1 },
+    "sourceSequence": { "type": "integer" },
+    "receptionId": { "type": "string", "minLength": 1 },
+    "type": { "type": "string", "minLength": 1 },
+    "entityType": { "type": "string", "minLength": 1 },
+    "entityId": { "type": "string", "minLength": 1 },
+    "aggregateId": { "type": "string", "minLength": 1, "description": "Kafka key." },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "receivedAt": { "type": "string", "format": "date-time" },
+    "correlationId": { "type": "string", "minLength": 1 },
+    "quality": { "enum": ["OBSERVED", "INFERRED", "SIMULATED"] },
+    "payload": { "type": "object" }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://castor.djavafactory.com/schemas/v1/equipment.assignment.changed.json",
+  "title": "equipment.assignment.changed",
+  "description": "An absent field means the equipment is no longer assigned to that kind of target.",
+  "type": "object",
+  "properties": {
+    "jobId": { "type": "string", "minLength": 1 },
+    "vesselCallId": { "type": "string", "minLength": 1 },
+    "flowNodeId": { "type": "string", "minLength": 1 }
+  }
+}

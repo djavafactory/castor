@@ -1,0 +1,18 @@
+{
+  "eventId": "5e6f7a8b-9c0d-4e1f-a2b3-c4d5e6f70819",
+  "schemaVersion": 1,
+  "portId": "westports",
+  "sourceSystem": "ITAP",
+  "sourceEventId": "ITAP-AS-5531",
+  "receptionId": "rec-20261029-0004",
+  "type": "equipment.assignment.changed",
+  "entityType": "EQUIPMENT",
+  "entityId": "crane-mhc-2",
+  "aggregateId": "crane-mhc-2",
+  "occurredAt": "2026-10-29T08:30:00Z",
+  "receivedAt": "2026-10-29T08:30:02Z",
+  "quality": "SIMULATED",
+  "payload": {
+    "jobId": 7781
+  }
+}

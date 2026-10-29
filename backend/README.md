@@ -13,6 +13,8 @@ Quarkus (Java 25) REST service `castor-core`: layouts, geometry, identity, audit
 | Testcontainers / ArchUnit / JTS IO | 2.0.5 / 1.5.1 / 1.20.0 (the only versions declared outside the BOM) |
 | JaCoCo / Spotless plugin | 0.8.15 / 3.10.4 (Palantir Java Format) |
 | Database image | `postgis/postgis:18-3.6` (Dev Services and Testcontainers must use it) |
+| Kafka image | `apache/kafka:4.2.2` (compose, Dev Services provider `upstream-kafka` and the outage-test Testcontainers broker must use it); kafka-clients 4.2.1 from the BOM |
+| Event schema validator | networknt `json-schema-validator` 2.0.8 (declared outside the BOM; 3.x needs Jackson 3) |
 
 Full list: root [README](../README.md#technology-stack).
 
@@ -21,6 +23,7 @@ Full list: root [README](../README.md#technology-stack).
 `com.djavafactory.castor.<service>.<bounded-context>.<layer>`
 
 - service: `castor-core`; contexts: `port`, `layout`, `geometry`, `identity`, `audit`, `shared`.
+- `castor-contracts` is a plain-Java module (no Quarkus) shared by every service: `com.djavafactory.castor.contracts` holds the canonical event envelope, the JSON Schemas of schema version 1 (`schemas/v1/`), `Unit`, `Topics`, `CanonicalEventValidator`, `CanonicalEventCodec` and `TopicProvisioner`. See README "Decisions" (INGEST-01) for the compatibility policy.
 - layers: `api` (REST, DTOs) -> `application` (use cases) -> `domain` (pure Java, no framework imports) <- `infrastructure` (Hibernate, security, file import).
 
 Errors use RFC 9457 Problem Details (`application/problem+json`). API base path `/api/v1`.
@@ -28,6 +31,8 @@ Errors use RFC 9457 Problem Details (`application/problem+json`). API base path 
 ## Run and test
 
 Requires Java 25 and Docker running. Nothing else: no database to install, no schema or data to load. Dev Services starts a throwaway `postgis/postgis:18-3.6` container (Testcontainers) for `quarkus:dev` and for every test, and Flyway applies all migrations to it at start-up. Everyone who runs the commands below gets the same database. The first run pulls the image and is slower.
+
+Dev Services also starts one throwaway `apache/kafka:4.2.2` broker (one per test JVM, `quarkus.kafka.devservices.shared=false` in tests). No test connects to the local or dev broker; only a test that must stop or restart the broker (`KafkaHealthIT`, later OPS-03) starts its own Testcontainers broker through `RestartableKafkaResource`.
 
 Reference data and later seed data must also come from migrations (or test fixtures), never from a manual import, so this stays true.
 
@@ -69,6 +74,7 @@ The environment is named by `CASTOR_ENV` (local, dev or test), independent of th
 
 ### Behaviour worth knowing
 
+- At start castor-core creates the four Kafka topics that are missing (`KafkaTopicsStartup`, `TopicProvisioner`; existing topics are never altered or deleted). If the broker does not answer within `castor.kafka.topics-timeout` (30 s) the process exits. After start `/q/health/ready` includes the "Kafka" check (`KafkaReadinessCheck`, 3 s timeout) and goes DOWN while the broker is unreachable; `/q/health/live` does not depend on Kafka.
 - Migrations run at start (`quarkus.flyway.migrate-at-start`). If the database is down at start the process exits instead of reporting DOWN. After start, `/q/health/ready` goes DOWN when the database is lost or a migration is pending. `/q/health/live` only reports the JVM.
 - Errors are RFC 9457 `application/problem+json`. Each response has an `X-Request-Id` header (a safe client value is reused). Non-500 bodies carry `requestId`; a 500 body carries only `errorId`, and the stack trace is in the log under that id.
 - Bodies over 1 MB are refused with 413 (10 MB on `/api/v1/layouts/{id}/import`). Writes accept `application/json` and `application/geo+json` only.

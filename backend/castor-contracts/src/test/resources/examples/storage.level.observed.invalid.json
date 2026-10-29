@@ -1,0 +1,21 @@
+{
+  "eventId": "e3f4a5b6-c7d8-4e9f-a0b1-2c3d4e5f6071",
+  "schemaVersion": 1,
+  "portId": "westports",
+  "sourceSystem": "SENSORS",
+  "sourceEventId": "LVL-TK-03-1761728400",
+  "receptionId": "rec-20261029-0007",
+  "type": "storage.level.observed",
+  "entityType": "STORAGE",
+  "entityId": "tank-03",
+  "aggregateId": "tank-03",
+  "occurredAt": "2026-10-29T09:00:00Z",
+  "receivedAt": "2026-10-29T09:00:01Z",
+  "quality": "SIMULATED",
+  "payload": {
+    "storageId": "tank-03",
+    "commodity": "Crude palm oil",
+    "quantity": "3120.75",
+    "unit": "TONNES"
+  }
+}

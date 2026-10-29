@@ -1,0 +1,24 @@
+{
+  "eventId": "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f",
+  "schemaVersion": 1,
+  "portId": "westports",
+  "sourceSystem": "CBAS",
+  "sourceEventId": "CBAS-LOT-20931",
+  "receptionId": "rec-20261029-0005",
+  "type": "cargo.lot.registered",
+  "entityType": "CARGO_LOT",
+  "entityId": "lot-PKE-0042",
+  "aggregateId": "call-MV-AURORA-0412",
+  "occurredAt": "2026-10-29T07:00:00Z",
+  "receivedAt": "2026-10-29T07:00:03Z",
+  "quality": "SIMULATED",
+  "payload": {
+    "lotCode": "PKE-0042",
+    "consignmentCode": "CONS-1187",
+    "cargoFamily": "BULK_DRY",
+    "commodity": "Palm kernel expeller",
+    "unit": "TONNES",
+    "quantity": 12500.5,
+    "massBasis": "WET"
+  }
+}

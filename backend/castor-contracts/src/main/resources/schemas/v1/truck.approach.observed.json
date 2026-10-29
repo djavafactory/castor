@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://castor.djavafactory.com/schemas/v1/truck.approach.observed.json",
+  "title": "truck.approach.observed",
+  "type": "object",
+  "required": ["gateId", "count", "method"],
+  "properties": {
+    "gateId": { "type": "string", "minLength": 1 },
+    "count": { "type": "integer", "minimum": 0 },
+    "method": { "enum": ["CAMERA", "GPS", "APPOINTMENT"] }
+  }
+}

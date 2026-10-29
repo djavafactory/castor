@@ -42,6 +42,22 @@ public interface CastorConfig {
 
     Layout layout();
 
+    Kafka kafka();
+
+    interface Kafka {
+        /** Replication factor of the topics created at start. 1 in local and dev (one broker). */
+        @WithDefault("1")
+        short replicationFactor();
+
+        /** How long the broker may take to answer while the topics are created; start-up fails after that. */
+        @WithDefault("PT30S")
+        Duration topicsTimeout();
+
+        /** How long the readiness check waits for the broker before it reports DOWN. */
+        @WithDefault("PT3S")
+        Duration healthTimeout();
+    }
+
     interface Layout {
         /**
          * Load the Westports demo layout (published version 1) at start when the port has no layout version. Only ever

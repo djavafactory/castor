@@ -1,0 +1,22 @@
+{
+  "eventId": "9a1b7e2c-34d5-4f60-8a91-b2c3d4e5f607",
+  "schemaVersion": 1,
+  "portId": "westports",
+  "sourceSystem": "SENSORS",
+  "sourceEventId": "GPS-LD-07-1761725100",
+  "sourceSequence": 1761725100,
+  "receptionId": "rec-20261029-0003",
+  "type": "equipment.position.observed",
+  "entityType": "EQUIPMENT",
+  "entityId": "loader-07",
+  "aggregateId": "loader-07",
+  "occurredAt": "2026-10-29T08:25:00Z",
+  "receivedAt": "2026-10-29T08:25:00.400Z",
+  "quality": "OBSERVED",
+  "payload": {
+    "lon": 101.3012,
+    "lat": 2.9871,
+    "headingDeg": 92.5,
+    "accuracyM": 2.5
+  }
+}

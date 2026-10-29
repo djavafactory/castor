@@ -2,8 +2,10 @@ FROM eclipse-temurin:25-jdk-noble AS build
 WORKDIR /build
 COPY .mvn .mvn
 COPY mvnw pom.xml ./
+COPY castor-contracts/pom.xml castor-contracts/pom.xml
 COPY castor-core/pom.xml castor-core/pom.xml
 RUN tr -d '' < mvnw > mvnw.lf && mv mvnw.lf mvnw && chmod +x mvnw && ./mvnw -B -ntp -pl castor-core -am dependency:go-offline
+COPY castor-contracts/src castor-contracts/src
 COPY castor-core/src castor-core/src
 # Build stamps from scripts/build-stamp.sh; unset values keep the pom defaults (<version>-dev+unknown)
 ARG BUILD_VERSION=

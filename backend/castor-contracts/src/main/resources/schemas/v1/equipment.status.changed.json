@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://castor.djavafactory.com/schemas/v1/equipment.status.changed.json",
+  "title": "equipment.status.changed",
+  "type": "object",
+  "required": ["status"],
+  "properties": {
+    "status": { "enum": ["WORKING", "IDLE", "BLOCKED", "STARVED", "DOWN", "MAINTENANCE"] },
+    "reason": { "type": "string", "minLength": 1 }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://castor.djavafactory.com/schemas/v1/gate.transaction.json",
+  "title": "gate.transaction",
+  "type": "object",
+  "required": ["truckVisitId", "gateId", "direction"],
+  "properties": {
+    "truckVisitId": { "type": "string", "minLength": 1 },
+    "gateId": { "type": "string", "minLength": 1 },
+    "direction": { "enum": ["IN", "OUT"] },
+    "lane": { "type": "string", "minLength": 1 }
+  }
+}

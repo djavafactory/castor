@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://castor.djavafactory.com/schemas/v1/flow.rate.observed.json",
+  "title": "flow.rate.observed",
+  "description": "Rates only: tonnes/h is never vehicles/h.",
+  "type": "object",
+  "required": ["assetId", "rate", "unit"],
+  "properties": {
+    "assetId": { "type": "string", "minLength": 1 },
+    "rate": { "type": "number", "minimum": 0 },
+    "unit": {
+      "enum": [
+        "TONNES_PER_HOUR", "PIECES_PER_HOUR", "CUBIC_METRES_PER_HOUR", "VEHICLES_PER_HOUR", "TRUCKS_PER_HOUR",
+        "LIFTS_PER_HOUR"
+      ]
+    }
+  }
+}

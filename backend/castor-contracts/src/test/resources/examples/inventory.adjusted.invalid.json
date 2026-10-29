@@ -1,0 +1,20 @@
+{
+  "eventId": "a5b6c7d8-e9fa-4ab1-82c3-4d5e6f708293",
+  "schemaVersion": 1,
+  "portId": "westports",
+  "sourceSystem": "SCSS",
+  "sourceEventId": "SCSS-ADJ-3310",
+  "receptionId": "rec-20261029-0009",
+  "type": "inventory.adjusted",
+  "entityType": "STORAGE",
+  "entityId": "warehouse-4",
+  "aggregateId": "warehouse-4",
+  "occurredAt": "2026-10-29T10:00:00Z",
+  "receivedAt": "2026-10-29T10:00:05Z",
+  "quality": "SIMULATED",
+  "payload": {
+    "storageId": "warehouse-4",
+    "delta": -35.25,
+    "unit": "TONNES"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "eventId": "d2e3f4a5-b6c7-4d8e-9fa0-1b2c3d4e5f60",
+  "schemaVersion": 1,
+  "portId": "westports",
+  "sourceSystem": "SCSS",
+  "sourceEventId": "SCSS-MV-99120",
+  "receptionId": "rec-20261029-0006",
+  "type": "cargo.lot.moved",
+  "entityType": "CARGO_LOT",
+  "entityId": "lot-PKE-0042",
+  "aggregateId": "call-MV-AURORA-0412",
+  "occurredAt": "2026-10-29T09:10:00Z",
+  "receivedAt": "2026-10-29T09:10:04Z",
+  "quality": "SIMULATED",
+  "payload": {
+    "lotId": "lot-PKE-0042",
+    "fromId": "hold-2",
+    "quantity": 0,
+    "unit": "TONNES"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://castor.djavafactory.com/schemas/v1/equipment.position.observed.json",
+  "title": "equipment.position.observed",
+  "description": "WGS84 degrees. accuracyM is the horizontal accuracy in metres.",
+  "type": "object",
+  "required": ["lon", "lat", "accuracyM"],
+  "properties": {
+    "lon": { "type": "number", "minimum": -180, "maximum": 180 },
+    "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+    "headingDeg": { "type": "number", "minimum": 0, "exclusiveMaximum": 360 },
+    "accuracyM": { "type": "number", "minimum": 0 }
+  }
+}

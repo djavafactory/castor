@@ -1,6 +1,6 @@
 # Castor environments. Variables come from the root .env (copy .env.example).
-#   local: docker compose --profile local up -d --wait     (database only, apps run on the host)
-#   dev:   docker compose --profile dev up -d --build --wait   (database, backend, frontend in containers)
+#   local: docker compose --profile local up -d --wait     (database and Kafka, apps run on the host)
+#   dev:   docker compose --profile dev up -d --build --wait   (database, Kafka, backend, frontend in containers)
 # Container, network and volume names are fixed per environment so local and dev never collide.
 name: castor
 
@@ -26,6 +26,39 @@ services:
       start_period: 5s
     restart: unless-stopped
 
+  # Single-node KRaft broker (one process is broker and controller). The container listens on the same port it
+  # advertises, so the health check and the host reach it by the address the broker announces.
+  castor-local-kafka:
+    profiles: [local]
+    image: apache/kafka:4.2.2
+    container_name: castor-local-kafka
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:${LOCAL_KAFKA_PORT:-9092},CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:${LOCAL_KAFKA_PORT:-9092}
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_HEAP_OPTS: -Xms256m -Xmx512m
+    volumes:
+      - castor-local-kafkadata:/var/lib/kafka/data
+    ports:
+      - "127.0.0.1:${LOCAL_KAFKA_PORT:-9092}:${LOCAL_KAFKA_PORT:-9092}"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:${LOCAL_KAFKA_PORT:-9092} > /dev/null 2>&1"]
+      interval: 5s
+      timeout: 10s
+      retries: 12
+      start_period: 15s
+    restart: unless-stopped
+
   castor-dev-db:
     profiles: [dev]
     image: postgis/postgis:18-3.6
@@ -46,6 +79,40 @@ services:
       start_period: 5s
     restart: unless-stopped
 
+  # Same broker as local, but nothing is kept: the data directory is tmpfs, so dev Kafka is empty after every container
+  # start, like the dev database reset.
+  castor-dev-kafka:
+    profiles: [dev]
+    image: apache/kafka:4.2.2
+    container_name: castor-dev-kafka
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://castor-dev-kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_HEAP_OPTS: -Xms256m -Xmx512m
+    # mode 1777: the broker runs as a non-root user and tmpfs is root-owned by default
+    tmpfs:
+      - /var/lib/kafka/data:mode=1777
+    networks: [castor-dev-net]
+    expose: ["9092"]
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server castor-dev-kafka:9092 > /dev/null 2>&1"]
+      interval: 5s
+      timeout: 10s
+      retries: 12
+      start_period: 15s
+    restart: unless-stopped
+
   castor-dev-backend:
     profiles: [dev]
     build:
@@ -60,8 +127,11 @@ services:
     depends_on:
       castor-dev-db:
         condition: service_healthy
+      castor-dev-kafka:
+        condition: service_healthy
     environment:
       CASTOR_ENV: dev
+      KAFKA_BOOTSTRAP_SERVERS: castor-dev-kafka:9092
       CASTOR_DEMO_LOGIN: "true"
       CASTOR_FEATURE_CONTAINERS: ${CASTOR_FEATURE_CONTAINERS:-true}
       CASTOR_RESET_ON_START: "true"
@@ -109,5 +179,7 @@ networks:
 volumes:
   castor-local-pgdata:
     name: castor-local-pgdata
+  castor-local-kafkadata:
+    name: castor-local-kafkadata
   castor-dev-pgdata:
     name: castor-dev-pgdata

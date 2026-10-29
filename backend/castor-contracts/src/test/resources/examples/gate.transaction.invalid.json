@@ -1,0 +1,20 @@
+{
+  "eventId": "b6c7d8e9-fa0b-4bc2-93d4-5e6f70829304",
+  "schemaVersion": 1,
+  "portId": "westports",
+  "sourceSystem": "EDIC",
+  "sourceEventId": "EDIC-GT-771203",
+  "receptionId": "rec-20261029-0010",
+  "type": "gate.transaction",
+  "entityType": "TRUCK_VISIT",
+  "entityId": "visit-WXY1234-0001",
+  "aggregateId": "gate-main",
+  "occurredAt": "2026-10-29T10:05:00Z",
+  "receivedAt": "2026-10-29T10:05:01Z",
+  "quality": "SIMULATED",
+  "payload": {
+    "truckVisitId": "visit-WXY1234-0001",
+    "gateId": "gate-main",
+    "direction": "SIDEWAYS"
+  }
+}

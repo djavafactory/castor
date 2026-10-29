@@ -1,0 +1,20 @@
+{
+  "eventId": "c7d8e9fa-0b1c-4cd3-a4e5-6f7082930415",
+  "schemaVersion": 1,
+  "portId": "westports",
+  "sourceSystem": "SENSORS",
+  "sourceEventId": "CAM-GATE-1761729000",
+  "receptionId": "rec-20261029-0011",
+  "type": "truck.approach.observed",
+  "entityType": "GATE",
+  "entityId": "gate-main",
+  "aggregateId": "gate-main",
+  "occurredAt": "2026-10-29T10:10:00Z",
+  "receivedAt": "2026-10-29T10:10:01Z",
+  "quality": "OBSERVED",
+  "payload": {
+    "gateId": "gate-main",
+    "count": 14,
+    "method": "CAMERA"
+  }
+}
