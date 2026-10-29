@@ -55,7 +55,9 @@ describe('MoreMenu: Verify accuracy (DESIGNER-11)', () => {
     renderMenu()
 
     await userEvent.click(screen.getByRole('button', { name: 'More' }))
-    await userEvent.click(await screen.findByRole('button', { name: 'Verify accuracy' }))
+    const verify = await screen.findByRole('button', { name: /^Verify accuracy/ })
+    expect(verify).toHaveTextContent('Check control points and accuracy labels')
+    await userEvent.click(verify)
 
     await waitFor(() => expect(useUiStore.getState().rightTab).toBe('issues'))
     expect(useEditorStore.getState().historyLog[0]?.label).toBe('Ran the accuracy check')
@@ -68,7 +70,7 @@ describe('MoreMenu: Verify accuracy (DESIGNER-11)', () => {
     renderMenu()
 
     await userEvent.click(screen.getByRole('button', { name: 'More' }))
-    await userEvent.click(await screen.findByRole('button', { name: 'Verify accuracy' }))
+    await userEvent.click(await screen.findByRole('button', { name: /^Verify accuracy/ }))
 
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith('The accuracy report could not be loaded'),

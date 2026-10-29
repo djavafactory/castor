@@ -158,7 +158,7 @@ describe('tool strip (Monitor)', () => {
   it('opens Help and legend from More: accuracy, synthetic, keyboard and attribution', async () => {
     renderStrip()
     await userEvent.click(screen.getByRole('button', { name: 'More' }))
-    expect(screen.queryByRole('button', { name: 'Verify accuracy' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Verify accuracy/ })).not.toBeInTheDocument()
     const help = screen.getByRole('button', { name: /Help and legend/ })
     expect(help).toHaveAttribute('title', 'Legend, accuracy labels and keyboard shortcuts (?)')
     await userEvent.click(help)
@@ -214,7 +214,7 @@ describe('tool strip (Design)', () => {
     renderStrip()
     expect(screen.queryByRole('button', { name: 'Fullscreen' })).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'More' }))
-    expect(screen.getByRole('button', { name: 'Verify accuracy' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Verify accuracy/ })).toBeInTheDocument()
     expect(screen.queryByRole('switch', { name: 'Envelope boxes' })).not.toBeInTheDocument()
   })
 

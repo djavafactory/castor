@@ -1,8 +1,10 @@
 package com.djavafactory.castor.core.layout.application;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import jakarta.enterprise.context.ApplicationScoped;
@@ -23,6 +25,7 @@ import com.djavafactory.castor.core.layout.domain.ValidationReport;
 import com.djavafactory.castor.core.port.domain.DataSourceInfo;
 import com.djavafactory.castor.core.port.domain.Port;
 import com.djavafactory.castor.core.port.domain.PortRepository;
+import com.djavafactory.castor.core.shared.application.OperationMetrics;
 import com.djavafactory.castor.core.shared.domain.ConflictException;
 import com.djavafactory.castor.core.shared.domain.ResourceNotFoundException;
 import com.djavafactory.castor.core.shared.domain.RuleViolation;
@@ -41,25 +44,28 @@ public class LayoutValidation {
     private final PortRepository ports;
     private final PlacementFacts facts;
     private final GeoJsonMapper geo;
+    private final OperationMetrics metrics;
 
     public LayoutValidation(
             LayoutRepository layouts,
             AssetTypeRepository types,
             PortRepository ports,
             PlacementFacts facts,
-            GeoJsonMapper geo) {
+            GeoJsonMapper geo,
+            OperationMetrics metrics) {
         this.layouts = layouts;
         this.types = types;
         this.ports = ports;
         this.facts = facts;
         this.geo = geo;
+        this.metrics = metrics;
     }
 
     /** Every error and warning of the version, as the Issues list and the publish check show them. */
     public ValidationReport layout(UUID layoutId) {
         LayoutVersion version = layouts.findVersion(layoutId)
                 .orElseThrow(() -> new ResourceNotFoundException("No layout version " + layoutId));
-        return validator(version.portCode()).validateLayout(version);
+        return timed(() -> validator(version.portCode()).validateLayout(version));
     }
 
     /** Checks one shape against the draft without storing anything; warnings are in the report too. */
@@ -69,7 +75,17 @@ public class LayoutValidation {
         if (draft.status() != LayoutStatus.DRAFT) {
             throw new ConflictException("Only a draft can be changed");
         }
-        return validator(draft.portCode()).validateAsset(draft, candidate);
+        return timed(() -> validator(draft.portCode()).validateAsset(draft, candidate));
+    }
+
+    /** Runs a check and reports how long it took (castor_validation_duration). */
+    private ValidationReport timed(Supplier<ValidationReport> check) {
+        long start = System.nanoTime();
+        try {
+            return check.get();
+        } finally {
+            metrics.validationFinished(Duration.ofNanos(System.nanoTime() - start));
+        }
     }
 
     /**

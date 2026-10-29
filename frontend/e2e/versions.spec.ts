@@ -49,7 +49,7 @@ test('a publisher publishes with a reviewer, restores v1 and publishes it again 
   await expect(first).toContainText('publisher')
 
   // restore v1: a draft based on v1 appears; publishing it makes the next version, "restored from v1"
-  await tab.getByRole('button', { name: 'Restore version 1' }).click()
+  await tab.getByRole('button', { name: 'Restore version 1', exact: true }).click()
   await expect(
     page.getByText('Load version 1 into a new draft? Asset IDs stay the same.'),
   ).toBeVisible()

@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "castor-backend-local",
+      "runtimeExecutable": "C:/Program Files/Git/bin/bash.exe",
+      "runtimeArgs": ["-lc", "set -a && . ./.env && set +a && cd backend && ./mvnw -pl castor-core quarkus:dev -Dquarkus.profile=local"],
+      "port": 8081
+    },
+    {
+      "name": "castor-frontend-local",
+      "runtimeExecutable": "C:/Program Files/Git/bin/bash.exe",
+      "runtimeArgs": ["-lc", "cd frontend && npm run dev"],
+      "port": 5173
+    }
+  ]
+}

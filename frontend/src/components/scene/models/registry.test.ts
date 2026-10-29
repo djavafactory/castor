@@ -41,6 +41,8 @@ const PART2_KEYS = [
   'FENCE',
   'TERMINAL_BOUNDARY',
   'SURFACE_AREA',
+  'ROAD_SEGMENT',
+  'CONTAINER_YARD',
 ]
 
 const REQUIRED_KEYS = [
@@ -66,11 +68,16 @@ const REQUIRED_KEYS = [
 ]
 
 describe('model registry', () => {
-  it('has a model for each of the 56 asset types, once', () => {
+  it('has a model for each of the 58 asset types, once', () => {
     const keys = MODEL_SPECS.map((s) => s.key)
-    expect(keys).toHaveLength(56)
+    expect(keys).toHaveLength(58)
     expect([...keys].sort()).toEqual([...REQUIRED_KEYS, ...PART2_KEYS].sort())
     expect(getModelSpec('NO_SUCH_MODEL')).toBeUndefined()
+  })
+
+  it('finds a model by the lower-case model_key of the asset-type API as well as by the type code', () => {
+    expect(getModelSpec('sts_crane')).toBe(getModelSpec('STS_CRANE'))
+    expect(getModelSpec('container_yard')?.key).toBe('CONTAINER_YARD')
   })
 
   describe.each(MODEL_SPECS.filter((s) => !s.parametric).map((s) => [s.key, s] as const))(

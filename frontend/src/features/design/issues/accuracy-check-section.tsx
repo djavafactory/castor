@@ -1,7 +1,6 @@
-import { useQuery } from '@tanstack/react-query'
 import { DataTable, SectionHeading } from '@/components/ui/card'
 import { EmptyState } from '@/components/states/states'
-import { queryKeys, useCatalogue, type AccuracyReport } from '@/lib/api'
+import { useAccuracyReport, useCatalogue } from '@/lib/api'
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 
@@ -29,13 +28,7 @@ function formatRoundTrip(mm: number): string {
  * menu, read from the query cache the menu action filled - this section never asks the server itself.
  */
 export function AccuracyCheckSection({ layoutId }: { layoutId: string | undefined }) {
-  const { data: report } = useQuery({
-    queryKey: queryKeys.accuracyReport(layoutId ?? ''),
-    queryFn: (): Promise<AccuracyReport> =>
-      Promise.reject(new Error('The accuracy check runs from the More menu')),
-    enabled: false,
-    staleTime: Infinity,
-  })
+  const { data: report } = useAccuracyReport(layoutId)
   const catalogue = useCatalogue(report !== undefined)
 
   return (

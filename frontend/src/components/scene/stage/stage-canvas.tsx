@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { ACESFilmicToneMapping } from 'three'
 import { CAMERA, PRESETS } from './camera-presets'
 import { Backdrop } from './lighting'
+import { SceneProbeBridge } from './scene-probe'
 
 /** Pixel ratio range: sharper on desktop, 1.5 at most on small or touch screens. */
 export function pixelRatioRange(): [number, number] {
@@ -38,6 +39,7 @@ export function StageCanvas({
       onPointerMissed={onPointerMissed}
     >
       <Backdrop />
+      <SceneProbeBridge />
       {children}
     </Canvas>
   )

@@ -8,6 +8,7 @@ import java.util.Map;
  * the backend rules read the same row, so a new type is a migration plus a 3D model.
  *
  * @param params type specific defaults without a column of their own (reach, outreach, tiers, rate ...)
+ * @param purpose what the asset is for, in one sentence (the palette shows it with the thumbnail)
  */
 public record AssetType(
         String code,
@@ -27,6 +28,7 @@ public record AssetType(
         int modelRev,
         String colourHex,
         String hint,
+        String purpose,
         int sortOrder) {
 
     /** S solid, F flat, Z zone, M mobile, W may extend over water, B must be on berth. */

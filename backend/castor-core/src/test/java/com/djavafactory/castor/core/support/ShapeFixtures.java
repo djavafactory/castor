@@ -79,7 +79,8 @@ public final class ShapeFixtures {
                 BigDecimal.ONE,
                 BigDecimal.valueOf(0.1));
         return new AssetType(
-                code, code, "G", "C", kind, mode, f, none, min, none, null, null, Map.of(), code, 1, "#000000", "", 1);
+                code, code, "G", "C", kind, mode, f, none, min, none, null, null, Map.of(), code, 1, "#000000", "", "",
+                1);
     }
 
     public static AssetType withMax(AssetType t, Sizes max) {
@@ -101,6 +102,7 @@ public final class ShapeFixtures {
                 1,
                 t.colourHex(),
                 "",
+                t.purpose(),
                 1);
     }
 

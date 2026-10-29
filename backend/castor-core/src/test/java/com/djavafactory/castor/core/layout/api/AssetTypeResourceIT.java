@@ -8,6 +8,7 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
+import static org.hamcrest.Matchers.startsWith;
 
 @QuarkusTest
 @TestSecurity(user = "viewer", roles = "VIEWER")
@@ -41,7 +42,8 @@ class AssetTypeResourceIT {
                 .body("find { it.code == 'BERTH' }.params.depthM", equalTo(14))
                 .body("find { it.code == 'BERTH' }.modelKey", equalTo("berth"))
                 .body("find { it.code == 'BERTH' }.modelRev", equalTo(1))
-                .body("find { it.code == 'BERTH' }.colourHex", equalTo("#E8A317"));
+                .body("find { it.code == 'BERTH' }.colourHex", equalTo("#E8A317"))
+                .body("find { it.code == 'BERTH' }.purpose", startsWith("Stretch of quay where a vessel moors"));
     }
 
     @Test

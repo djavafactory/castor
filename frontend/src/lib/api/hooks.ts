@@ -246,6 +246,19 @@ export function fetchAccuracyReport(layoutId: string, signal?: AbortSignal) {
 }
 
 /**
+ * The accuracy report of a version (DESIGNER-11). Off unless `run` is true: the More menu runs the check and fills the
+ * cache, and the Issues tab reads the same entry without asking the server again.
+ */
+export function useAccuracyReport(layoutId: string | undefined, run = false) {
+  return useQuery({
+    queryKey: queryKeys.accuracyReport(layoutId ?? ''),
+    queryFn: ({ signal }) => fetchAccuracyReport(layoutId ?? '', signal),
+    enabled: run && layoutId !== undefined,
+    staleTime: Infinity,
+  })
+}
+
+/**
  * Search the port's own data (port, control points, the assets of one layout, map shapes). Nothing is sent until the
  * text has at least 2 characters, and nothing is kept: the answer is dropped as soon as the box no longer shows it.
  */

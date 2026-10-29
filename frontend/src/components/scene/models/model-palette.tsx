@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { cn } from '@/lib/utils'
 import { webglAvailable } from '../webgl'
 import { CATEGORY_LABELS, MODEL_SPECS } from './registry'
 import type { ModelCategory } from './model-spec'
@@ -6,8 +7,11 @@ import { scheduleThumbnail } from './thumbnails'
 
 const CATEGORIES = Object.keys(CATEGORY_LABELS) as ModelCategory[]
 
-/** Thumbnail of one model, shown at 84 x 60 (rendered at twice that). Blank where WebGL is missing. */
-export function ModelThumbnail({ modelKey }: { modelKey: string }) {
+/**
+ * Thumbnail of one model, shown at 84 x 60 (rendered at twice that), or at the full 168 x 120 when `large`. Blank
+ * where WebGL is missing.
+ */
+export function ModelThumbnail({ modelKey, large = false }: { modelKey: string; large?: boolean }) {
   const [src, setSrc] = useState<string | null>(null)
   useEffect(() => {
     if (!webglAvailable()) return
@@ -15,10 +19,17 @@ export function ModelThumbnail({ modelKey }: { modelKey: string }) {
     return scheduleThumbnail(modelKey, setSrc)
   }, [modelKey])
 
+  const size = large ? 'h-[120px] w-[168px]' : 'h-[60px] w-[84px]'
   return src ? (
-    <img src={src} alt="" width={84} height={60} className="h-[60px] w-[84px] shrink-0" />
+    <img
+      src={src}
+      alt=""
+      width={large ? 168 : 84}
+      height={large ? 120 : 60}
+      className={cn(size, 'shrink-0')}
+    />
   ) : (
-    <span aria-hidden="true" className="h-[60px] w-[84px] shrink-0 rounded-md bg-paper-2" />
+    <span aria-hidden="true" className={cn(size, 'shrink-0 rounded-md bg-paper-2')} />
   )
 }
 

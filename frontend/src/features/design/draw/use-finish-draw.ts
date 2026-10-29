@@ -59,7 +59,8 @@ export function useFinishDraw() {
           await removeAsset({ id: current.id, rowVersion: current.rowVersion })
         },
         redo: async () => {
-          current = await mutateAsync(body)
+          // the same id and code come back, as with the undo of a delete
+          current = await mutateAsync({ ...body, code: current.code, id: current.id })
         },
       })
       return true
@@ -104,7 +105,7 @@ export function useFinishDraw() {
     }
     const identity = nextIdentity(type, draft.data?.assets ?? [])
     const saved = await save(
-      tracedAsset(type, shape, tool.points, identity, basemap),
+      tracedAsset(type, shape, tool.points, { name: identity.name }, basemap),
       identity.name,
     )
     if (saved) useEditorStore.getState().clearTool()
@@ -128,7 +129,10 @@ export function useFinishDraw() {
         return false
       }
       const identity = nextIdentity(type, draft.data?.assets ?? [])
-      const saved = await save(placedAsset(type, at, identity, basemap), identity.name)
+      const saved = await save(
+        placedAsset(type, at, { name: identity.name }, basemap),
+        identity.name,
+      )
       if (saved) useEditorStore.getState().clearTool()
       return saved
     },

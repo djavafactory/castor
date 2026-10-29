@@ -47,9 +47,12 @@ export const CATEGORY_LABELS: Record<ModelCategory, string> = {
   zone: 'Zones and fences',
 }
 
-/** The model of a model_key, or undefined for a key the library does not know. */
+/**
+ * The model of a model_key, or undefined for a key the library does not know. The asset-type API sends model_key as
+ * the lower-case type code ("sts_crane"), layouts name the type ("STS_CRANE"): both find the model.
+ */
 export function getModelSpec(key: string): ModelSpec | undefined {
-  return BY_KEY.get(key)
+  return BY_KEY.get(key.toUpperCase())
 }
 
 export interface BuiltModel {

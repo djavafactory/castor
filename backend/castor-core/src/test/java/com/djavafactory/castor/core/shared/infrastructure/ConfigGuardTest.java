@@ -64,6 +64,16 @@ class ConfigGuardTest {
     }
 
     @Test
+    void demoLayoutIsSeededOnlyInLocalDevAndTestEvenWhenTheFlagIsOn() {
+        // castor.layout.seed-on-start defaults to true in every profile
+        assertTrue(config("local", false, false, STRONG).layoutSeedActive());
+        assertTrue(config("dev", false, false, STRONG).layoutSeedActive());
+        assertTrue(config("test", false, false, STRONG).layoutSeedActive());
+        assertFalse(config("staging", false, false, STRONG).layoutSeedActive());
+        assertFalse(config("prod", false, false, STRONG).layoutSeedActive());
+    }
+
+    @Test
     void stagingWithDemoLoginRefusesToStart() {
         var message = message(config("staging", true, false, STRONG), ORIGINS, Map.of());
 

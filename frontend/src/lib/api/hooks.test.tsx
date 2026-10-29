@@ -19,6 +19,7 @@ import {
   BAD_SHAPE_TITLE,
   ResponseShapeError,
   fetchAccuracyReport,
+  useAccuracyReport,
   useAssetHistory,
   useAssetTypes,
   useCurrentLayout,
@@ -283,6 +284,12 @@ describe('layout hooks', () => {
     const report = await fetchAccuracyReport('v-1')
     expect(report.approximateCount).toBe(301)
     expect(report.controlPoints[0]?.residualM).toBe(0.08)
+
+    // the hook asks only when told to run, and then keeps the answer
+    const idle = renderHook(() => useAccuracyReport('v-1'), { wrapper: wrapperFor() })
+    expect(idle.result.current.fetchStatus).toBe('idle')
+    const { result } = renderHook(() => useAccuracyReport('v-1', true), { wrapper: wrapperFor() })
+    await waitFor(() => expect(result.current.data?.approximateCount).toBe(301))
   })
 
   it('useSearch sends nothing below two characters and the trimmed term above', async () => {

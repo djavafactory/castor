@@ -33,7 +33,7 @@ public class JdbcAssetTypeRepository implements AssetTypeRepository {
             + "t.min_length_m, t.min_width_m, t.min_height_m, t.min_radius_m, "
             + "t.max_length_m, t.max_width_m, t.max_height_m, t.max_radius_m, "
             + "t.default_capacity_value, t.default_capacity_unit, t.params::text, t.model_key, t.model_rev, "
-            + "t.colour_hex, t.hint, t.sort_order "
+            + "t.colour_hex, t.hint, t.purpose, t.sort_order "
             + "from layout.asset_type t join ref.palette_group g on g.code = t.palette_group_code "
             + "order by g.sort_order, t.sort_order";
 
@@ -87,7 +87,8 @@ public class JdbcAssetTypeRepository implements AssetTypeRepository {
                 rs.getInt(30),
                 rs.getString(31),
                 rs.getString(32),
-                rs.getInt(33));
+                rs.getString(33),
+                rs.getInt(34));
     }
 
     /** Reads length, width, height, radius (and line width when asked) starting at the given column. */

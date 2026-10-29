@@ -20,6 +20,7 @@ const STACK_SPECS = [
   '**/a11y.spec.ts',
   '**/visual.spec.ts',
   '**/responsive.spec.ts',
+  '**/acceptance/*.spec.ts',
 ]
 
 export default defineConfig({
@@ -58,6 +59,8 @@ export default defineConfig({
             '--use-angle=swiftshader',
             '--enable-unsafe-swiftshader',
             '--ignore-gpu-blocklist',
+            // performance.memory in real bytes (the memory budget of JOIN-04)
+            '--enable-precise-memory-info',
           ],
         },
       },

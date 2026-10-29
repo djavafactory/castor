@@ -18,7 +18,8 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "api:generate": "openapi-typescript ../backend/castor-core/src/main/resources/openapi/castor-api-v1.yaml -o src/types/api.ts",
-    "api:check": "node scripts/check-api-types.mjs"
+    "api:check": "node scripts/check-api-types.mjs",
+    "bundle:check": "node scripts/check-bundle-size.mjs"
   },
   "dependencies": {
     "@fontsource/be-vietnam-pro": "^5.3.0",

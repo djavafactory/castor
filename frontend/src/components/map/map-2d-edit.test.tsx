@@ -310,7 +310,7 @@ describe('resizing and rotating', () => {
     const to: Local = [corner[0] + 10 * along[0]!, corner[1] + 10 * along[1]!]
     drag(corner, to)
     await waitFor(() => expect(patched).toHaveLength(1))
-    expect(history()).toEqual(['Resized Shed 1'])
+    await waitFor(() => expect(history()).toEqual(['Resized Shed 1']))
     const body = patched[0]!.body
     expect(body.lengthM as number).toBeGreaterThan(50)
     expect(body.headingDeg).toBe(0)
@@ -333,7 +333,7 @@ describe('resizing and rotating', () => {
     // drag the knob to the point due east of the anchor: heading 90
     drag(knob, [SHED_AT[0] + 100, SHED_AT[1]], { shiftKey: true })
     await waitFor(() => expect(patched).toHaveLength(1))
-    expect(history()).toEqual(['Rotated Shed 1'])
+    await waitFor(() => expect(history()).toEqual(['Rotated Shed 1']))
     const heading = patched[0]!.body.headingDeg as number
     expect(heading % 15).toBe(0)
   })
@@ -344,7 +344,7 @@ describe('vertices', () => {
     await ready('yard-1')
     drag(YARD_POINTS[2]!, [-150, 340])
     await waitFor(() => expect(patched).toHaveLength(1))
-    expect(history()).toEqual(['Moved a vertex of Yard 1'])
+    await waitFor(() => expect(history()).toEqual(['Moved a vertex of Yard 1']))
     const coordinates = (patched[0]!.body.geometry as { coordinates: number[][][] }).coordinates[0]!
     expect(coordinates).toHaveLength(5)
     const [x, y] = fromLonLat(coordinates[2]![0]!, coordinates[2]![1]!)
@@ -357,7 +357,7 @@ describe('vertices', () => {
     const mid: Local = [-250, 200]
     drag(mid, [-250, 150])
     await waitFor(() => expect(patched).toHaveLength(1))
-    expect(history()).toEqual(['Added a vertex to Yard 1'])
+    await waitFor(() => expect(history()).toEqual(['Added a vertex to Yard 1']))
     const coordinates = (patched[0]!.body.geometry as { coordinates: number[][][] }).coordinates[0]!
     expect(coordinates).toHaveLength(6)
   })
@@ -367,7 +367,7 @@ describe('vertices', () => {
     press(YARD_POINTS[1]!, { altKey: true })
     release(YARD_POINTS[1]!)
     await waitFor(() => expect(patched).toHaveLength(1))
-    expect(history()).toEqual(['Removed a vertex of Yard 1'])
+    await waitFor(() => expect(history()).toEqual(['Removed a vertex of Yard 1']))
     expect(
       (patched[0]!.body.geometry as { coordinates: number[][][] }).coordinates[0],
     ).toHaveLength(4)

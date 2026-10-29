@@ -26,7 +26,8 @@ function detailsFor(type: AssetType): Record<string, unknown> | undefined {
 
 interface Identity {
   name: string
-  code: string
+  /** Left out, the server gives the next free code of the port: codes outlive the layouts they were first used in. */
+  code?: string
 }
 
 /** The body of POST asset for a traced polygon or line; every coordinate is the rounded value that was drawn. */

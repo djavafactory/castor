@@ -270,7 +270,23 @@ const internalRoad: ModelSpec = {
   },
 }
 
+/** A straight placed piece of road: the internal road look on the asset's length and width. */
+const roadSegment: ModelSpec = {
+  key: 'ROAD_SEGMENT',
+  label: 'Road segment',
+  category: 'traffic',
+  size: { length: 200, width: 12, height: TARMAC + PAINT },
+  extraHeight: 0,
+  mobile: false,
+  parametric: true,
+  author(b, p) {
+    road(b, { ...p, path: undefined }, WHITE, true)
+    return {}
+  },
+}
+
 export const TRAFFIC_MODELS: ModelSpec[] = [
+  roadSegment,
   gate,
   weighbridge,
   junction,

@@ -74,13 +74,14 @@ export function linePointsOf(geometry: {
  */
 export function dependentsOf(asset: AssetFields, assets: readonly AssetFields[]): string[] {
   const name = (id: string) => assets.find((a) => a.id === id)?.name ?? 'an asset'
-  const outgoing = asset.links.map(
+  // An asset that is still being saved has no links yet
+  const outgoing = (asset.links ?? []).map(
     (l) => `${asset.name} ${LINK_LABELS[l.kind]} ${name(l.toAssetId)}`,
   )
   const incoming = assets
     .filter((a) => a.id !== asset.id)
     .flatMap((a) =>
-      a.links
+      (a.links ?? [])
         .filter((l) => l.toAssetId === asset.id)
         .map((l) => `${a.name} ${LINK_LABELS[l.kind]} ${asset.name}`),
     )

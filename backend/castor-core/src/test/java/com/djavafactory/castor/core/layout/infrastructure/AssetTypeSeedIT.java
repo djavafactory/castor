@@ -57,12 +57,13 @@ class AssetTypeSeedIT {
     }
 
     @Test
-    void everyListedTypeIsSeededWithItsModelKeyAndHint() throws SQLException {
+    void everyListedTypeIsSeededWithItsModelKeyHintAndPurpose() throws SQLException {
         // The ticket text says 56 in total but lists 56 types plus the 2 new ones: 58 rows are seeded.
         assertEquals(58, countsBy("'all'").get("all"));
         assertEquals(
                 0,
-                countsBy("case when model_key = lower(code) and length(hint) > 0 then 'ok' else 'bad' end")
+                countsBy(
+                                "case when model_key = lower(code) and length(hint) > 0 and length(purpose) > 0 then 'ok' else 'bad' end")
                         .getOrDefault("bad", 0));
         assertEquals(58, countsBy("model_rev").get("1"));
     }
@@ -162,8 +163,8 @@ class AssetTypeSeedIT {
     @Test
     void theDatabaseRefusesInconsistentTypes() {
         String base = "insert into layout.asset_type (code, label, palette_group_code, category_code, geometry_kind, "
-                + "placement_mode, model_key, colour_hex, hint, sort_order%s) values ('TEST_%s', 'T', 'CRANES', "
-                + "'LIFTING', '%s', '%s', 'test', '#112233', 'h', 1%s)";
+                + "placement_mode, model_key, colour_hex, hint, purpose, sort_order%s) values ('TEST_%s', 'T', "
+                + "'CRANES', 'LIFTING', '%s', '%s', 'test', '#112233', 'h', 'p', 1%s)";
         assertRejects(String.format(base, "", "A", "POINT", "DRAW", "")); // only lines and polygons are drawn
         assertRejects(String.format(base, "", "B", "BLOB", "PLACE", "")); // unknown geometry kind
         assertRejects(

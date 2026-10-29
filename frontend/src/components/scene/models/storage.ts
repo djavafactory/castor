@@ -175,4 +175,69 @@ const stockpileBay: ModelSpec = {
   },
 }
 
-export const STORAGE_MODELS: ModelSpec[] = [storagePad, laydownYard, quayStaging, stockpileBay]
+/** Container box sizes of the yard model, metres: a 20 ft box on a 6.3 m bay pitch and 2.7 m row pitch. */
+const BOX = {
+  length: 5.9,
+  width: 2.45,
+  height: 2.44,
+  bay: 6.3,
+  row: 2.7,
+  rowsPerBlock: 7,
+  aisle: 2.4,
+}
+const BOX_COLOURS = [COLOUR.CAR_RED, COLOUR.BLUE, COLOUR.AMBER, COLOUR.STEEL]
+
+/**
+ * A container yard as the palette and the catalogue show it: a pad with blocks of stacked boxes. In the 3D scene the
+ * container terminal (REPLICA-04) draws the yards of a layout box by box; this model is their picture.
+ */
+const containerYard: ModelSpec = {
+  key: 'CONTAINER_YARD',
+  label: 'Container yard',
+  category: 'storage',
+  size: { length: 150, width: 46, height: 13 },
+  extraHeight: 0,
+  mobile: false,
+  parametric: true,
+  details: { designFill: 0.6 },
+  author(b, p) {
+    const { length: l, width: w, height: h } = p.size
+    b.block(PAD, -l / 2, l / 2, 0, PAD_TOP, -w / 2, w / 2)
+    const tiers = Math.max(1, Math.floor((h - PAD_TOP) / BOX.height))
+    const fill = Math.min(1, Math.max(0, p.details.designFill ?? 0.6))
+    const bays = Math.floor((l - 4) / BOX.bay)
+    let z = -w / 2 + 2
+    for (let row = 0; z + BOX.width <= w / 2 - 2; row++) {
+      for (let bay = 0; bay < bays; bay++) {
+        // A fixed pattern, so the picture never changes: the design fill leaves some ground slots empty, the
+        // stacks are one tier up to the full height
+        const seed = (bay * 7 + row * 13) % 11
+        if (((bay * 5 + row * 3) % 10) / 10 >= fill + 0.3) continue
+        const height = Math.max(1, Math.round(tiers * (0.3 + (seed / 10) * 0.7)))
+        const x = -l / 2 + 2 + bay * BOX.bay
+        for (let tier = 0; tier < height; tier++) {
+          const y = PAD_TOP + tier * BOX.height
+          b.block(
+            BOX_COLOURS[(seed + tier) % BOX_COLOURS.length]!,
+            x,
+            x + BOX.length,
+            y,
+            y + BOX.height - 0.04,
+            z,
+            z + BOX.width,
+          )
+        }
+      }
+      z += (row + 1) % BOX.rowsPerBlock === 0 ? BOX.row + BOX.aisle : BOX.row
+    }
+    return {}
+  },
+}
+
+export const STORAGE_MODELS: ModelSpec[] = [
+  storagePad,
+  laydownYard,
+  quayStaging,
+  stockpileBay,
+  containerYard,
+]

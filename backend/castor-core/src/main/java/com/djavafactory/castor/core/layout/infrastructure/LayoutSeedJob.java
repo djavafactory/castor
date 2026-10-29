@@ -86,7 +86,10 @@ public class LayoutSeedJob implements DataSeedStep {
 
     /** After the reset hook (PLATFORM_AFTER) and the OSM import (+50), before the account bootstrap (+100). */
     void onStart(@Observes @Priority(Interceptor.Priority.PLATFORM_AFTER + 60) StartupEvent event) {
-        if (!castor.layout().seedOnStart()) {
+        if (!castor.layoutSeedActive()) {
+            if (castor.layout().seedOnStart()) {
+                LOG.infof("Demo layout not loaded: CASTOR_ENV=%s is not local, dev or test", castor.env());
+            }
             return;
         }
         try {

@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { EmptyState, ErrorCard } from '@/components/states/states'
-import { useAssetTypes, useCurrentLayout, useDraftLayout } from '@/lib/api'
+import { useAssetTypes, useCatalogue, useCurrentLayout, useDraftLayout } from '@/lib/api'
+import { ApiError } from '@/lib/api-client'
 import { usePort } from '@/lib/api'
 import { getEnv } from '@/lib/env'
 import { usePortFrame } from '@/lib/geo/use-port-frame'
@@ -80,6 +81,11 @@ function Scene() {
     () => new Map((assetTypes.data ?? []).map((t) => [t.code, t.colourHex])),
     [assetTypes.data],
   )
+  const catalogue = useCatalogue()
+  const cargoForms = useMemo(
+    () => new Map((catalogue.data?.cargoTypes ?? []).map((c) => [c.code, c.storageForm])),
+    [catalogue.data],
+  )
   const host = useRef<HTMLDivElement>(null)
   const [hover, setHover] = useState<BuildingHover | null>(null)
   const [assetHover, setAssetHover] = useState<LayoutHover | null>(null)
@@ -122,7 +128,12 @@ function Scene() {
           <BuildingsLayer buildings={buildings.data} onHover={setHover} />
         )}
         {frameReady && features && (
-          <LayoutLayer features={features} typeColours={typeColours} onHover={setAssetHover} />
+          <LayoutLayer
+            features={features}
+            typeColours={typeColours}
+            cargoForms={cargoForms}
+            onHover={setAssetHover}
+          />
         )}
         <EditGhost />
         {selected && <MonitorSelection ring={selected.ring} height={selected.height} />}
@@ -137,6 +148,7 @@ function Scene() {
           <ErrorCard
             title="The layout could not be loaded"
             detail="The published layout is not available right now."
+            reference={layout.error instanceof ApiError ? layout.error.reference : undefined}
             onRetry={() => void layout.refetch()}
           />
         </div>
@@ -146,6 +158,7 @@ function Scene() {
           <ErrorCard
             title="Buildings could not be loaded"
             detail="The OpenStreetMap buildings are not available right now."
+            reference={buildings.error instanceof ApiError ? buildings.error.reference : undefined}
             onRetry={() => void buildings.refetch()}
           />
         </div>

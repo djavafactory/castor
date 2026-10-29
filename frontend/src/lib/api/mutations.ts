@@ -137,7 +137,7 @@ export function useCreateAsset(code: string = defaultPortCode()) {
       useEditorStore.getState().beginSave(id)
       return applyOptimistic(client, key, (layout) => ({
         ...layout,
-        assets: [...layout.assets, { ...asset, id, rowVersion: 0 }],
+        assets: [...layout.assets, { links: [], ...asset, id, rowVersion: 0 }],
       })).then((snapshot) => ({ ...snapshot, saveId: id }))
     },
     onSuccess: (_asset, _vars, context) => useEditorStore.getState().endSave(context.saveId),

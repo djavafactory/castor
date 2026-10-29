@@ -15,14 +15,32 @@ export class ApiError extends Error {
   readonly title: string
   readonly detail: string | undefined
   readonly errors: ApiErrorItem[]
+  /** Id of an unexpected (500) error: the server log has the full trace under it. */
+  readonly errorId: string | undefined
+  /** Id of the request, in every server log line about it. */
+  readonly requestId: string | undefined
 
-  constructor(init: { status: number; title: string; detail?: string; errors?: ApiErrorItem[] }) {
+  constructor(init: {
+    status: number
+    title: string
+    detail?: string
+    errors?: ApiErrorItem[]
+    errorId?: string
+    requestId?: string
+  }) {
     super(init.detail ?? init.title)
     this.name = 'ApiError'
     this.status = init.status
     this.title = init.title
     this.detail = init.detail
     this.errors = init.errors ?? []
+    this.errorId = init.errorId
+    this.requestId = init.requestId
+  }
+
+  /** What a user can quote to find this failure in the server logs: the error id, else the request id. */
+  get reference(): string | undefined {
+    return this.errorId ?? this.requestId
   }
 
   /** False when asking again cannot help: a 4xx (the request is wrong) or a response of an unknown shape. */
@@ -101,12 +119,21 @@ async function toApiError(response: Response): Promise<ApiError> {
       // Fall through to the generic error below.
     }
   }
-  return new ApiError({
+  const error = new ApiError({
     status: problem.status ?? response.status,
     title: problem.title ?? (response.statusText || `HTTP ${response.status}`),
     detail: problem.detail,
     errors: Array.isArray(problem.errors) ? problem.errors : [],
+    errorId: problem.errorId,
+    requestId: problem.requestId ?? response.headers.get('X-Request-Id') ?? undefined,
   })
+  // Reported to the console with the ids the server logged it under (SETUP-04)
+  const report = error.status >= 500 ? console.error : console.warn
+  report(`${response.url || 'API'} failed: ${error.status} ${error.title}`, {
+    requestId: error.requestId,
+    errorId: error.errorId,
+  })
+  return error
 }
 
 function endSession(): void {

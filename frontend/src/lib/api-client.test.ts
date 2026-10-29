@@ -88,6 +88,37 @@ describe('api client', () => {
     expect(seen?.headers.get('if-match')).toBe('"4"')
   })
 
+  it('keeps the error id of a 500 and reports it to the console with the request id', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    server.use(
+      http.get(`${BASE}/v1/boom`, () =>
+        HttpResponse.json(
+          {
+            type: 'https://replica8.it/problems/internal',
+            title: 'Unexpected error',
+            status: 500,
+            errorId: '0b6f8c1e-2f6a-4f53-9d0e-6c1d2a1f9e11',
+          },
+          {
+            status: 500,
+            headers: { 'Content-Type': 'application/problem+json', 'X-Request-Id': 'req-42' },
+          },
+        ),
+      ),
+    )
+
+    const error = (await apiGet('/v1/boom').catch((e) => e)) as ApiError
+
+    expect(error.errorId).toBe('0b6f8c1e-2f6a-4f53-9d0e-6c1d2a1f9e11')
+    expect(error.requestId).toBe('req-42')
+    expect(error.reference).toBe('0b6f8c1e-2f6a-4f53-9d0e-6c1d2a1f9e11')
+    expect(consoleError).toHaveBeenCalledWith(expect.stringContaining('500 Unexpected error'), {
+      requestId: 'req-42',
+      errorId: '0b6f8c1e-2f6a-4f53-9d0e-6c1d2a1f9e11',
+    })
+    consoleError.mockRestore()
+  })
+
   it('parses Problem Details into an ApiError', async () => {
     server.use(
       http.post(`${BASE}/v1/layouts/1/publish`, () =>

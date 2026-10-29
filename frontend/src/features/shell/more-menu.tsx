@@ -11,6 +11,7 @@ import { useServerVersion } from '@/lib/version'
 import { HelpContent } from './help-content'
 
 const HELP_TIP = 'Legend, accuracy labels and keyboard shortcuts (?)'
+const VERIFY_TIP = 'Check control points and accuracy labels'
 
 function Switch({
   label,
@@ -117,10 +118,12 @@ export function MoreMenu() {
           {mode === 'design' && (
             <button
               type="button"
-              className="flex w-full rounded-md px-2 py-[7px] text-left hover:bg-paper-2"
+              title={VERIFY_TIP}
+              className="flex w-full flex-col rounded-md px-2 py-[7px] text-left hover:bg-paper-2"
               onClick={() => void verifyAccuracy()}
             >
-              Verify accuracy
+              <span>Verify accuracy</span>
+              <span className="text-xs text-muted">{VERIFY_TIP}</span>
             </button>
           )}
           {mode === 'monitor' && <DebugSwitches />}

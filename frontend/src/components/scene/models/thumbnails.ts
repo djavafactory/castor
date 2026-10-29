@@ -47,6 +47,11 @@ const cache = new Map<string, string>()
 let renderer: ThumbnailRenderer | null = null
 
 function sharedRenderer(): ThumbnailRenderer {
+  // A lost context draws nothing: start a new one rather than cache blank images
+  if (renderer instanceof WebGLRenderer && renderer.getContext().isContextLost()) {
+    renderer.dispose()
+    renderer = null
+  }
   if (!renderer) {
     // One renderer for every thumbnail: browsers allow only a handful of WebGL contexts.
     const canvas = document.createElement('canvas')

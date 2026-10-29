@@ -22,6 +22,7 @@ export function QueryBoundary<T>({
       <ErrorCard
         title={error instanceof ApiError ? error.title : 'Something went wrong'}
         detail={error instanceof ApiError ? error.detail : error.message}
+        reference={error instanceof ApiError ? error.reference : undefined}
         onRetry={() => void query.refetch()}
       />
     )

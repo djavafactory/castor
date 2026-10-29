@@ -12,6 +12,7 @@ import javax.sql.DataSource;
 
 import jakarta.inject.Inject;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.security.TestSecurity;
 import io.restassured.http.ContentType;
@@ -44,6 +45,9 @@ class LayoutPublishIT {
 
     @Inject
     LayoutSeedJob seed;
+
+    @Inject
+    MeterRegistry meters;
 
     @BeforeEach
     void seedWestports() throws SQLException {
@@ -222,6 +226,25 @@ class LayoutPublishIT {
                         String.class));
         given().get(PORT + "/draft").then().statusCode(404);
         assertEquals(1, audit("LAYOUT_PUBLISHED"));
+    }
+
+    @Test
+    @TestSecurity(user = "pat", roles = "PUBLISHER")
+    void publishingCountsThePublishAndTimesTheValidationAndItsSpatialQueries() {
+        double published = meters.counter("castor.publish.count").count();
+        long validations = meters.timer("castor.validation.duration").count();
+        long spatial = meters.timer("castor.spatial.query.duration").count();
+        String draft = draftFromPublished();
+
+        given().contentType(ContentType.JSON)
+                .body(Map.of("note", "Metrics"))
+                .post("/api/v1/layouts/" + draft + "/publish")
+                .then()
+                .statusCode(200);
+
+        assertEquals(published + 1, meters.counter("castor.publish.count").count());
+        assertTrue(meters.timer("castor.validation.duration").count() > validations);
+        assertTrue(meters.timer("castor.spatial.query.duration").count() > spatial);
     }
 
     @Test

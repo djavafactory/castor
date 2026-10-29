@@ -277,6 +277,13 @@ describe('hit testing', () => {
     expect(hits(pad, 150, 20, 0)).toBe(false)
   })
 
+  it('hits a polygon within the reach (the 7 px tolerance) outside its outline', () => {
+    const y = (pad.box.y0 + pad.box.y1) / 2
+    expect(hits(pad, pad.box.x1 + 3, y, 0)).toBe(false)
+    expect(hits(pad, pad.box.x1 + 3, y, 3.5)).toBe(true)
+    expect(hits(pad, pad.box.x1 + 4, y, 3.5)).toBe(false)
+  })
+
   it('hits a line within half its width, or the reach, of it', () => {
     expect(hits(road, 0, 53, 0)).toBe(true) // inside the 8 m road
     expect(hits(road, 0, 56, 0)).toBe(false)

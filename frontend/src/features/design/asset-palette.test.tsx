@@ -1,11 +1,12 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { TooltipProvider } from '@/components/ui/overlays'
 import { useEditorStore } from '@/lib/stores/editor-store'
 import { API, assetTypesFixture } from '@/test/fixtures'
 import { wrapperFor } from '@/test/query-wrapper'
 import { server } from '@/test/setup'
-import { AssetPalette, DragChip, GROUP_LABELS } from './asset-palette'
+import { AssetPalette, DragChip, GROUP_LABELS, defaultSizeText } from './asset-palette'
 import { DRAG_START_PX } from './place/palette-drag'
 import { usePlacementStore } from './place/use-placement'
 
@@ -25,6 +26,7 @@ const types = GROUPS.flatMap((group, g) =>
     geometryKind: i === 6 ? 'POLYGON' : 'POINT',
     modelKey: 'no-such-model',
     hint: `Hint ${group}${i}.`,
+    purpose: `Purpose of ${group} ${i}.`,
     sortOrder: g * 10 + i,
   })),
 )
@@ -36,7 +38,12 @@ beforeEach(() => {
 })
 
 async function palette() {
-  render(<AssetPalette />, { wrapper: wrapperFor() })
+  render(
+    <TooltipProvider delayDuration={0}>
+      <AssetPalette />
+    </TooltipProvider>,
+    { wrapper: wrapperFor() },
+  )
   await screen.findByTestId('palette-group-CRANES')
 }
 
@@ -87,17 +94,57 @@ describe('asset palette', () => {
     expect(screen.getByText('No asset matches.')).toBeInTheDocument()
   })
 
-  it('labels draw types "(draw)", shows the hint tooltip and a coloured icon until the model exists', async () => {
+  it('labels draw types "(draw)" and shows a coloured icon for a type without a model', async () => {
     await palette()
     const draw = screen.getByTestId('palette-tile-CRANES_6')
     expect(draw).toHaveTextContent('Cranes thing 6 (draw)')
-    expect(screen.getByTestId('palette-tile-CRANES_0')).toHaveAttribute(
-      'title',
-      'Hint CRANES0. Click to place, or drag onto the map.',
-    )
     expect(
       within(screen.getByTestId('palette-tile-CRANES_0')).getByTestId('type-icon'),
     ).toBeInTheDocument()
+  })
+
+  it('finds the 3D model of the lower-case model key the API sends', async () => {
+    server.use(
+      http.get(`${API}/v1/asset-types`, () =>
+        HttpResponse.json([{ ...types[0]!, code: 'STS_CRANE', modelKey: 'sts_crane' }]),
+      ),
+    )
+    await palette()
+    const tile = screen.getByTestId('palette-tile-STS_CRANE')
+    expect(within(tile).queryByTestId('type-icon')).not.toBeInTheDocument()
+  })
+
+  it('describes what the asset is for, and on hover or focus shows its purpose, default size and hint', async () => {
+    await palette()
+    const tile = screen.getByTestId('palette-tile-CRANES_0')
+    expect(tile).toHaveAccessibleDescription('Purpose of CRANES 0.')
+    fireEvent.focus(tile)
+    const card = (await screen.findAllByTestId('palette-purpose'))[0]!
+    expect(card).toHaveTextContent('Purpose of CRANES 0.')
+    expect(card).toHaveTextContent('Default size 10 x 3.2 x 3.4 m')
+    expect(card).toHaveTextContent('Hint CRANES0. Click to place, or drag onto the map.')
+  })
+
+  it('puts the default size in words for placed, round and drawn types', () => {
+    const none: Parameters<typeof defaultSizeText>[0]['defaults'] = {
+      lengthM: null,
+      widthM: null,
+      heightM: null,
+      radiusM: null,
+      lineWidthM: null,
+    }
+    const of = (defaults: Partial<typeof none>, placementMode: 'PLACE' | 'DRAW' = 'PLACE') =>
+      defaultSizeText({
+        ...base,
+        geometryKind: 'POINT',
+        placementMode,
+        defaults: { ...none, ...defaults },
+      })
+    expect(of({ lengthM: 18, widthM: 9, heightM: 28 })).toBe('18 x 9 x 28 m')
+    expect(of({ lengthM: 70, widthM: 30 })).toBe('70 x 30 m')
+    expect(of({ radiusM: 9, heightM: 26 })).toBe('18 m across, 26 m high')
+    expect(of({ lineWidthM: 2.4, heightM: 7 }, 'DRAW')).toBe('2.4 m wide, 7 m high')
+    expect(of({}, 'DRAW')).toBeNull()
   })
 
   it('starts the place tool, highlights the tile, and a second click cancels', async () => {
@@ -123,10 +170,10 @@ describe('asset palette', () => {
 
   it('turns a press into a drag after 6 px: the chip follows, and the click that ends it starts no tool', async () => {
     render(
-      <>
+      <TooltipProvider>
         <AssetPalette />
         <DragChip />
-      </>,
+      </TooltipProvider>,
       { wrapper: wrapperFor() },
     )
     const tile = await screen.findByTestId('palette-tile-CRANES_0')

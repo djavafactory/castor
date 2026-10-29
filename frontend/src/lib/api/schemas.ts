@@ -140,6 +140,8 @@ export const assetTypeSchema = z.object({
   modelRev: z.number().int().min(1),
   colourHex: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
   hint: z.string(),
+  /** What the asset is for, one sentence: the palette shows it with the thumbnail. */
+  purpose: z.string(),
   sortOrder: z.number().int(),
 })
 export const assetTypesSchema = z.array(assetTypeSchema)

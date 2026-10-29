@@ -37,7 +37,7 @@ function boxesOf(group: Group, colour: string): number {
 
 describe('part 2 models', () => {
   it('are all parametric: drawn true to the asset, never scaled', () => {
-    expect(PART2).toHaveLength(37)
+    expect(PART2).toHaveLength(39)
     for (const spec of PART2) {
       expect(modelScale(spec, { length: 3, width: 4, height: 5 })).toEqual([1, 1, 1])
     }
@@ -388,16 +388,16 @@ describe('layout draw calls', () => {
     return assets
   }
 
-  it('walks the registry: every one of the 56 types merges into the layout', () => {
+  it('walks the registry: every one of the 58 types merges into the layout', () => {
     const built = buildLayoutMeshes(layout(1))
     expect(built.unknown).toEqual([])
-    expect(MODEL_SPECS).toHaveLength(56)
+    expect(MODEL_SPECS).toHaveLength(58)
     expect(built.group.children.length).toBeGreaterThan(0)
   })
 
   it('keeps a full layout far below 400 draw calls', () => {
     const assets = layout(6)
-    expect(assets.length).toBe(336)
+    expect(assets.length).toBe(348)
     const built = buildLayoutMeshes(assets)
     expect(built.drawCalls).toBeLessThan(400)
     expect(built.drawCalls).toBeLessThan(120)

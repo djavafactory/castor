@@ -2,6 +2,10 @@
 
 Reusable port digital twin for conventional cargo ports. The first port is Westports Malaysia (Pulau Indah, Port Klang). The earlier Portwise prototype lives in [`portwise/`](portwise/README.md).
 
+## What Castor is
+
+Castor is a reusable digital twin for conventional cargo ports: a 3D replica of the port (berths, yards, warehouses, cranes, roads) that is built, checked and published in a browser-based layout designer, and shown in a read-only Monitor view. The first port is Westports Malaysia (Pulau Indah, Port Klang). Phase 1 is the designer and the replica, with no live data: see [Phase 1 scope](#phase-1-scope).
+
 ## Prerequisites
 
 - Docker (PostGIS 18-3.6 runs in a container)
@@ -85,6 +89,20 @@ docker compose --profile dev down
 
 Every backend start in dev wipes and reseeds the data (`CASTOR_RESET_ON_START=true`, set by `compose.yaml`).
 
+## Tests
+
+| What | Command | Needs |
+| --- | --- | --- |
+| Backend unit, ArchUnit and integration tests (throwaway PostGIS) | `cd backend && ./mvnw -B spotless:check verify` | Docker, Java 25 |
+| Frontend lint, types, unit tests | `cd frontend && npm ci && npm run lint && npm run typecheck && npm test` | Node 24 |
+| Bundle size budget | `cd frontend && npm run build && npm run bundle:check` | Node 24 |
+| End to end, mocked API (login, design system) | `cd frontend && npx playwright install chromium && npm run test:e2e` | Node 24 |
+| End to end on the dev stack (everything else, incl. the PRD 19.1 acceptance suite, the demo and the performance budget) | `cd frontend && E2E_BASE_URL=http://localhost:8080 E2E_API_URL=http://localhost:8080/api npm run test:e2e` | the running dev stack |
+
+The acceptance suite is `frontend/e2e/acceptance/`: one spec per PRD 19.1 item (`01` search, basemap and polygon; `02` 3D footprint at the measured height; `03` crane ghost, heading, resize, no drift; `04` drag in 2D and 3D; `05` GeoJSON fixtures round trip; `06` measure against the control points; `07` NO SURVEY badge; `08` publish, audit and restore; `09` undo/redo and roles), `demo-blank-canvas.spec.ts` (the Phase 1 finish line, see [Demo](#demo)) and `performance.spec.ts` (see [Performance](#performance)). They sign in with the demo users (password = user name), drive the real screens, and use the API only to prepare and tidy. Each spec leaves the shared draft as it found it; the demo and the publish spec add published versions, which is why the stack resets on start. Use one worker: the specs share the stack.
+
+The 3D checks read the live scene through `window.__castorScene` (draw calls, vertices, camera) and `window.__castorGizmo`. They exist in every build except `VITE_APP_ENV=prod` (`frontend/src/lib/test-hooks.ts`).
+
 ## Environment configuration
 
 Each environment is a set of variables; see `.env.example` and `frontend/.env.example`. Secrets never go to git (`.env` and `.env.local` are ignored). `VITE_*` values are bundled into the browser: no secrets there.
@@ -125,6 +143,83 @@ One version for the whole app, `MAJOR.MINOR.PATCH`, in the root `VERSION` file (
 - Build stamps: version, 7-character git commit, UTC build time. Untagged builds are `<version>-dev+<commit>`; a git tag `vX.Y.Z` builds exactly `X.Y.Z` (CI refuses a tag that differs from `VERSION`). `scripts/build-stamp.sh` prints them. Docker and Compose builds take them as `BUILD_VERSION`, `GIT_COMMIT` and `BUILD_TIME`: `eval "$(scripts/build-stamp.sh)" && export BUILD_VERSION GIT_COMMIT BUILD_TIME && docker compose --profile dev up -d --build`.
 - Shown in `GET /api/v1/version` (no login), the login card footer and the Help popover. Local and dev add the commit and environment. A frontend and server on different versions show `(server v<x>)`.
 - Release PR: bump `VERSION`, `backend/pom.xml`, `frontend/package.json` (and its lock file) and add the version's section to `CHANGELOG.md`, written from the Conventional Commits since the last tag, all in the same PR. After merge, tag `vX.Y.Z`: CI builds images tagged `X.Y.Z` (not pushed).
+
+## Demo
+
+The product owner's walk through Phase 1: a port built from a blank canvas and published. The same steps run automatically in `frontend/e2e/acceptance/demo-blank-canvas.spec.ts`.
+
+Start the dev stack (`docker compose --profile dev up -d --build --wait`), open http://localhost:8080 and:
+
+1. Sign in as `admin` (choose it in "Choose a demo user"). The 3D port loads in Monitor.
+2. **Design**, view **2D**, tab **Versions**, **New blank layout**, confirm "Start blank". The draft has 0 assets.
+3. Search `Westports` and press Enter: the map centres on the port.
+4. Draw the site: palette tile **Terminal boundary** (click once on the map), **Warehouse (polygon)** (click six or more corners, Enter), **Laydown yard** (click the corners, Enter). Keep clear of the draw panel at the top left of the map.
+5. Place two **Berth** tiles on the quay edge (the dashed line), a **Quay crane (rail)** next to a berth, a **Mobile harbour crane** and a **Silo** on the land.
+6. Draw an **Exclusion zone**; in the Inspector, "Allowed types inside", tick **Liquid tank**. Place a **Liquid tank** inside it.
+7. The deliberate mistake: draw a second exclusion zone over the silo. Tab **Issues** shows "Inside safety exclusion zone ..." as an error and Publish is blocked. Pick the row and drag the silo out of the zone; **Check again** shows 0 errors.
+8. **More** (the three dots) -> **Verify accuracy**: the Accuracy check section lists every control point with its residual (all within 0.1 m).
+9. Tab **Versions**, write a publish note, **Publish**, confirm. Switch to **Monitor**: the header reads "Published vN ... by admin" and the new layout is in 3D.
+10. Click the user name -> **Sign out**. Nothing is left in browser storage but the panel layout.
+
+Two things differ from a literal reading of the ticket: the terminal boundary is a placed rectangle (400 x 200 m, resized in the Inspector) because its catalogue type is a placed type, and the deliberate problem is an exclusion zone drawn over an existing asset, because the designer refuses to save an overlapping asset in the first place.
+
+## Performance
+
+Budgets of JOIN-04 for the target laptop (integrated GPU, 1920 x 1080), and what was measured. `frontend/e2e/acceptance/performance.spec.ts` measures everything except the bundle and writes `frontend/test-results/performance.json` (uploaded by CI); `npm run bundle:check` measures the bundle. Run on the dev stack on 29 Oct 2026 (Windows 11 laptop, Docker Desktop, headless Chromium).
+
+**The browser here renders with software WebGL (SwiftShader), not a GPU.** Frame rate and first-frame time on it are not those of the target laptop: they are measured and reported, and enforced only with `PERF_TARGET_HARDWARE=1` (run the spec on the target laptop to get the real numbers). Everything else does not depend on the GPU.
+
+| Budget | Measured | Result |
+| --- | --- | --- |
+| 60 fps at Overview, all layers, about 30,000 static containers | 20 to 32 fps with software WebGL; 32,959 container instances in the scene | not measured on the target laptop (PERF-03) |
+| First meaningful 3D frame under 4 s, warm cache | 0.43 s from the Sign in click to the layout and containers drawn (software WebGL) | met here; confirm on the target laptop (PERF-03) |
+| Memory flat over 30 minutes of orbiting | After a 90 s warm-up, 1 minute of orbiting: geometries 233 to 233, textures 54 to 54, JS heap 32.0 to 32.4 MB. A 2 minute run grew 233 to 272 geometries and 54 to 61 textures (imagery tiles still filling the cache, or a leak) | the 30 minute soak is not run yet: PERF-02 |
+| Frontend bundle without three under 250 KB gzipped | **293.3 KB** (three chunk 242.6 KB, not counted) | **fails by 43 KB**: PERF-01 |
+| Published layout API under 300 ms p95 | 25 ms p95 (50 full requests, 288 KB body, 38 KB gzipped) | met |
+| Single asset write under 150 ms p95 | 20 ms p95 (30 PATCH requests) | met |
+| Reference features under 2 MB | 0.26 MB (277,629 bytes) | met |
+| Full layout under 400 draw calls | 85 draw calls, 17,872 triangles, 63 geometries, 26 textures | met |
+| 12-angle sweep: no z-fighting flicker, every ground, road and pad vertex at its layer height | 12 angles x every flat layer in the scene: largest distance from the layer height under 0.1 mm; worst share of flickering pixels 0.41 % (limit 1 %) | met |
+
+How the sweep works: the camera turns round the Yard view in 30 degree steps; at each step the scene probe reports the height of every vertex of every flat layer (`flat:<layer>` meshes, heights from `layer-heights.ts`), and three frames (still, +0.01 degree, -0.01 degree) are compared pixel by pixel. A moving edge changes a pixel one way; a surface that fights flips it back and forth, which is what is counted. The water is hidden for this check because its shading changes with any camera move. Each angle's picture is attached to the test report. Limit: only the meshes built by `FlatLayers` (named `flat:`) are height-checked, and at the Yard view that is two layers; pads and areas merged into the layout meshes are covered by the flicker comparison only.
+
+Failures, to be raised as tickets:
+
+- **PERF-01** Frontend bundle is 293.3 KB gzipped without three, 43 KB over the 250 KB budget (`app-shell` 94.7 KB, `index` 89.1 KB, `app` 52.0 KB, `api-client` 29.3 KB). The CI step `bundle:check` reports it and does not fail the build until this is fixed.
+- **PERF-02** Run the 30 minute soak (workflow "Performance soak", or `PERF_SOAK_MINUTES=30`) and confirm the geometry and texture counts stop growing after the warm-up. CI runs only a 1 minute window.
+- **PERF-03** Measure frame rate (60 fps at Overview) and first meaningful frame on the target laptop: `PERF_TARGET_HARDWARE=1 E2E_BASE_URL=... npx playwright test e2e/acceptance/performance.spec.ts`, then record the numbers here.
+
+
+## Runbook
+
+**Start and stop**
+
+| Environment | Start | Stop |
+| --- | --- | --- |
+| local (apps on your machine, Dev Services database) | `cd backend && ./mvnw -pl castor-core quarkus:dev` and `cd frontend && npm run dev` | Ctrl+C in each terminal (the throwaway database goes with the backend) |
+| local with the Docker database | `docker compose --profile local up -d --wait`, then the two commands above with `-Dquarkus.profile=local` | `docker compose --profile local down` (keeps the data; add `-v` to wipe it) |
+| dev (everything in containers) | `docker compose --profile dev up -d --build --wait` | `docker compose --profile dev down` (add `-v` to remove the database volume) |
+
+**Reset dev data.** Dev reseeds on every backend start (`CASTOR_RESET_ON_START=true`): `docker compose --profile dev restart castor-dev-backend`. For a clean database as well: `docker compose --profile dev down -v && docker compose --profile dev up -d --build --wait`. Local with the Docker database: `docker compose --profile local down -v && docker compose --profile local up -d --wait`. Only dev and test may wipe data; the backend refuses `CASTOR_RESET_ON_START` anywhere else.
+
+**Logs and metrics**
+
+- Logs: `docker compose --profile dev logs -f castor-dev-backend` (also `castor-dev-frontend`, `castor-dev-db`). Dev logs are JSON with a `requestId` that is also in every error response; local logs are plain text.
+- Health and metrics are on the management port, not published in dev. Local: http://localhost:9000/q/health/ready and http://localhost:9000/q/metrics. In dev they are not reachable from the host (only the frontend port is published): use a local run, or the logs. Custom metrics: `castor_validation_duration`, `castor_publish_count`, `castor_import_count`, `castor_spatial_query_duration`.
+- Version of what is running: `GET /api/v1/version` (also in the login card and the Help popover).
+- Every change to a layout is in the audit log: `GET /api/v1/ports/westports/audit` (admin).
+
+**Common failures**
+
+| Symptom | Cause and fix |
+| --- | --- |
+| Satellite tiles do not load (grey ground in 2D and 3D, the rest works) | The browser cannot reach `tiles.maps.eox.at` (offline, proxy or firewall), or `VITE_SATELLITE_TILE_URL` is wrong. Open the tile URL from [Data](#phase-1-scope) in a tab. Designing still works on "None (grid)" (Basemap in the bottom strip). |
+| Backend: "database not ready", health `DOWN`, `connection refused` | The database container is still starting or unhealthy. `docker compose --profile dev ps` and wait for `healthy`; `docker compose --profile dev logs castor-dev-db`. Local with the Docker database: check `LOCAL_DB_PORT` in `.env`. The first start after a reset runs all migrations and the seed: allow a minute. |
+| "Port already in use" / `Address already in use` | Another process has 8081 (backend), 5173 (frontend), 9000 (management), 5432 (local database) or `DEV_WEB_PORT` (8080). Stop it, or change the port: `DEV_WEB_PORT` and `LOCAL_DB_PORT` in `.env`; `quarkus.http.port` for the backend. A leftover `quarkus:dev` is the usual cause. |
+| Tests or `quarkus:dev`: "Could not find a valid Docker environment" / Testcontainers cannot reach Docker | Docker is not running, or the user cannot reach its socket. Start Docker Desktop (or the daemon) and run `docker info`. On Linux add your user to the `docker` group; with a non-default socket set `DOCKER_HOST`. Behind a proxy the first run needs to pull `postgis/postgis:18-3.6`. |
+| Backend refuses to start: "Refusing to wipe data", `CHANGE_ME`, admin password, CORS | A guard in [Environment configuration](#environment-configuration): fix the value in `.env`. |
+| Sign-in works but the app asks again after a reload | By design: credentials live in memory only. |
+| Playwright: "needs the running dev stack" skipped, or login fails | Set `E2E_BASE_URL=http://localhost:8080` and start the dev stack with demo login on (`CASTOR_DEMO_LOGIN=true`, which dev sets). |
 
 ## Git rules
 
@@ -411,5 +506,7 @@ Accepted differences (product owner review, newest first):
 
 ### Credits and origins
 
-- The `portwise/` folder holds the earlier Portwise 3D port prototype (see its README); Castor builds on its ideas but is a separate codebase.
-- Built by Djava Factory for the Westports Malaysia replica; map data attribution and licences are recorded here as sources are added.
+- **Basemap and data.** Imagery: Sentinel-2 cloudless by [EOX IT Services GmbH](https://s2maps.eu) (CC BY-NC-SA 4.0), contains modified Copernicus Sentinel data 2024; non-commercial, see [Data sources](#2-data-sources-basemap-licences-and-tracing-rules). Outlines (buildings, roads, rail, coastline, water): (c) [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, ODbL 1.0, kept in the committed extract with its provenance. The attribution text is shown on the login card, in the Help popover and in the app footer.
+- **3D foundation.** The scene is based on an existing 3D port project; the earlier Portwise prototype in [`portwise/`](portwise/README.md) (MIT) is part of that lineage. Repository URL of the original project and of its fork, its licence, and what Castor reuses from it (the stage, the models, the camera): _open item, to be provided by the product owner and filled in here before Phase 1 sign-off._
+- **Libraries.** [three.js](https://threejs.org) (MIT) and [@react-three/fiber](https://github.com/pmndrs/react-three-fiber) (MIT); React, React Router, TanStack Query, Zustand, Zod, Radix UI, Tailwind CSS, shadcn/ui patterns, lucide-react, Sonner, Vite, Vitest, Playwright and axe-core (MIT, Apache-2.0 or MPL-2.0); Quarkus, Hibernate, Flyway, PostgreSQL JDBC (Apache-2.0, LGPL, PostgreSQL licence); PostGIS (GPL-2.0, run as a separate database container); Testcontainers, ArchUnit, JTS (MIT, Apache-2.0, EDL). Each library keeps its own licence; the exact versions are in `frontend/package-lock.json` and `backend/pom.xml`.
+- Built by Djava Factory for the Westports Malaysia replica. The earlier Portwise prototype lives in `portwise/` and is a separate codebase.

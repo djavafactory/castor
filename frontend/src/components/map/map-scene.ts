@@ -252,7 +252,10 @@ function distanceToSegment(x: number, y: number, a: Local, b: Local): number {
 /** How far from its quay line a click still selects a berth, metres. */
 export const BERTH_REACH_M = 6
 
-/** Whether a local point hits the shape: inside a polygon (holes count), or within `reachM` of a line or edge. */
+/**
+ * Whether a local point hits the shape: inside a polygon (holes count) or within `reachM` (the 7 px hit tolerance) of
+ * its outline, or within `reachM` of a line or edge.
+ */
 export function hits(shape: MapShape, x: number, y: number, reachM: number): boolean {
   // A terminal boundary encloses everything else: only its edge is clickable
   const edgeOnly = !shape.closed || shape.rank === RANK.terminal
@@ -264,10 +267,9 @@ export function hits(shape: MapShape, x: number, y: number, reachM: number): boo
   if (x < box.x0 - reach || x > box.x1 + reach || y < box.y0 - reach || y > box.y1 + reach) {
     return false
   }
-  if (!edgeOnly) {
-    // even-odd across all rings: a point inside a hole is outside the shape
-    return shape.rings.filter((ring) => insideRing(ring, x, y)).length % 2 === 1
-  }
+  // even-odd across all rings: a point inside a hole is outside the shape
+  if (!edgeOnly && shape.rings.filter((ring) => insideRing(ring, x, y)).length % 2 === 1)
+    return true
   return shape.rings.some((ring) =>
     ring.some((p, i) => {
       const prev = i > 0 ? ring[i - 1] : shape.closed ? ring[ring.length - 1] : null

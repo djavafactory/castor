@@ -69,6 +69,10 @@ jobs:
       - run: npm run typecheck
       - run: npm run test:coverage
       - run: npm run build
+      # JOIN-04 budget: the bundle without three under 250 KB gzipped. It is over today (see README "Performance",
+      # ticket PERF-01), so it is reported without failing the build; remove continue-on-error when it is fixed.
+      - run: npm run bundle:check
+        continue-on-error: true
       - if: always()
         uses: actions/upload-artifact@v5
         with:
@@ -117,6 +121,7 @@ jobs:
           # Specs that need the real backend and seed data run against the dev stack
           docker run --rm --ipc=host --network host -v "$GITHUB_WORKSPACE":/work -w /work/frontend \
             -e CI -e E2E_USERNAME -e E2E_PASSWORD -e E2E_BASE_URL="http://localhost:${DEV_WEB_PORT:-8080}" \
+            -e E2E_API_URL="http://localhost:${DEV_WEB_PORT:-8080}/api" \
             "$IMAGE" npm run test:e2e || status=1
           exit $status
       - name: Compose logs
@@ -126,7 +131,9 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: playwright-report
-          path: frontend/playwright-report
+          path: |
+            frontend/playwright-report
+            frontend/test-results/performance.json
           if-no-files-found: ignore
       - if: always()
         run: docker compose --profile dev down -v

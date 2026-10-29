@@ -125,6 +125,7 @@ export const assetTypesFixture = [
     modelRev: 1,
     colourHex: '#E8A317',
     hint: 'Click the map to place an excavator.',
+    purpose: 'Tracked digger used for bulk reclaim, trimming stockpiles and loading trucks.',
     sortOrder: 13,
   },
 ]
@@ -155,6 +156,8 @@ export const warehouseTypeFixture = {
   modelRev: 1,
   colourHex: '#C9BFA3',
   hint: 'Click the map to place a warehouse.',
+  purpose:
+    'Rectangular covered warehouse with dock doors for receiving, storing and dispatching cargo.',
   sortOrder: 1,
 }
 

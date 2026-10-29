@@ -2,7 +2,7 @@ import { headingToRotation, lonLatToScene } from '@/lib/geo'
 import type { LayoutFeature } from '@/lib/api'
 import type { PlacedCrane, PlacedYard } from '../containers/container-terminal-layer'
 import type { Pt } from '../models/box-batch'
-import type { ModelDetails, ModelSize } from '../models/model-spec'
+import type { CargoForm, ModelDetails, ModelSize } from '../models/model-spec'
 import type { LayoutAsset } from '../models/layout-batch'
 import { envelopeSize } from '../models/envelope'
 import { getModelSpec } from '../models/registry'
@@ -12,6 +12,21 @@ const DEG = Math.PI / 180
 /** Types the container layer draws (behind its own switch and feature flag), never the generic layer. */
 const YARD_TYPE = 'CONTAINER_YARD'
 const CONTAINER_CRANE_TYPES = new Set(['STS_CRANE', 'RTG'])
+
+/** A berth gets crane rails when a rail quay crane stands on it: within this distance of its quay line, metres. */
+const RAIL_CRANE_REACH_M = 40
+
+/** How a catalogue storage form (catalogue cargoTypes[].storageForm) is drawn on a storage pad. */
+const CARGO_FORMS: Record<string, CargoForm> = {
+  PILE: 'PILE',
+  STACK: 'STACK',
+  UNIT: 'STACK',
+  SILO: 'SILO',
+  TANK: 'SILO',
+}
+
+/** Storage form of each cargo type code, from the catalogue: how a pad holding that cargo draws its fill. */
+export type CargoForms = ReadonlyMap<string, string>
 
 /** The default tiers and fill of a yard that has no container details. */
 const DEFAULT_TIERS = 4
@@ -74,6 +89,21 @@ function ringPoints(coordinates: unknown): [number, number][] {
     : points
 }
 
+/** Distance from a point to a polyline, metres. */
+function distanceToPath([x, z]: Pt, path: readonly Pt[]): number {
+  let best = Infinity
+  for (let i = 1; i < path.length; i++) {
+    const [ax, az] = path[i - 1]!
+    const [bx, bz] = path[i]!
+    const dx = bx - ax
+    const dz = bz - az
+    const len2 = dx * dx + dz * dz
+    const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / len2))
+    best = Math.min(best, Math.hypot(x - (ax + t * dx), z - (az + t * dz)))
+  }
+  return best
+}
+
 function bounds(points: readonly Pt[]) {
   const xs = points.map((p) => p[0])
   const zs = points.map((p) => p[1])
@@ -85,7 +115,7 @@ function bounds(points: readonly Pt[]) {
   }
 }
 
-function details(feature: LayoutFeature): ModelDetails {
+function details(feature: LayoutFeature, cargoForms?: CargoForms): ModelDetails {
   const d = feature.properties.details
   const out: ModelDetails = { name: feature.properties.name }
   if (d.warehouse) {
@@ -97,6 +127,8 @@ function details(feature: LayoutFeature): ModelDetails {
     out.rows = d.storagePad.rows
   }
   if (d.storage?.designFill != null) out.designFill = d.storage.designFill
+  const form = d.storage?.cargoTypeCode && cargoForms?.get(d.storage.cargoTypeCode)
+  if (form && CARGO_FORMS[form]) out.cargoForm = CARGO_FORMS[form]
   if (d.berth?.depthM != null) out.depth = d.berth.depthM
   return out
 }
@@ -106,7 +138,10 @@ function details(feature: LayoutFeature): ModelDetails {
  * turn from the heading, size from the asset (then the footprint, then the model's default size) and the
  * drawn footprint or path relative to the anchor. Needs the port frame (usePortFrame) to be active.
  */
-export function placeLayout(features: readonly LayoutFeature[]): PlacedLayout {
+export function placeLayout(
+  features: readonly LayoutFeature[],
+  cargoForms?: CargoForms,
+): PlacedLayout {
   const out: PlacedLayout = {
     assets: [],
     unknown: [],
@@ -116,6 +151,10 @@ export function placeLayout(features: readonly LayoutFeature[]): PlacedLayout {
     envelopes: [],
     outlines: [],
   }
+  // Where the rail quay cranes stand: their berths draw the crane rails
+  const railCranes = features
+    .filter((f) => f.properties.type === 'QUAY_CRANE_RAIL')
+    .map((f) => lonLatToScene(f.properties.anchor[0], f.properties.anchor[1]))
 
   for (const feature of features) {
     const p = feature.properties
@@ -147,7 +186,8 @@ export function placeLayout(features: readonly LayoutFeature[]): PlacedLayout {
         diameter ??
         p.lineWidthM ??
         (box ? box.maxZ - box.minZ : (spec?.size.width ?? 10)),
-      height: p.heightM ?? spec?.size.height ?? 5,
+      // a storage pad without its own height is drawn to its maximum stacking height
+      height: p.heightM ?? p.details.storagePad?.maxHeightM ?? spec?.size.height ?? 5,
     }
     const position: [number, number, number] = [ax, p.elevationM ?? 0, az]
     const id = feature.id
@@ -238,12 +278,27 @@ export function placeLayout(features: readonly LayoutFeature[]): PlacedLayout {
       continue
     }
 
+    const modelDetails = details(feature, cargoForms)
+    if (p.type === 'BERTH') {
+      // the quay line of the berth in model space: its drawn path, or its length axis
+      const quayLine: Pt[] =
+        path && path.length > 1
+          ? path
+          : [
+              [-size.length / 2, 0],
+              [size.length / 2, 0],
+            ]
+      modelDetails.railCranes = railCranes.some(
+        ([cx, , cz]) =>
+          distanceToPath(toModel(cx - ax, cz - az, rotationY), quayLine) <= RAIL_CRANE_REACH_M,
+      )
+    }
     const asset: LayoutAsset = {
       modelKey: p.type,
       size,
       footprint: spec?.parametric ? footprint : undefined,
       path: spec?.parametric ? path : undefined,
-      details: details(feature),
+      details: modelDetails,
       position,
       rotationY,
     }

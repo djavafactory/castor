@@ -5,9 +5,11 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 import javax.sql.DataSource;
 
@@ -18,6 +20,7 @@ import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKBReader;
 
 import com.djavafactory.castor.core.layout.domain.PlacementFacts;
+import com.djavafactory.castor.core.shared.application.OperationMetrics;
 
 /**
  * The spatial facts of the placement rules, answered by PostGIS. The pair query walks the GiST index on
@@ -63,13 +66,34 @@ public class PostgisPlacementFacts implements PlacementFacts {
             + "where r.layout_version_id = ? and t.geometry_kind = 'QUAY_SEGMENT' order by r.name";
 
     private final DataSource dataSource;
+    private final OperationMetrics metrics;
 
-    public PostgisPlacementFacts(DataSource dataSource) {
+    public PostgisPlacementFacts(DataSource dataSource, OperationMetrics metrics) {
         this.dataSource = dataSource;
+        this.metrics = metrics;
     }
 
     @Override
     public List<Contact> contacts(UUID layoutVersionId, Candidate candidate) {
+        return timed(() -> queryContacts(layoutVersionId, candidate));
+    }
+
+    @Override
+    public List<Berth> berths(UUID layoutVersionId) {
+        return timed(() -> queryBerths(layoutVersionId));
+    }
+
+    /** Runs a spatial query and reports how long it took (castor_spatial_query_duration). */
+    private <T> T timed(Supplier<T> query) {
+        long start = System.nanoTime();
+        try {
+            return query.get();
+        } finally {
+            metrics.spatialQueryFinished(Duration.ofNanos(System.nanoTime() - start));
+        }
+    }
+
+    private List<Contact> queryContacts(UUID layoutVersionId, Candidate candidate) {
         try (Connection c = dataSource.getConnection()) {
             if (candidate == null) {
                 try (PreparedStatement ps = c.prepareStatement(CONTACTS.formatted(SUBJECT_OF_LAYOUT))) {
@@ -90,8 +114,7 @@ public class PostgisPlacementFacts implements PlacementFacts {
         }
     }
 
-    @Override
-    public List<Berth> berths(UUID layoutVersionId) {
+    private List<Berth> queryBerths(UUID layoutVersionId) {
         try (Connection c = dataSource.getConnection();
                 PreparedStatement ps = c.prepareStatement(BERTHS)) {
             ps.setObject(1, layoutVersionId);

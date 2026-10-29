@@ -22,7 +22,7 @@ import { hex } from '@/features/scene/palette'
 import { AccuracyOutlines, EnvelopeLayer } from './debug-layers'
 import { buildLayoutLod, updateLod } from './layout-lod'
 import { buildPickGeometry } from './pick-geometry'
-import { placeLayout, type PickBox } from './placement'
+import { placeLayout, type CargoForms, type PickBox } from './placement'
 
 /** A click that moved more than this many pixels was a camera drag, not a pick. */
 const DRAG_PX = 4
@@ -49,6 +49,8 @@ interface LayoutLayerProps {
   features: readonly LayoutFeature[]
   /** Colour of the plain box of each asset type (asset_type.colour_hex), for the far level of detail. */
   typeColours?: ReadonlyMap<string, string>
+  /** Storage form of each cargo type (catalogue): how a storage pad draws its fill. */
+  cargoForms?: CargoForms
   onHover?: (hover: LayoutHover | null) => void
   /** Receives the bounding sphere of the drawn layout (for framing the camera). */
   onBuilt?: (bounds: Sphere | null) => void
@@ -58,8 +60,14 @@ interface LayoutLayerProps {
  * The published layout, read-only: every asset through the model library, merged per material, plus the
  * container terminal. Clicking selects an asset; nothing here can move, resize or delete one.
  */
-export function LayoutLayer({ features, typeColours, onHover, onBuilt }: LayoutLayerProps) {
-  const placed = useMemo(() => placeLayout(features), [features])
+export function LayoutLayer({
+  features,
+  typeColours,
+  cargoForms,
+  onHover,
+  onBuilt,
+}: LayoutLayerProps) {
+  const placed = useMemo(() => placeLayout(features, cargoForms), [features, cargoForms])
   const labels = useUiStore((s) => s.labels)
   const cargo = useUiStore((s) => s.cargo)
   const envelope = useUiStore((s) => s.envelope)

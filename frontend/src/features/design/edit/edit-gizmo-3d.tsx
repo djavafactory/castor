@@ -21,6 +21,7 @@ import { useAssetTypes, useDraftLayout } from '@/lib/api'
 import { useSelectionStore } from '@/lib/stores/selection-store'
 import { patchOf, type EditShape, type EditSubject } from './edit-model'
 import { MOVE_THRESHOLD_PX, moveShape } from './edit-ops'
+import { testHooksEnabled } from '@/lib/test-hooks'
 import { useEditPreview } from './edit-preview-store'
 import { notChanged, type Verdict } from './edit-rules'
 import { useEditSession } from './edit-session'
@@ -387,9 +388,9 @@ export function EditGizmo3D({ frameReady }: { frameReady: boolean }) {
 
     host.addEventListener('pointerdown', onDown, true)
     host.addEventListener('pointermove', onHover)
-    // Development only (the end-to-end tests): where the gizmo parts are on the screen; not in a production build
+    // The end-to-end tests: where the gizmo parts are on the screen; not in a production build
     const hooks = globalThis as { __castorGizmo?: unknown }
-    if (import.meta.env.DEV) {
+    if (testHooksEnabled()) {
       const toClient = (p: Vector3) => {
         const v = p.clone().project(camera)
         const r = rect()

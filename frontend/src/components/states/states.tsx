@@ -46,20 +46,26 @@ export function EmptyState({ children, className }: { children: ReactNode; class
   return <p className={cn('p-6 text-center text-xs text-muted', className)}>{children}</p>
 }
 
-/** Problem Details title and detail with a Retry button. */
+/** Problem Details title and detail with a Retry button, and the error id to quote when asking for help. */
 export function ErrorCard({
   title,
   detail,
+  reference,
   onRetry,
 }: {
   title: string
   detail?: string
+  /** The error id (or request id) the server logged the failure under. */
+  reference?: string
   onRetry: () => void
 }) {
   return (
     <div role="alert" className="rounded-xl border border-bad bg-paper p-3">
       <p className="text-sm font-semibold text-bad">{title}</p>
       {detail && <p className="mt-1 text-xs text-muted">{detail}</p>}
+      {reference && (
+        <p className="mt-1 font-mono text-[11px] break-all text-muted">Error id: {reference}</p>
+      )}
       <Button size="sm" className="mt-3" onClick={onRetry}>
         Retry
       </Button>

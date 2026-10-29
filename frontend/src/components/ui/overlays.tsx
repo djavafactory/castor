@@ -13,18 +13,29 @@ export function Tooltip({
   title,
   children,
   content,
+  side,
+  sideOffset = 6,
+  passThrough = false,
 }: {
   title?: string
   content: ReactNode
   children: ReactNode
+  side?: ComponentProps<typeof TooltipPrimitive.Content>['side']
+  sideOffset?: number
+  /** The tooltip never takes the pointer: it closes when the pointer leaves the trigger and clicks go through it. */
+  passThrough?: boolean
 }) {
   return (
-    <TooltipPrimitive.Root>
+    <TooltipPrimitive.Root disableHoverableContent={passThrough}>
       <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
       <TooltipPrimitive.Portal>
         <TooltipPrimitive.Content
-          sideOffset={6}
-          className="z-popover max-w-64 rounded-xl border border-signal bg-paper px-3 py-2 text-xs text-ink shadow-popover"
+          side={side}
+          sideOffset={sideOffset}
+          className={cn(
+            'z-popover max-w-64 rounded-xl border border-signal bg-paper px-3 py-2 text-xs text-ink shadow-popover',
+            passThrough && 'pointer-events-none',
+          )}
         >
           {title && <p className="text-[13px] font-semibold text-signal">{title}</p>}
           {content}

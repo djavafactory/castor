@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type SyntheticEvent } from 'react'
 import { ChevronRight, Search } from 'lucide-react'
 import { ModelThumbnail } from '@/components/scene/models/model-palette'
 import { getModelSpec } from '@/components/scene/models/registry'
+import { Tooltip } from '@/components/ui/overlays'
 import { useAssetTypes, type AssetType } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { useEditorStore } from '@/lib/stores/editor-store'
@@ -28,6 +29,21 @@ export const tileLabel = (type: AssetType) =>
 
 export const tileTip = (type: AssetType) => `${type.hint} Click to place, or drag onto the map.`
 
+const metres = (n: number) => String(Number(n.toFixed(2)))
+
+/** The default size of a type in words: "18 x 9 x 28 m", "18 m across, 26 m high", "2.4 m wide, 7 m high". */
+export function defaultSizeText(type: AssetType): string | null {
+  const { lengthM: l, widthM: w, heightM: h, radiusM: r, lineWidthM: lw } = type.defaults
+  const high = h == null ? null : `${metres(h)} m high`
+  if (r != null) return [`${metres(r * 2)} m across`, high].filter(Boolean).join(', ')
+  if (type.placementMode === 'DRAW') {
+    const parts = [lw == null ? null : `${metres(lw)} m wide`, high].filter(Boolean)
+    return parts.length > 0 ? parts.join(', ') : null
+  }
+  const sides = [l, w, h].filter((v): v is number => v != null)
+  return sides.length > 0 ? `${sides.map(metres).join(' x ')} m` : null
+}
+
 /** The 3D thumbnail of the type's model; a coloured type icon until the model exists (neutral-box fallback). */
 function TypeThumbnail({ type }: { type: AssetType }) {
   if (getModelSpec(type.modelKey)) return <ModelThumbnail modelKey={type.modelKey} />
@@ -39,6 +55,22 @@ function TypeThumbnail({ type }: { type: AssetType }) {
     >
       <span className="size-7 rounded-md" style={{ background: type.colourHex }} />
     </span>
+  )
+}
+
+/** Space between the palette's edge and a tile's hover card, pixels. */
+const CARD_GAP = 12
+
+/** What the hover card of a tile shows: the model large, what the asset is for, its default size and how to place it. */
+function PurposeCard({ type }: { type: AssetType }) {
+  const size = defaultSizeText(type)
+  return (
+    <div className="mt-1 flex flex-col gap-1.5" data-testid="palette-purpose">
+      {getModelSpec(type.modelKey) && <ModelThumbnail modelKey={type.modelKey} large />}
+      <p className="text-[13px] leading-snug">{type.purpose}</p>
+      {size && <p className="font-mono text-[11px] text-muted">Default size {size}</p>}
+      <p className="text-muted">{tileTip(type)}</p>
+    </div>
   )
 }
 
@@ -54,26 +86,50 @@ function Tile({ type, active }: { type: AssetType; active: boolean }) {
       useEditorStore.getState().setTool('place', type.code)
     }
   }
+  const purposeId = `palette-tile-${type.code}-purpose`
+  // The card opens beside the palette, never over the next tile: offset by the room left to the palette's edge
+  const [cardOffset, setCardOffset] = useState(CARD_GAP)
+  const measure = (event: SyntheticEvent<HTMLElement>) => {
+    const palette = event.currentTarget.closest('[data-testid="asset-palette"]')
+    if (!palette) return
+    const room =
+      palette.getBoundingClientRect().right - event.currentTarget.getBoundingClientRect().right
+    setCardOffset(Math.max(0, room) + CARD_GAP)
+  }
   return (
     <li>
-      <button
-        type="button"
-        aria-pressed={active}
-        title={tileTip(type)}
-        data-testid={`palette-tile-${type.code}`}
-        onClick={click}
-        onPointerDown={(event) => {
-          if (event.button === 0) beginTileDrag(type, event)
-        }}
-        className={cn(
-          // p-1 in the 220 px palette (<= 1100 px) so the 84 px thumbnail still fits two to a row
-          'flex w-full touch-none flex-col items-center gap-1 rounded-lg border border-line-soft p-1.5 text-center select-none hover:bg-paper-2 max-wide:p-1',
-          active && 'border-signal bg-signal-soft',
-        )}
+      <span id={purposeId} hidden>
+        {type.purpose}
+      </span>
+      <Tooltip
+        side="right"
+        sideOffset={cardOffset}
+        // the card sits over the map: it must never catch the click that places the asset
+        passThrough
+        title={type.label}
+        content={<PurposeCard type={type} />}
       >
-        <TypeThumbnail type={type} />
-        <span className="text-[12px] leading-tight font-medium text-ink">{tileLabel(type)}</span>
-      </button>
+        <button
+          type="button"
+          aria-pressed={active}
+          aria-describedby={purposeId}
+          data-testid={`palette-tile-${type.code}`}
+          onPointerEnter={measure}
+          onFocus={measure}
+          onClick={click}
+          onPointerDown={(event) => {
+            if (event.button === 0) beginTileDrag(type, event)
+          }}
+          className={cn(
+            // p-1 in the 220 px palette (<= 1100 px) so the 84 px thumbnail still fits two to a row
+            'flex w-full touch-none flex-col items-center gap-1 rounded-lg border border-line-soft p-1.5 text-center select-none hover:bg-paper-2 max-wide:p-1',
+            active && 'border-signal bg-signal-soft',
+          )}
+        >
+          <TypeThumbnail type={type} />
+          <span className="text-[12px] leading-tight font-medium text-ink">{tileLabel(type)}</span>
+        </button>
+      </Tooltip>
     </li>
   )
 }

@@ -118,4 +118,9 @@ public interface CastorConfig {
     default boolean demoLoginActive() {
         return demoLogin() && DEMO_ENVIRONMENTS.contains(env());
     }
+
+    /** The demo layout is loaded only when asked for AND in local, dev or test: never in a protected environment. */
+    default boolean layoutSeedActive() {
+        return layout().seedOnStart() && KNOWN_ENVIRONMENTS.contains(env());
+    }
 }

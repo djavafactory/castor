@@ -14,6 +14,7 @@ import com.djavafactory.castor.core.identity.domain.UserRepository;
 import com.djavafactory.castor.core.layout.domain.LayoutRepository;
 import com.djavafactory.castor.core.layout.domain.LayoutStatus;
 import com.djavafactory.castor.core.layout.domain.LayoutVersion;
+import com.djavafactory.castor.core.shared.application.OperationMetrics;
 import com.djavafactory.castor.core.shared.domain.ConflictException;
 import com.djavafactory.castor.core.shared.domain.InvalidRequestException;
 import com.djavafactory.castor.core.shared.domain.ResourceNotFoundException;
@@ -37,13 +38,19 @@ public class PublishLayout {
     private final LayoutValidation validation;
     private final UserRepository users;
     private final AuditService audit;
+    private final OperationMetrics metrics;
 
     public PublishLayout(
-            LayoutRepository layouts, LayoutValidation validation, UserRepository users, AuditService audit) {
+            LayoutRepository layouts,
+            LayoutValidation validation,
+            UserRepository users,
+            AuditService audit,
+            OperationMetrics metrics) {
         this.layouts = layouts;
         this.validation = validation;
         this.users = users;
         this.audit = audit;
+        this.metrics = metrics;
     }
 
     /**
@@ -81,6 +88,7 @@ public class PublishLayout {
                 layoutId,
                 LayoutSnapshots.version(draft),
                 after);
+        metrics.layoutPublished();
         return new Result(published, layouts.countAssets(layoutId), reviewer);
     }
 

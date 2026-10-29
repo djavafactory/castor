@@ -38,6 +38,7 @@ import com.djavafactory.castor.core.layout.domain.LayoutVersion;
 import com.djavafactory.castor.core.port.domain.DataSourceInfo;
 import com.djavafactory.castor.core.port.domain.Port;
 import com.djavafactory.castor.core.port.domain.PortRepository;
+import com.djavafactory.castor.core.shared.application.OperationMetrics;
 import com.djavafactory.castor.core.shared.domain.ConflictException;
 import com.djavafactory.castor.core.shared.domain.InvalidRequestException;
 import com.djavafactory.castor.core.shared.domain.ResourceNotFoundException;
@@ -73,6 +74,7 @@ public class ImportGeoJson {
     private final GeoJsonMapper geo;
     private final ObjectMapper json;
     private final TransactionManager transactions;
+    private final OperationMetrics metrics;
 
     public ImportGeoJson(
             LayoutRepository layouts,
@@ -82,7 +84,8 @@ public class ImportGeoJson {
             AuditService audit,
             GeoJsonMapper geo,
             ObjectMapper json,
-            TransactionManager transactions) {
+            TransactionManager transactions,
+            OperationMetrics metrics) {
         this.layouts = layouts;
         this.types = types;
         this.ports = ports;
@@ -91,6 +94,7 @@ public class ImportGeoJson {
         this.geo = geo;
         this.json = json;
         this.transactions = transactions;
+        this.metrics = metrics;
     }
 
     /** The state of one import run. */
@@ -191,6 +195,7 @@ public class ImportGeoJson {
                     .put("updated", report.updated())
                     .put("skipped", report.skipped());
             audit.record(AuditAction.LAYOUT_IMPORTED, "LAYOUT", draft.id().toString(), draft.id(), null, after);
+            metrics.importFinished();
         }
         return report;
     }

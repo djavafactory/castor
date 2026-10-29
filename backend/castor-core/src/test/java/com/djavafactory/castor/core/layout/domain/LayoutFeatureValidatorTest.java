@@ -50,6 +50,7 @@ class LayoutFeatureValidatorTest {
                 1,
                 "#112233",
                 "hint",
+                "purpose",
                 1);
     }
 
