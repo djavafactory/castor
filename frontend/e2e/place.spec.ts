@@ -83,12 +83,14 @@ test('placing a forklift saves it at once and it is still there, at the same spo
   // the tool ends after one placement, the asset is selected
   await expect(tile).toHaveAttribute('aria-pressed', 'false')
 
-  // a reload ends the session (credentials live in memory only): sign in again and open Design
-  const draft = page.waitForResponse(
-    (r) => r.request().method() === 'GET' && /\/layouts\/draft$/.test(r.url()),
-  )
+  // a reload ends the session (credentials live in memory only): sign in again, open Design and read the stored draft
   await openDesign(page)
-  const reloaded = await (await draft).json()
+  const auth = 'Basic ' + Buffer.from('editor:editor').toString('base64')
+  const reloaded = await (
+    await page.request.get('/api/v1/ports/WESTPORTS/layouts/draft', {
+      headers: { Authorization: auth },
+    })
+  ).json()
   const again = reloaded.features.features.find(
     (f: { properties: { code: string } }) => f.properties.code === code,
   )
@@ -97,7 +99,6 @@ test('placing a forklift saves it at once and it is still there, at the same spo
   expect(Math.abs(again.properties.anchor[1] - anchor[1])).toBeLessThan(1e-7)
 
   // tidy: remove it again so the shared draft goes back to the seeded layout
-  const auth = 'Basic ' + Buffer.from('editor:editor').toString('base64')
   const layoutId = reloaded.layout.id as string
   const del = await page.request.delete(`/api/v1/layouts/${layoutId}/assets/${again.id}`, {
     headers: { Authorization: auth, 'If-Match': `"${again.properties.rowVersion}"` },

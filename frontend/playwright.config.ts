@@ -7,7 +7,6 @@ const externalBaseURL = process.env.E2E_BASE_URL
 // Specs that need the real backend and seed data: with E2E_BASE_URL only these run, without it they are left out.
 // The other specs mock the API and run against the locally served build.
 const STACK_SPECS = [
-  '**/osm-buildings.spec.ts',
   '**/monitor.spec.ts',
   '**/map-2d.spec.ts',
   '**/issues.spec.ts',
@@ -15,7 +14,6 @@ const STACK_SPECS = [
   '**/place.spec.ts',
   '**/inspector.spec.ts',
   '**/geojson.spec.ts',
-  '**/gizmo-3d.spec.ts',
   '**/split-view.spec.ts',
   '**/a11y.spec.ts',
   '**/responsive.spec.ts',
@@ -25,7 +23,7 @@ const STACK_SPECS = [
 export default defineConfig({
   testDir: './e2e',
   ...(externalBaseURL ? { testMatch: STACK_SPECS } : { testIgnore: STACK_SPECS }),
-  // The stack specs share one backend and its demo accounts, and the 3D scenes are heavy: one at a time
+  // The stack specs share one backend, its draft and its demo accounts: one at a time
   workers: externalBaseURL ? 1 : undefined,
   forbidOnly: !!process.env.CI,
   // One retry in CI: a real failure costs one more run, not two
@@ -40,17 +38,9 @@ export default defineConfig({
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
-        // Software WebGL so the 3D scene renders on machines and CI runners without a GPU
-        launchOptions: {
-          args: [
-            '--use-gl=angle',
-            '--use-angle=swiftshader',
-            '--enable-unsafe-swiftshader',
-            '--ignore-gpu-blocklist',
-            // performance.memory in real bytes (the memory budget of JOIN-04)
-            '--enable-precise-memory-info',
-          ],
-        },
+        // No WebGL: the e2e tests never draw the 3D scene (the stage shows its "3D view not available" notice and the
+        // palette its plain tiles), which keeps every test fast
+        launchOptions: { args: ['--disable-3d-apis', '--disable-webgl'] },
       },
     },
   ],

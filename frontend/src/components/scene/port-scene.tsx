@@ -37,7 +37,7 @@ export function PortScene() {
   const [supported] = useState(webglAvailable)
   if (!supported) {
     return (
-      <EmptyState className="pt-12">
+      <EmptyState className="pt-12 text-[13px] text-ink">
         3D view not available: this browser cannot draw 3D graphics (WebGL).
       </EmptyState>
     )

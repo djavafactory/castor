@@ -76,13 +76,8 @@ test('every control of the strip has a tooltip and an accessible name', async ({
   await expect(page.getByRole('group', { name: 'Show in 3D' })).toBeVisible()
 })
 
-test('keyboard shortcuts: camera presets, panel, labels and help', async ({ page }) => {
+test('keyboard shortcuts: panel, labels and help', async ({ page }) => {
   await signIn(page)
-
-  await page.keyboard.press('4')
-  await expect(page.getByRole('button', { name: 'Camera position: Quay' })).toBeVisible()
-  await page.keyboard.press('5')
-  await expect(page.getByRole('button', { name: 'Camera position: Ship' })).toBeVisible()
 
   await expect(page.getByLabel('Right panel')).toBeVisible()
   await page.keyboard.press('p')

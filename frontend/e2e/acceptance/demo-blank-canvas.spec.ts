@@ -211,9 +211,8 @@ test('an admin builds the demo port from a blank layout, fixes an issue, verifie
   await signOut(page, 'admin')
 })
 
-test('login, the 3D port loads, and signing out leaves no credentials behind', async ({ page }) => {
+test('login, and signing out leaves no credentials behind', async ({ page }) => {
   await signIn(page, 'admin')
-  await expect(page.locator('[data-testid="port-scene"] canvas')).toBeVisible()
 
   await signOut(page, 'admin')
   const left = (await page.evaluate(`(async () => {

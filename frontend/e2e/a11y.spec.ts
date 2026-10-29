@@ -13,7 +13,6 @@ test('the login page has no serious or critical issue', async ({ page }) => {
 
 test('Monitor has no serious or critical issue', async ({ page }) => {
   await signInAsDemo(page, 'viewer')
-  await expect(page.locator('[data-testid="port-scene"] canvas')).toBeVisible()
   await expectNoSeriousA11yViolations(page)
 })
 

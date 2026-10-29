@@ -77,12 +77,13 @@ test('a placed warehouse is edited in the Inspector, saved at once and still has
   await page.getByRole('button', { name: 'Check and save' }).click()
   await expect(page.getByText(/^All changes saved\./)).toBeVisible()
 
-  // a reload ends the session: a fresh draft read has the values the Inspector saved
-  const draft = page.waitForResponse(
-    (r) => r.request().method() === 'GET' && /\/layouts\/draft$/.test(r.url()),
-  )
+  // a reload ends the session: after it, the stored draft has the values the Inspector saved
   await openDesign(page)
-  const reloaded = await (await draft).json()
+  const reloaded = await (
+    await page.request.get('/api/v1/ports/WESTPORTS/layouts/draft', {
+      headers: { Authorization: auth },
+    })
+  ).json()
   const again = reloaded.features.features.find((f: { id: string }) => f.id === id)
   expect(again.properties.name).toBe('Inspector shed')
   expect(again.properties.details.warehouse.doorSide).toBe('EAST')

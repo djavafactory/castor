@@ -31,16 +31,21 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    env:
+      # The runner is thrown away after the job: no clean-up container needed
+      TESTCONTAINERS_RYUK_DISABLED: 'true'
     steps:
       - uses: actions/checkout@v5
+      # The PostGIS image of the integration tests downloads while Maven resolves and compiles
+      - run: docker pull -q postgis/postgis:18-3.6 > /dev/null 2>&1 &
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '25'
           cache: maven
-      - run: ./mvnw -B -ntp spotless:check
-      # unit, ArchUnit, Testcontainers integration (fresh PostGIS), JaCoCo gates
-      - run: ./mvnw -B -ntp verify
+      # One Maven run: format check, unit, ArchUnit, Testcontainers integration (fresh PostGIS), JaCoCo gates. The
+      # runnable app is not packaged here (quarkus.build.skip): the tests do not use it and the e2e job builds the image.
+      - run: ./mvnw -B -ntp spotless:check verify -Dquarkus.build.skip=true
       - if: always()
         uses: actions/upload-artifact@v5
         with:
@@ -80,11 +85,12 @@ jobs:
           path: frontend/coverage
           if-no-files-found: ignore
 
+  # Starts with the other jobs instead of after them: it builds its own images from the source, so waiting for the
+  # backend tests only added their minutes to every run
   e2e:
-    needs: [backend, frontend]
     runs-on: ubuntu-24.04
-    # The suite takes about 10 minutes; a hang fails the job instead of running for an hour
-    timeout-minutes: 30
+    # The tests take a few minutes; a hang fails the job instead of running for an hour
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v7

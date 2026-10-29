@@ -30,7 +30,7 @@ export async function signOut(page: Page, user: DemoUser) {
   await expect(page).toHaveURL(/\/login$/)
 }
 
-export async function openDesign(page: Page, view: '2D' | '3D' | 'Split' = '2D') {
+export async function openDesign(page: Page, view: '2D' | 'Split' = '2D') {
   await page.getByRole('button', { name: 'Design' }).click()
   await page.getByRole('group', { name: 'View' }).getByRole('button', { name: view }).click()
   await expect(page.getByText(/Draft v\d+|Blank draft|Draft/).first()).toBeVisible({
@@ -390,71 +390,6 @@ export async function snapshotIds(api: Api): Promise<Set<string>> {
   // The draft must exist before the snapshot: a draft the test opens later would start with every asset "new"
   const draft = await api.ensureDraft()
   return new Set(draft.features.features.map((f) => f.id))
-}
-
-// ---------------------------------------------------------------- the live 3D scene (scene-probe.tsx)
-
-export interface SceneStats {
-  calls: number
-  triangles: number
-  geometries: number
-  textures: number
-  instances: number
-}
-export interface AssetBox {
-  key: string
-  min: [number, number, number]
-  max: [number, number, number]
-  top: [number, number][]
-}
-export interface NearGeometry {
-  vertices: number
-  minY: number
-  maxY: number
-  extent: [number, number, number, number]
-  top: [number, number][]
-}
-export interface FlatCheck {
-  layer: string
-  expectedY: number
-  vertices: number
-  worst: number
-}
-
-interface ProbeHooks {
-  stats(): SceneStats
-  assets(): AssetBox[]
-  flat(): FlatCheck[]
-  near(x: number, z: number, radius: number): NearGeometry
-  show(names: string[], visible: boolean): void
-  orbit(deltaDeg: number): void
-  render(): SceneStats
-}
-
-/** Calls a method of the scene probe in the page. The probe exists in every build except production. */
-export async function probe<K extends keyof ProbeHooks>(
-  page: Page,
-  method: K,
-  ...args: Parameters<ProbeHooks[K]>
-): Promise<ReturnType<ProbeHooks[K]>> {
-  return (await page.evaluate(
-    ([m, a]) => {
-      const hooks = (
-        globalThis as unknown as Record<string, Record<string, (...x: unknown[]) => unknown>>
-      ).__castorScene
-      if (!hooks)
-        throw new Error('the 3D scene probe is not there (production build, or 3D not shown)')
-      return hooks[m as string]!(...(a as unknown[]))
-    },
-    [method, args] as const,
-  )) as ReturnType<ProbeHooks[K]>
-}
-
-/** Waits until the scene has been drawn once and the probe is published. */
-export async function waitForScene(page: Page) {
-  await expect
-    .poll(() => page.evaluate(() => '__castorScene' in globalThis), { timeout: 30_000 })
-    .toBe(true)
 }
 
 /**

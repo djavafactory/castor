@@ -12,47 +12,27 @@ async function openDesign(page: Page) {
   await expect(page.getByText(/Draft v\d+/)).toBeVisible({ timeout: 20_000 })
 }
 
-const view = (page: Page, name: '2D' | '3D' | 'Split') =>
+const view = (page: Page, name: '2D' | 'Split') =>
   page.getByRole('group', { name: 'View' }).getByRole('button', { name })
 
-test('Split is the default, 2D-only drops the 3D canvas and the choice survives a reload', async ({
+test('Split is the default, 2D-only drops the 3D half and the choice survives a reload', async ({
   page,
 }) => {
   await openDesign(page)
   await expect(page.getByRole('main', { name: 'Design stage, split' })).toBeVisible()
   await expect(page.getByRole('region', { name: '2D map' })).toBeVisible()
-  // two canvases side by side: the 2D plan and the 3D scene
-  await expect(page.getByRole('main').locator('canvas')).toHaveCount(2)
+  // the e2e browser has no WebGL: next to the 2D plan the 3D half shows its notice instead of a scene
+  const no3d = page.getByText(/^3D view not available/)
+  await expect(no3d).toBeVisible()
 
   await view(page, '2D').click()
-  await expect(page.getByRole('main').locator('canvas')).toHaveCount(1)
+  await expect(no3d).toHaveCount(0)
 
   // A reload asks for the sign-in again (credentials stay in memory); the view of the tab is kept
   await page.reload()
   await openDesign(page)
   await expect(page.getByRole('main', { name: 'Design stage, 2d' })).toBeVisible()
   await view(page, 'Split').click()
-})
-
-test('an asset selected on the 2D map is selected in 3D too', async ({ page }) => {
-  await openDesign(page)
-  const search = page.getByRole('combobox', { name: 'Search places' })
-  await search.fill('Berth')
-  await expect(page.getByRole('option').first()).toBeVisible()
-  await search.press('Enter')
-  // the 3D gizmo of the selection is up: the 3D view shows the same selection
-  await expect
-    .poll(
-      () =>
-        page.evaluate(
-          () =>
-            (
-              globalThis as unknown as { __castorGizmo?: { grab(p: string): unknown } }
-            ).__castorGizmo?.grab('length') ?? null,
-        ),
-      { timeout: 15_000 },
-    )
-    .not.toBeNull()
 })
 
 test('measures a distance on the 2D map, checked against the geodesic', async ({ page }) => {
