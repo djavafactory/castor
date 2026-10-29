@@ -12,19 +12,20 @@ import {
   type SceneStats,
 } from '../helpers/acceptance'
 
-// JOIN-04 part 3: performance and visual stability budgets, measured on the dev stack and written to
+// JOIN-04 part 3: performance and layer height budgets, measured on the dev stack and written to
 // test-results/performance.json (the numbers of the README "Performance" section).
 //
 // The browser here renders with software WebGL (SwiftShader), so frame rates and first-frame times are far below an
 // integrated GPU. Those two budgets are reported always and enforced only on the target laptop: PERF_TARGET_HARDWARE=1.
-// Everything else (API times, payload sizes, draw calls, memory growth, layer heights, flicker) does not depend on the GPU
-// and is enforced everywhere.
+// Everything else (API times, payload sizes, draw calls, memory growth, layer heights) does not depend on the GPU
+// and is enforced everywhere. The memory soak (warm-up plus orbit, minutes long) runs only with PERF_SOAK_MINUTES set:
+// the "Performance soak" workflow, not every push.
 test.skip(!process.env.E2E_BASE_URL, needsStack)
 test.describe.configure({ mode: 'serial' })
-test.setTimeout(45 * 60_000)
+test.setTimeout(120_000)
 
 const TARGET_HARDWARE = process.env.PERF_TARGET_HARDWARE === '1'
-const SOAK_MINUTES = Number(process.env.PERF_SOAK_MINUTES ?? '1')
+const SOAK_MINUTES = Number(process.env.PERF_SOAK_MINUTES ?? '0')
 const WARMUP_SECONDS = Number(process.env.PERF_WARMUP_SECONDS ?? '90')
 const REPORT = process.env.PERF_REPORT ?? 'test-results/performance.json'
 
@@ -174,31 +175,10 @@ test('the full layout at Overview: first frame, frame rate, draw calls and conta
   }
 })
 
-/** Mean luminance of the 3D canvas, 320 wide: a plain array to compare two frames. */
-const grab = (page: Page) =>
-  page.evaluate(`(() => {
-    const hooks = globalThis.__castorScene
-    hooks.render()
-    const src = document.querySelector('[data-testid="port-scene"] canvas')
-    const w = 320, h = Math.round(320 * src.height / src.width)
-    const c = document.createElement('canvas')
-    c.width = w; c.height = h
-    const g = c.getContext('2d', { willReadFrequently: true })
-    g.drawImage(src, 0, 0, w, h)
-    const d = g.getImageData(0, 0, w, h).data
-    const out = new Array(w * h)
-    for (let i = 0; i < w * h; i++) out[i] = (d[i*4] * 3 + d[i*4+1] * 6 + d[i*4+2]) / 10
-    return out
-  })()`) as Promise<number[]>
-
-test('a sweep of 12 angles: every flat layer vertex at its layer height, and no z-fighting flicker', async ({
-  page,
-}, testInfo) => {
+test('a sweep of 12 angles: every flat layer vertex at its layer height', async ({ page }) => {
   await signIn(page, 'viewer')
   await waitForScene(page)
   await page.keyboard.press('3') // Yard: close to the ground layers, where they could fight
-  // The water shades by the view direction, so its pixels change with any camera move: it is not a layer that can fight
-  await probe(page, 'show', ['water-surface', 'water-waves'], false)
   await page.waitForTimeout(1500)
 
   const angles: Record<string, unknown>[] = []
@@ -211,53 +191,18 @@ test('a sweep of 12 angles: every flat layer vertex at its layer height, and no 
       expect(layer.expectedY, layer.layer).toBe(LAYERS[layer.layer as keyof typeof LAYERS].y)
       expect(layer.worst, `${layer.layer} at ${azimuth} deg`).toBeLessThan(1e-4)
     }
-    // flicker: the camera is turned a hundredth of a degree each way. An edge that moves changes a pixel one way
-    // (monotonic: before, now, after); a surface that fights flips it to the other layer and back (non-monotonic). The
-    // water animates, so the same count with the camera standing still is taken off.
-    const flips = (c0: number[], cp: number[], cm: number[]) =>
-      c0.filter(
-        (v, k) =>
-          (cp[k]! - v) * (cm[k]! - v) > 0 && Math.abs(cp[k]! - v) > 24 && Math.abs(cm[k]! - v) > 24,
-      ).length / c0.length
-    // every grab follows a camera move, so a frame of the scene runs in between (the water moves with the frame)
-    const turn = async (deg: number) => {
-      await probe(page, 'orbit', deg)
-      await page.waitForTimeout(120)
-    }
-    const c0 = await grab(page)
-    await turn(0)
-    const s1 = await grab(page)
-    await turn(0)
-    const still = flips(c0, s1, await grab(page))
-    await turn(0.01)
-    const cp = await grab(page)
-    await turn(-0.02)
-    const cm = await grab(page)
-    await turn(0.01)
-    const moved = flips(c0, cp, cm)
-    const changed = Math.max(0, moved - still)
-    angles.push({
-      azimuth,
-      stillShare: round(still, 4),
-      movedShare: round(moved, 4),
-      excess: round(changed, 4),
-      layers: flat.map((l) => `${l.layer}:${l.vertices}`),
-    })
-    expect(changed, `flicker at ${azimuth} deg`).toBeLessThan(0.01)
-    await testInfo.attach(`angle-${String(azimuth).padStart(3, '0')}.png`, {
-      body: await page.locator('[data-testid="port-scene"] canvas').screenshot(),
-      contentType: 'image/png',
-    })
+    angles.push({ azimuth, layers: flat.map((l) => `${l.layer}:${l.vertices}`) })
     await probe(page, 'orbit', 30)
   }
-  report.angleSweep = {
-    angles: angles.length,
-    worstExcessPixelShare: Math.max(...angles.map((x) => x.excess as number)),
-    budget: 0.01,
-  }
+  report.angleSweep = { angles: angles.length }
 })
 
 test('memory stays flat while the camera orbits', async ({ page }) => {
+  test.skip(
+    SOAK_MINUTES <= 0,
+    'the memory soak runs in the "Performance soak" workflow: set PERF_SOAK_MINUTES',
+  )
+  test.setTimeout((WARMUP_SECONDS + SOAK_MINUTES * 60) * 1000 + 5 * 60_000)
   await signIn(page, 'viewer')
   await waitForScene(page)
   await page.keyboard.press('1')

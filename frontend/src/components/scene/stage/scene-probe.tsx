@@ -50,8 +50,6 @@ export interface SceneProbe {
   flat(): FlatCheck[]
   /** The vertices of the drawn layout (not its picking, hover and selection helpers) within `radius` of scene [x, z]. */
   near(x: number, z: number, radius: number): NearGeometry
-  /** Shows or hides the named objects of the scene (the water is view dependent: the flicker check leaves it out). */
-  show(names: string[], visible: boolean): void
   /** Turns the camera round its target to this azimuth (degrees from the current one), keeping distance and tilt. */
   orbit(deltaDeg: number): void
   /** Renders one frame now and returns its stats. */
@@ -176,13 +174,6 @@ export function SceneProbeBridge() {
           Math.max(...zs),
         ]
         return { vertices: all.length, minY, maxY, extent, top }
-      },
-      show(names, visible) {
-        for (const name of names) {
-          const object = scene.getObjectByName(name)
-          if (object) object.visible = visible
-        }
-        invalidate()
       },
       orbit(deltaDeg) {
         const offset = camera.position.clone().sub(view.target)

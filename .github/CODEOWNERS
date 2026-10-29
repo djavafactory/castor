@@ -2,6 +2,3 @@
 /backend/   @djavafactory/castor-developers
 /frontend/  @djavafactory/castor-developers
 /.github/   @djavafactory/castor-developers
-
-# Screenshot baselines (JOIN-03): changed only in a reviewed PR
-/frontend/e2e/*-snapshots/  @djavafactory/castor-developers

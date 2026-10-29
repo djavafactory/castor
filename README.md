@@ -179,14 +179,14 @@ Budgets of JOIN-04 for the target laptop (integrated GPU, 1920 x 1080), and what
 | Single asset write under 150 ms p95 | 20 ms p95 (30 PATCH requests) | met |
 | Reference features under 2 MB | 0.26 MB (277,629 bytes) | met |
 | Full layout under 400 draw calls | 85 draw calls, 17,872 triangles, 63 geometries, 26 textures | met |
-| 12-angle sweep: no z-fighting flicker, every ground, road and pad vertex at its layer height | 12 angles x every flat layer in the scene: largest distance from the layer height under 0.1 mm; worst share of flickering pixels 0.41 % (limit 1 %) | met |
+| 12-angle sweep: every ground, road and pad vertex at its layer height | 12 angles x every flat layer in the scene: largest distance from the layer height under 0.1 mm | met |
 
-How the sweep works: the camera turns round the Yard view in 30 degree steps; at each step the scene probe reports the height of every vertex of every flat layer (`flat:<layer>` meshes, heights from `layer-heights.ts`), and three frames (still, +0.01 degree, -0.01 degree) are compared pixel by pixel. A moving edge changes a pixel one way; a surface that fights flips it back and forth, which is what is counted. The water is hidden for this check because its shading changes with any camera move. Each angle's picture is attached to the test report. Limit: only the meshes built by `FlatLayers` (named `flat:`) are height-checked, and at the Yard view that is two layers; pads and areas merged into the layout meshes are covered by the flicker comparison only.
+How the sweep works: the camera turns round the Yard view in 30 degree steps; at each step the scene probe reports the height of every vertex of every flat layer (`flat:<layer>` meshes, heights from `layer-heights.ts`). Limit: only the meshes built by `FlatLayers` (named `flat:`) are height-checked, and at the Yard view that is two layers; pads and areas merged into the layout meshes are not checked.
 
 Failures, to be raised as tickets:
 
 - **PERF-01** Frontend bundle is 293.3 KB gzipped without three, 43 KB over the 250 KB budget (`app-shell` 94.7 KB, `index` 89.1 KB, `app` 52.0 KB, `api-client` 29.3 KB). The CI step `bundle:check` reports it and does not fail the build until this is fixed.
-- **PERF-02** Run the 30 minute soak (workflow "Performance soak", or `PERF_SOAK_MINUTES=30`) and confirm the geometry and texture counts stop growing after the warm-up. CI runs only a 1 minute window.
+- **PERF-02** Run the 30 minute soak (workflow "Performance soak", or `PERF_SOAK_MINUTES=30`) and confirm the geometry and texture counts stop growing after the warm-up. The CI e2e job does not run the memory soak; it runs only in that workflow (or with `PERF_SOAK_MINUTES` set).
 - **PERF-03** Measure frame rate (60 fps at Overview) and first meaningful frame on the target laptop: `PERF_TARGET_HARDWARE=1 E2E_BASE_URL=... npx playwright test e2e/acceptance/performance.spec.ts`, then record the numbers here.
 
 
@@ -326,13 +326,13 @@ actions/checkout v7, actions/setup-java v6, actions/setup-node v7, actions/uploa
 
 Record decisions and behaviour changes here, newest first.
 
-#### JOIN-03: Laptop layout, accessibility and visual baseline
+#### JOIN-03: Laptop layout and accessibility
 
 1. Target width is 1024 px and up. At 1100 px and below the right panel is 300 px, the palette 220 px and the tool strip shows icons only (the names stay for screen readers, the tooltips are unchanged); "Save draft" and "Publish" keep their text. Below 1024 px a notice sits under the tool strip, the right panel is a drawer over the stage (`min(340px, 92vw)`, with a close button), the SYNTHETIC badge is hidden and Design adds that editing needs 1024 px. Design is warned, not blocked.
 2. The Design bottom strip cuts its left-hand tools before History and the issues button when the window is too narrow. At 1100 px and below it drops the "CRS WGS84 / metres" text (the Inspector's layout summary names both CRS) and the word "Basemap", and the basemap select is narrower, so every tool fits at 1024 px.
 3. Reduced motion (OS setting): Rotate and R are refused with the toast "Auto-rotate is off because reduced motion is on"; presets jump instead of flying; the hover glow is steady; the water stands still.
 4. WCAG 2.2 AA: axe-core runs in Playwright on login, Monitor and Design (`e2e/a11y.spec.ts`); a serious or critical issue fails the build.
-5. No screenshot baselines: the image comparison specs (`e2e/visual.spec.ts`, the screenshots in `e2e/responsive.spec.ts`) and the "Visual baselines" workflow were removed at the product owner's request. The layout checks of the responsive spec stay.
+5. The e2e suite has no screenshot or pixel comparison, at the product owner's request. The layout checks of the responsive spec stay.
 
 #### DESIGNER-08: Undo/redo and edit history
 

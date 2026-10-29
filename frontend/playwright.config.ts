@@ -28,12 +28,12 @@ export default defineConfig({
   // The stack specs share one backend and its demo accounts, and the 3D scenes are heavy: one at a time
   workers: externalBaseURL ? 1 : undefined,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  // One retry in CI: a real failure costs one more run, not two
+  retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL: externalBaseURL ?? `http://localhost:${PORT}`,
     trace: 'on-first-retry',
-    screenshot: 'only-on-failure',
   },
   projects: [
     {

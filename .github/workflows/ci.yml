@@ -83,6 +83,8 @@ jobs:
   e2e:
     needs: [backend, frontend]
     runs-on: ubuntu-24.04
+    # The suite takes about 10 minutes; a hang fails the job instead of running for an hour
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v7

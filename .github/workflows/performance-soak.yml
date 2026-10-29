@@ -1,7 +1,7 @@
 name: Performance soak
 
-# The full 30 minute orbit of the JOIN-04 memory budget. CI runs a short version of it on every push; run this one
-# by hand before a release. Software WebGL: frame rates are not those of the target laptop (see README "Performance").
+# The full 30 minute orbit of the JOIN-04 memory budget. The CI e2e job leaves it out (it would add minutes to every
+# push); run this one by hand before a release. Software WebGL: frame rates are not those of the target laptop (see README "Performance").
 on:
   workflow_dispatch:
 
