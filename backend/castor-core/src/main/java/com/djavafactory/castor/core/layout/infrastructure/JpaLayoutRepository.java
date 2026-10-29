@@ -574,14 +574,19 @@ public class JpaLayoutRepository implements LayoutRepository {
         return out;
     }
 
-    /** Changes whenever the version row or any of its revisions is added, removed or updated. */
+    /**
+     * Changes whenever the version row or any of its revisions is added, removed or updated: a hash of every asset id
+     * with its row version. The highest row version alone is not enough, an edit of an asset below it kept the ETag
+     * and the browser answered the next read with its stale copy (304).
+     */
     private static String etagSource(Connection c, LayoutVersion version) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement("select count(*), coalesce(max(row_version), 0) "
+        try (PreparedStatement ps = c.prepareStatement("select count(*), "
+                + "coalesce(left(md5(string_agg(asset_id || ':' || row_version, ',' order by asset_id)), 16), '') "
                 + "from layout.asset_revision where layout_version_id = ?")) {
             ps.setObject(1, version.id());
             try (ResultSet rs = ps.executeQuery()) {
                 rs.next();
-                return version.id() + "-" + version.rowVersion() + "-" + rs.getLong(2) + "-" + rs.getLong(1);
+                return version.id() + "-" + version.rowVersion() + "-" + rs.getLong(1) + "-" + rs.getString(2);
             }
         }
     }

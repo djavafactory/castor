@@ -194,6 +194,38 @@ class LayoutAssetCrudIT {
     }
 
     @Test
+    void theDraftEtagChangesWhenAnAssetBelowTheHighestRowVersionIsEdited() throws Exception {
+        String first =
+                tree(create(rtg(1000, 100), 201)).get("feature").get("id").asText();
+        String second =
+                tree(create(rtg(1200, 100), 201)).get("feature").get("id").asText();
+        for (String version : new String[] {"\"0\"", "\"1\""}) {
+            given().contentType("application/json")
+                    .header("If-Match", version)
+                    .body("{\"headingDeg\":45}")
+                    .patch(assets() + "/" + first)
+                    .then()
+                    .statusCode(200);
+        }
+        String before = given().get("/api/v1/layouts/" + draftId).getHeader("ETag");
+
+        // row version 0 to 1, below the 2 of the first asset: the count and the highest row version stay the same
+        given().contentType("application/json")
+                .header("If-Match", "\"0\"")
+                .body("{\"name\":\"Gantry two\"}")
+                .patch(assets() + "/" + second)
+                .then()
+                .statusCode(200);
+
+        assertNotEquals(before, given().get("/api/v1/layouts/" + draftId).getHeader("ETag"));
+        given().header("If-None-Match", before)
+                .get("/api/v1/layouts/" + draftId)
+                .then()
+                .statusCode(200)
+                .body(containsString("Gantry two"));
+    }
+
+    @Test
     void secondEditorWithAStaleVersionGets409AndNothingIsLost() throws Exception {
         JsonNode created = tree(create(rtg(1000, 100), 201));
         String id = created.get("feature").get("id").asText();

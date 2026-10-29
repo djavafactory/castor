@@ -1,15 +1,13 @@
 import { expect, test, type Page } from '@playwright/test'
 import { expectStripAtBottom, openDesign, signInAsDemo } from './helpers/stack'
-import { expectScreen, stableNetwork } from './helpers/visual'
 
-// The laptop layout (JOIN-03) against the dev stack: layout checks and a baseline per width.
+// The laptop layout (JOIN-03) against the dev stack: what fits at each width.
 test.skip(!process.env.E2E_BASE_URL, 'needs the running dev stack: set E2E_BASE_URL')
 
 test.use({ reducedMotion: 'reduce' })
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(() => {
   test.setTimeout(120_000)
-  await stableNetwork(page)
 })
 
 const pageWidth = (page: Page) =>
@@ -44,8 +42,6 @@ for (const w of WIDTHS) {
       const panelButton = (await page.getByRole('button', { name: 'Hide panel' }).boundingBox())!
       if (w.icons) expect(panelButton.width).toBeLessThan(40)
       else expect(panelButton.width).toBeGreaterThan(60)
-      await page.mouse.move(0, 0)
-      await expectScreen(page, `monitor-${w.width}`)
     })
 
     test('Design fits, and the bottom strip keeps every tool in view', async ({ page }) => {
@@ -60,8 +56,6 @@ for (const w of WIDTHS) {
         timeout: 20_000,
       })
       await expect(status.getByRole('checkbox', { name: 'Envelope' })).toBeInViewport({ ratio: 1 })
-      await page.mouse.move(0, 0)
-      await expectScreen(page, `design-${w.width}`)
     })
   })
 }
@@ -83,8 +77,6 @@ test.describe('below 1024 px', () => {
     // the drawer floats over the stage: the stage keeps the full width
     expect(await widthOf(page, 'Right panel')).toBeCloseTo(340, 0)
     expect((await page.getByRole('main').boundingBox())!.width).toBeCloseTo(900, 0)
-    await page.mouse.move(0, 0)
-    await expectScreen(page, 'monitor-900')
 
     await page.getByRole('button', { name: 'Close panel' }).click()
     await expect(page.getByLabel('Right panel')).toHaveCount(0)

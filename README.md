@@ -332,6 +332,7 @@ Record decisions and behaviour changes here, newest first.
 2. The Design bottom strip cuts its left-hand tools before History and the issues button when the window is too narrow. At 1100 px and below it drops the "CRS WGS84 / metres" text (the Inspector's layout summary names both CRS) and the word "Basemap", and the basemap select is narrower, so every tool fits at 1024 px.
 3. Reduced motion (OS setting): Rotate and R are refused with the toast "Auto-rotate is off because reduced motion is on"; presets jump instead of flying; the hover glow is steady; the water stands still.
 4. WCAG 2.2 AA: axe-core runs in Playwright on login, Monitor and Design (`e2e/a11y.spec.ts`); a serious or critical issue fails the build.
+5. No screenshot baselines: the image comparison specs (`e2e/visual.spec.ts`, the screenshots in `e2e/responsive.spec.ts`) and the "Visual baselines" workflow were removed at the product owner's request. The layout checks of the responsive spec stay.
 
 #### DESIGNER-08: Undo/redo and edit history
 
@@ -493,16 +494,7 @@ DESIGNER-03 implements the catalogue; the frontend uses the same codes.
 
 ### Design review
 
-The look is guarded by Playwright screenshot baselines (`frontend/e2e/visual.spec.ts`: login, Monitor Overview / Top / Quay, Design 2D / 3D / Split / inspector open / drawing in progress; `frontend/e2e/responsive.spec.ts`: Monitor and Design at 1024, 1280, 1440 and 1920 px, Monitor at 900 px). They run on the dev stack with WebGL (software), its fixed seed, fixed camera presets, reduced motion, CSS animations off, other hosts blocked (no satellite tiles) and dates and versions masked. More than 0.5 % of the pixels different fails the e2e job.
-
-- Baselines are made only by the manual GitHub workflow "Visual baselines" (the same Linux image as CI; pictures made on Windows or macOS differ in fonts and are not used). Download its artifact, copy it over `frontend/e2e/` and commit it in a PR: the reviewer looks at every changed picture.
-- The product owner signs off the baselines once; afterwards a PR that changes them names the reason in its description.
-
-Accepted differences (product owner review, newest first):
-
-| Date | Screen | Difference | Why it is accepted |
-| ---- | ------ | ---------- | ------------------ |
-| -    | -      | None yet: the first baselines wait for the product owner review. | - |
+There are no screenshot comparisons: the e2e specs check layout, behaviour and accessibility, and the look is reviewed by people in the PR. `frontend/e2e/responsive.spec.ts` checks what fits at 1024, 1280, 1440, 1920 and 900 px.
 
 ### Credits and origins
 

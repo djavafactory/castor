@@ -18,7 +18,6 @@ const STACK_SPECS = [
   '**/gizmo-3d.spec.ts',
   '**/split-view.spec.ts',
   '**/a11y.spec.ts',
-  '**/visual.spec.ts',
   '**/responsive.spec.ts',
   '**/acceptance/*.spec.ts',
 ]
@@ -31,17 +30,6 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
-  // Screenshot baselines (JOIN-03): more than 0.5 % of the pixels different fails. CI never writes a baseline; they
-  // are made by the "Visual baselines" workflow and committed in a reviewed PR.
-  updateSnapshots: process.env.CI ? 'none' : 'missing',
-  expect: {
-    toHaveScreenshot: {
-      maxDiffPixelRatio: 0.005,
-      animations: 'disabled',
-      caret: 'hide',
-      stylePath: './e2e/visual/screenshot.css',
-    },
-  },
   use: {
     baseURL: externalBaseURL ?? `http://localhost:${PORT}`,
     trace: 'on-first-retry',
