@@ -136,7 +136,7 @@ class IntakeEndpointIT extends PipelineSupport {
     void theSameSourceEventIdOnAnotherSourceIsNotARepeat() {
         String id = Events.newSourceEventId();
         accept(id);
-        // cbas is disabled for the demo key, so give canonical's neighbour a row by hand to prove the key is per source
+        // give canonical's neighbour a row by hand to prove the key is per source
         Db.execute(
                 dataSource,
                 "insert into ingest.inbox (reception_id, port_id, source, source_event_id, received_at, raw) "
@@ -261,7 +261,7 @@ class IntakeEndpointIT extends PipelineSupport {
                 0,
                 Db.count(
                         dataSource,
-                        "select count(*) from ingest.api_key where convert_from(key_hash, 'LATIN1') like ? or prefix = ?",
+                        "select count(*) from ingest.api_key where encode(key_hash, 'escape') like ? or prefix = ?",
                         "%" + issued.key() + "%",
                         issued.key()));
         post(Events.EVENTS_PATH, issued.key(), Events.status(Events.newSourceEventId()))
@@ -271,14 +271,23 @@ class IntakeEndpointIT extends PipelineSupport {
 
     // --- 403 ---
 
+    private void disableCbas(boolean disabled) {
+        Db.execute(dataSource, "update ingest.integration_source set enabled = ? where code = 'cbas'", !disabled);
+    }
+
     @Test
     void aDisabledSourceAnswers403() {
-        post("/api/v1/ports/westports/integrations/cbas/events", demoKey, Events.status(Events.newSourceEventId()))
-                .then()
-                .statusCode(403)
-                .contentType("application/problem+json")
-                .body("title", equalTo("Source disabled"))
-                .body("detail", containsString("cbas"));
+        disableCbas(true);
+        try {
+            post("/api/v1/ports/westports/integrations/cbas/events", demoKey, Events.status(Events.newSourceEventId()))
+                    .then()
+                    .statusCode(403)
+                    .contentType("application/problem+json")
+                    .body("title", equalTo("Source disabled"))
+                    .body("detail", containsString("cbas"));
+        } finally {
+            disableCbas(false);
+        }
     }
 
     // --- 413, 400, 422 ---
@@ -387,10 +396,15 @@ class IntakeEndpointIT extends PipelineSupport {
         String disabledPath = "/api/v1/ports/westports/integrations/cbas/events";
 
         // key (401) before source enabled (403) before size (413) before JSON (400) before fields (422)
-        post(disabledPath, "wrong-key", malformed).then().statusCode(401);
-        post(Events.EVENTS_PATH, "wrong-key", oversize).then().statusCode(401);
-        post(disabledPath, demoKey, oversize).then().statusCode(403);
-        post(disabledPath, demoKey, malformed).then().statusCode(403);
+        disableCbas(true);
+        try {
+            post(disabledPath, "wrong-key", malformed).then().statusCode(401);
+            post(Events.EVENTS_PATH, "wrong-key", oversize).then().statusCode(401);
+            post(disabledPath, demoKey, oversize).then().statusCode(403);
+            post(disabledPath, demoKey, malformed).then().statusCode(403);
+        } finally {
+            disableCbas(false);
+        }
         post(Events.EVENTS_PATH, demoKey, oversize).then().statusCode(413);
         post(Events.EVENTS_PATH, demoKey, malformed).then().statusCode(400);
         post(Events.EVENTS_PATH, demoKey, "{}").then().statusCode(422);

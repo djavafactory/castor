@@ -122,20 +122,20 @@ class NormalizerIT extends PipelineSupport {
 
     @Test
     void aSourceWithoutAnAdapterIsQuarantinedWithNoAdapter() {
-        UUID id = insertInbox("cbas", "cbas-1", "{\"anything\":1}");
+        UUID id = insertInbox("nosuch", "nosuch-1", "{\"anything\":1}");
 
         normalizer.runOnce();
 
         assertEquals("QUARANTINED", inboxStatus(id.toString()));
         assertEquals("NO_ADAPTER", quarantineReason(id.toString()));
         assertEquals(
-                "No adapter for source cbas",
+                "No adapter for source nosuch",
                 Db.value(dataSource, "select detail from ingest.quarantine where reception_id = ?", id));
     }
 
     @Test
     void anAdaptersOwnRejectionKeepsItsReasonCode() {
-        UUID id = insertInbox("sensors", "s-1", "{\"reject\":true}");
+        UUID id = insertInbox("test-faulty", "s-1", "{\"reject\":true}");
 
         normalizer.runOnce();
 
@@ -145,9 +145,9 @@ class NormalizerIT extends PipelineSupport {
     @Test
     void anAdapterThatFailsQuarantinesOnlyItsRecordAndHidesTheErrorFromTheDetail() {
         clock.advance(Duration.ofMillis(1));
-        UUID bad = insertInbox("sensors", "s-bad", "{\"boom\":true}");
+        UUID bad = insertInbox("test-faulty", "s-bad", "{\"boom\":true}");
         clock.advance(Duration.ofMillis(1));
-        UUID good = insertInbox("sensors", "s-good", "{}");
+        UUID good = insertInbox("test-faulty", "s-good", "{}");
 
         assertEquals(2, normalizer.runOnce());
 
@@ -162,7 +162,7 @@ class NormalizerIT extends PipelineSupport {
 
     @Test
     void oneRecordCanMakeSeveralEventsWithIdsFromTheReceptionIdAndIndex() {
-        UUID id = insertInbox("edic", "gate-batch", "{\"count\":3}");
+        UUID id = insertInbox("test-multi", "gate-batch", "{\"count\":3}");
 
         normalizer.runOnce();
 

@@ -33,6 +33,8 @@ public interface CastorConfig {
 
     Normalizer normalizer();
 
+    Drop drop();
+
     Relay relay();
 
     Retention retention();
@@ -99,6 +101,17 @@ public interface CastorConfig {
         /** Switches the scheduled normalizer, relay and housekeeping off; tests run them by hand. */
         @WithDefault("true")
         boolean enabled();
+    }
+
+    interface Drop {
+        /**
+         * The drop folder (GATEWAY_DROP_DIR): files are taken from {dir}/{source}/. Unset switches the file channel off.
+         */
+        Optional<String> dir();
+
+        /** How often the folders are looked at. */
+        @WithDefault("PT5S")
+        Duration interval();
     }
 
     interface Normalizer {

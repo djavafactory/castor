@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "portId": "westports",
+  "sourceSystem": "SCSS",
+  "sourceEventId": "WXY1234-0001:IN:2026-10-29T08:15:30Z",
+  "receptionId": "0198a6f0-0000-7000-8000-000000000001",
+  "type": "gate.transaction",
+  "entityType": "TRUCK_VISIT",
+  "entityId": "scss:WXY1234-0001",
+  "aggregateId": "asset-g1",
+  "occurredAt": "2026-10-29T08:15:30Z",
+  "receivedAt": "2026-10-29T08:30:00Z",
+  "quality": "SIMULATED",
+  "payload": {
+    "truckVisitId": "scss:WXY1234-0001",
+    "gateId": "asset-g1",
+    "direction": "IN",
+    "lane": "2"
+  }
+}

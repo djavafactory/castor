@@ -8,6 +8,7 @@
 --                  no right outside that schema (no CREATE on the database, none on public)
 
 CREATE EXTENSION IF NOT EXISTS postgis;  -- needs superuser, so it is not left to the migrations
+CREATE EXTENSION IF NOT EXISTS btree_gist;  -- gateway V2: exclusion constraints on mapping ranges
 
 CREATE ROLE castor_flyway LOGIN PASSWORD 'castor_flyway_dev' NOSUPERUSER NOCREATEDB NOCREATEROLE;
 CREATE ROLE castor_app    LOGIN PASSWORD 'castor_app_dev'    NOSUPERUSER NOCREATEDB NOCREATEROLE;

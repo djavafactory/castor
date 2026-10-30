@@ -1,7 +1,6 @@
 package com.djavafactory.castor.gateway.normalize.application;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 import jakarta.enterprise.context.ApplicationScoped;
 
@@ -16,6 +15,7 @@ import com.djavafactory.castor.gateway.normalize.domain.EventIds;
 import com.djavafactory.castor.gateway.normalize.domain.InboxRecord;
 import com.djavafactory.castor.gateway.normalize.domain.Rejection;
 import com.djavafactory.castor.gateway.normalize.domain.SourceAdapter;
+import com.djavafactory.castor.gateway.normalize.domain.ViolationText;
 import com.djavafactory.castor.gateway.shared.domain.Json;
 
 /**
@@ -26,8 +26,6 @@ import com.djavafactory.castor.gateway.shared.domain.Json;
  */
 @ApplicationScoped
 public class CanonicalPassThroughAdapter implements SourceAdapter {
-
-    private static final int MAX_VIOLATIONS_REPORTED = 5;
 
     private final CanonicalEventValidator validator;
     private final CanonicalEventCodec codec;
@@ -61,17 +59,8 @@ public class CanonicalPassThroughAdapter implements SourceAdapter {
 
         List<Violation> violations = validator.validate(envelope);
         if (!violations.isEmpty()) {
-            throw new Rejection(Rejection.SCHEMA_INVALID, describe(violations));
+            throw new Rejection(Rejection.SCHEMA_INVALID, ViolationText.describe(violations));
         }
         return List.of(codec.decode(Json.write(envelope)));
-    }
-
-    private static String describe(List<Violation> violations) {
-        String listed = violations.stream()
-                .limit(MAX_VIOLATIONS_REPORTED)
-                .map(v -> (v.path().isEmpty() ? "(event)" : v.path()) + ": " + v.message())
-                .collect(Collectors.joining("; "));
-        int more = violations.size() - MAX_VIOLATIONS_REPORTED;
-        return more > 0 ? listed + "; and " + more + " more" : listed;
     }
 }

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "portId": "westports",
+  "sourceSystem": "ITAP",
+  "sourceEventId": "ITAP-88122",
+  "receptionId": "0198a6f0-0000-7000-8000-000000000001",
+  "type": "cargo.lot.moved",
+  "entityType": "CARGO_LOT",
+  "entityId": "itap:PKE-0042",
+  "aggregateId": "itap:PKE-0042",
+  "occurredAt": "2026-10-28T23:45:00Z",
+  "receivedAt": "2026-10-29T08:30:00Z",
+  "quality": "SIMULATED",
+  "payload": {
+    "lotId": "itap:PKE-0042",
+    "fromId": "asset-pad-a1",
+    "toId": "asset-sl1",
+    "quantity": 480,
+    "unit": "TONNES",
+    "handledBy": "asset-mhc1"
+  }
+}

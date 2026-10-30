@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "portId": "westports",
+  "sourceSystem": "CBAS",
+  "sourceEventId": "CBAS-2026-000417",
+  "sourceSequence": 417,
+  "receptionId": "0198a6f0-0000-7000-8000-000000000001",
+  "type": "vessel.call.updated",
+  "entityType": "VESSEL_CALL",
+  "entityId": "MV-AURORA-0412",
+  "aggregateId": "MV-AURORA-0412",
+  "occurredAt": "2026-10-29T06:20:00Z",
+  "receivedAt": "2026-10-29T08:30:00Z",
+  "quality": "SIMULATED",
+  "payload": {
+    "callCode": "MV-AURORA-0412",
+    "vesselName": "MV Aurora",
+    "imo": "9321483",
+    "loaM": 189.9,
+    "beamM": 32.2,
+    "status": "ALONGSIDE",
+    "eta": "2026-10-29T06:00:00Z",
+    "ata": "2026-10-29T06:20:00Z",
+    "etd": "2026-10-30T14:00:00Z",
+    "berthId": "asset-berth-b3"
+  }
+}

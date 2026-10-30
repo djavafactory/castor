@@ -16,20 +16,20 @@ import com.djavafactory.castor.gateway.normalize.domain.Rejection;
 import com.djavafactory.castor.gateway.normalize.domain.SourceAdapter;
 
 /**
- * Adapters for sources that have none yet (INGEST-03 adds the real ones), to exercise the SPI: one record that makes
- * several events, a rejection with an adapter's own reason code, and an adapter that fails.
+ * Adapters for made-up sources (the real ones are tested with their own sources), to exercise the SPI: one record that
+ * makes several events, a rejection with an adapter's own reason code, and an adapter that fails.
  */
 public final class TestAdapters {
 
     private TestAdapters() {}
 
-    /** Source edic: {@code {"count": 3}} makes three events, each with a made-up eventId the normalizer must replace. */
+    /** Source test-multi: {@code {"count": 3}} makes three events, each with a made-up eventId the normalizer must replace. */
     @ApplicationScoped
-    public static class Edic implements SourceAdapter {
+    public static class Multi implements SourceAdapter {
 
         @Override
         public String source() {
-            return "edic";
+            return "test-multi";
         }
 
         @Override
@@ -43,13 +43,13 @@ public final class TestAdapters {
         }
     }
 
-    /** Source sensors: {@code {"reject": true}} is refused with CUSTOM_REASON, {@code {"boom": true}} throws. */
+    /** Source test-faulty: {@code {"reject": true}} is refused with CUSTOM_REASON, {@code {"boom": true}} throws. */
     @ApplicationScoped
-    public static class Sensors implements SourceAdapter {
+    public static class Faulty implements SourceAdapter {
 
         @Override
         public String source() {
-            return "sensors";
+            return "test-faulty";
         }
 
         @Override

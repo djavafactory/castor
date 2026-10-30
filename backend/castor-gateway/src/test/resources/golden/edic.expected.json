@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "portId": "westports",
+  "sourceSystem": "EDIC",
+  "sourceEventId": "E-0001",
+  "receptionId": "0198a6f0-0000-7000-8000-000000000001",
+  "type": "vessel.call.updated",
+  "entityType": "VESSEL_CALL",
+  "entityId": "MV-AURORA-0412",
+  "aggregateId": "MV-AURORA-0412",
+  "occurredAt": "2026-10-29T06:20:00Z",
+  "receivedAt": "2026-10-29T08:30:00Z",
+  "quality": "SIMULATED",
+  "payload": {
+    "callCode": "MV-AURORA-0412",
+    "ata": "2026-10-29T06:20:00Z"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "portId": "westports",
+  "sourceSystem": "SENSORS",
+  "sourceEventId": "GPS-MHC1:STATUS:2026-10-29T08:21:00Z",
+  "receptionId": "0198a6f0-0000-7000-8000-000000000001",
+  "type": "equipment.status.changed",
+  "entityType": "EQUIPMENT",
+  "entityId": "asset-mhc1",
+  "aggregateId": "asset-mhc1",
+  "occurredAt": "2026-10-29T08:21:00Z",
+  "receivedAt": "2026-10-29T08:30:00Z",
+  "quality": "SIMULATED",
+  "payload": { "status": "BLOCKED", "reason": "Waiting for trucks" }
+}

@@ -20,8 +20,8 @@ import com.djavafactory.castor.gateway.shared.infrastructure.Jdbc;
 /**
  * Local, dev and test only: creates the port's sources and gives each the API key of GATEWAY_DEMO_KEY (written hashed,
  * origin 'env'). The key of an earlier value is revoked, so changing .env and restarting leaves exactly one demo key.
- * {@code canonical} is enabled; the system sources stay disabled until their adapters exist (INGEST-03), so they answer
- * 403. Safe to run again.
+ * Every source is enabled (a source an operator switched off is switched on again at the next start), since every
+ * source has its adapter. Safe to run again.
  */
 @ApplicationScoped
 public class DemoKeyBootstrap implements StartupStep {
@@ -30,7 +30,9 @@ public class DemoKeyBootstrap implements StartupStep {
 
     private static final String UPSERT_SOURCE =
             "insert into ingest.integration_source (port_id, code, enabled, quality_default, created_at, updated_at) "
-                    + "values (?, ?, ?, 'SIMULATED', ?, ?) on conflict (port_id, code) do nothing";
+                    + "values (?, ?, true, 'SIMULATED', ?, ?) "
+                    + "on conflict (port_id, code) do update set enabled = true, updated_at = excluded.updated_at "
+                    + "where not ingest.integration_source.enabled";
     private static final String SOURCE_ID = "select id from ingest.integration_source where port_id = ? and code = ?";
     private static final String REVOKE_OTHERS = "update ingest.api_key set revoked_at = ? "
             + "where source_id = ? and origin = 'env' and revoked_at is null and key_hash <> ?";
@@ -61,9 +63,8 @@ public class DemoKeyBootstrap implements StartupStep {
                 try (var ps = c.prepareStatement(UPSERT_SOURCE)) {
                     ps.setString(1, port);
                     ps.setString(2, source.code());
-                    ps.setBoolean(3, source == Source.CANONICAL);
+                    ps.setTimestamp(3, Timestamp.from(now));
                     ps.setTimestamp(4, Timestamp.from(now));
-                    ps.setTimestamp(5, Timestamp.from(now));
                     ps.executeUpdate();
                 }
                 if (key.isEmpty()) {

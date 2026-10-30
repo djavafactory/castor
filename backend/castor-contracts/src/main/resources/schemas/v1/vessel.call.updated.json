@@ -2,8 +2,9 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://castor.djavafactory.com/schemas/v1/vessel.call.updated.json",
   "title": "vessel.call.updated",
+  "description": "Only callCode is required: a source that knows a milestone only (an EDI message) sends the milestone fields and nothing else, and a consumer leaves every field the event does not carry as it was.",
   "type": "object",
-  "required": ["callCode", "vesselName", "loaM", "beamM", "status", "eta"],
+  "required": ["callCode"],
   "properties": {
     "callCode": { "type": "string", "minLength": 1 },
     "vesselName": { "type": "string", "minLength": 1 },

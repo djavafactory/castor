@@ -171,16 +171,24 @@ services:
         condition: service_healthy
       castor-dev-kafka:
         condition: service_healthy
+      # The identity mapping seed reads castor-core's published layout (layout.published_asset): wait for it. The gateway
+      # also retries the seed every 15 s, so a restarted backend never leaves the mappings unloaded.
+      castor-dev-backend:
+        condition: service_healthy
     environment:
       CASTOR_ENV: dev
       KAFKA_BOOTSTRAP_SERVERS: castor-dev-kafka:9092
       CASTOR_RESET_ON_START: "true"
       CASTOR_PORT_CODE: ${CASTOR_PORT_CODE:-westports}
+      # File drop (INGEST-03): {source}/ folders in this volume, shared with the emulator (EMULATOR-01)
+      GATEWAY_DROP_DIR: /drop
       GATEWAY_DEMO_KEY: ${GATEWAY_DEMO_KEY:?set GATEWAY_DEMO_KEY in .env}
       DB_URL: jdbc:postgresql://castor-dev-db:5432/${POSTGRES_DB:-castor}
       # Local/dev-only role password from db/init/01-roles.sql; the role owns schema ingest and runs the migrations too
       DB_GATEWAY_USERNAME: castor_gateway
       DB_GATEWAY_PASSWORD: castor_gateway_dev
+    volumes:
+      - castor-dev-drop:/drop
     networks: [castor-dev-net]
     ports:
       - "127.0.0.1:${DEV_GATEWAY_PORT:-8082}:8082"
@@ -221,3 +229,6 @@ volumes:
     name: castor-local-kafkadata
   castor-dev-pgdata:
     name: castor-dev-pgdata
+  # The file-drop folders of the gateway ({source}/, with archive/ and rejected/), kept across restarts
+  castor-dev-drop:
+    name: castor-dev-drop

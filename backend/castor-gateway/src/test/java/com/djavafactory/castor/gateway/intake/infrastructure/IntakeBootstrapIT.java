@@ -88,9 +88,9 @@ class IntakeBootstrapIT extends PipelineSupport {
         assertEquals(List.of("canonical", "cbas", "edic", "itap", "scss", "sensors"), codes);
 
         assertEquals(
-                List.of("canonical"),
-                Db.column(dataSource, "select code from ingest.integration_source where enabled"),
-                "only canonical has an adapter, the system sources stay off until INGEST-03");
+                List.of("canonical", "cbas", "edic", "itap", "scss", "sensors"),
+                Db.column(dataSource, "select code from ingest.integration_source where enabled order by code"),
+                "every source has its adapter, so every source is on");
         assertEquals(
                 "SIMULATED", Db.value(dataSource, "select distinct quality_default from ingest.integration_source"));
         assertEquals(0, Db.count(dataSource, "select count(*) from ingest.integration_source where require_signature"));
@@ -113,12 +113,12 @@ class IntakeBootstrapIT extends PipelineSupport {
     }
 
     @Test
-    void schemaIngestHasItsOwnFlywayHistoryAtVersion1() {
+    void schemaIngestHasItsOwnFlywayHistoryAtVersion2() {
         assertEquals(
-                List.of("1"),
+                List.of("1", "2"),
                 Db.column(
                         dataSource,
-                        "select version from ingest.flyway_schema_history where success and version is not null"));
+                        "select version from ingest.flyway_schema_history where success and version is not null order by installed_rank"));
     }
 
     @Test
@@ -129,7 +129,8 @@ class IntakeBootstrapIT extends PipelineSupport {
                 .until(() -> Db.count(dataSource, "select count(*) from ingest.inbox where status = 'RECEIVED'") == 0);
         assertEquals(2, Db.count(dataSource, "select count(*) from ingest.inbox"));
         assertEquals(1, Db.count(dataSource, "select count(*) from ingest.quarantine"));
-        Db.execute(dataSource, "update ingest.integration_source set enabled = true where code = 'cbas'");
+        Db.execute(dataSource, "update ingest.integration_source set enabled = false where code = 'cbas'");
+        Db.execute(dataSource, "delete from ingest.cargo_code_mapping");
 
         reset.reset();
 
@@ -141,9 +142,13 @@ class IntakeBootstrapIT extends PipelineSupport {
                 Db.count(dataSource, "select count(*) from ingest.integration_source"),
                 "sources are bootstrapped again");
         assertEquals(
-                List.of("canonical"),
-                Db.column(dataSource, "select code from ingest.integration_source where enabled"),
+                6,
+                Db.count(dataSource, "select count(*) from ingest.integration_source where enabled"),
                 "a change made after start is gone");
+        assertEquals(
+                true,
+                Db.count(dataSource, "select count(*) from ingest.cargo_code_mapping where created_by = 'seed'") > 0,
+                "the demo cargo codes are seeded again by the migration");
         post(Events.status(Events.newSourceEventId())).then().statusCode(202);
     }
 

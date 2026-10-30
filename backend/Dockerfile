@@ -28,6 +28,9 @@ ARG MANAGEMENT_PORT=9000
 RUN useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin castor
 WORKDIR /app
 COPY --from=build --chown=10001:10001 /build/${MODULE}/target/quarkus-app/ ./
+# The gateway's file-drop folder (GATEWAY_DROP_DIR=/drop in compose): created here so a named volume mounted on it
+# starts owned by the service user
+RUN mkdir /drop && chown 10001:10001 /drop
 USER 10001
 ENV JAVA_OPTS="-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError" \
     MANAGEMENT_PORT=$MANAGEMENT_PORT

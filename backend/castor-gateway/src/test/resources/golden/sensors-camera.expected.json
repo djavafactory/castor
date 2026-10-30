@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "portId": "westports",
+  "sourceSystem": "SENSORS",
+  "sourceEventId": "CAM-G1:CAMERA_COUNT:2026-10-29T08:25:00Z",
+  "receptionId": "0198a6f0-0000-7000-8000-000000000001",
+  "type": "truck.approach.observed",
+  "entityType": "GATE",
+  "entityId": "asset-g1",
+  "aggregateId": "asset-g1",
+  "occurredAt": "2026-10-29T08:25:00Z",
+  "receivedAt": "2026-10-29T08:30:00Z",
+  "quality": "SIMULATED",
+  "payload": { "gateId": "asset-g1", "count": 14, "method": "CAMERA" }
+}

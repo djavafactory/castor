@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "portId": "westports",
+  "sourceSystem": "SENSORS",
+  "sourceEventId": "CV1-RATE:CONVEYOR_RATE:2026-10-29T08:22:00Z",
+  "receptionId": "0198a6f0-0000-7000-8000-000000000001",
+  "type": "flow.rate.observed",
+  "entityType": "FLOW_ASSET",
+  "entityId": "asset-cv1",
+  "aggregateId": "asset-cv1",
+  "occurredAt": "2026-10-29T08:22:00Z",
+  "receivedAt": "2026-10-29T08:30:00Z",
+  "quality": "SIMULATED",
+  "payload": { "assetId": "asset-cv1", "rate": 640.5, "unit": "TONNES_PER_HOUR" }
+}

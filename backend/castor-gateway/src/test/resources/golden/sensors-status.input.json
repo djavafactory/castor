@@ -1,0 +1,1 @@
+{ "sensorId": "GPS-MHC1", "kind": "STATUS", "values": { "status": "BLOCKED", "reason": "Waiting for trucks" }, "ts": "2026-10-29T08:21:00Z" }

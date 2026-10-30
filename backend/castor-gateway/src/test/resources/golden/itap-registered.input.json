@@ -1,0 +1,13 @@
+{
+  "txnId": "ITAP-88121",
+  "lotRef": "PKE-0042",
+  "consignmentRef": "CONS-1187",
+  "family": "DRY_BULK",
+  "commodity": "COAL",
+  "qty": 12500.50,
+  "uom": "MT",
+  "fromLoc": null,
+  "toLoc": "PAD-A1",
+  "equipRef": "MHC1",
+  "ts": "2026-10-29T07:00:00Z"
+}

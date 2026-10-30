@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "portId": "westports",
+  "sourceSystem": "SENSORS",
+  "sourceEventId": "SL1-LEVEL:SILO_LEVEL:2026-10-29T08:24:00Z",
+  "receptionId": "0198a6f0-0000-7000-8000-000000000001",
+  "type": "storage.level.observed",
+  "entityType": "STORAGE",
+  "entityId": "asset-sl1",
+  "aggregateId": "asset-sl1",
+  "occurredAt": "2026-10-29T08:24:00Z",
+  "receivedAt": "2026-10-29T08:30:00Z",
+  "quality": "SIMULATED",
+  "payload": { "storageId": "asset-sl1", "commodity": "GRAIN", "quantity": 5400, "unit": "TONNES" }
+}

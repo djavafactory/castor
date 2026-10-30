@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "portId": "westports",
+  "sourceSystem": "SENSORS",
+  "sourceEventId": "TK1-LEVEL:TANK_LEVEL:2026-10-29T08:23:00Z",
+  "receptionId": "0198a6f0-0000-7000-8000-000000000001",
+  "type": "storage.level.observed",
+  "entityType": "STORAGE",
+  "entityId": "asset-tk1",
+  "aggregateId": "asset-tk1",
+  "occurredAt": "2026-10-29T08:23:00Z",
+  "receivedAt": "2026-10-29T08:30:00Z",
+  "quality": "SIMULATED",
+  "payload": { "storageId": "asset-tk1", "commodity": "EDOIL", "quantity": 3120.75, "unit": "CUBIC_METRES", "temperatureC": 48.5, "densityKgM3": 891.2 }
+}

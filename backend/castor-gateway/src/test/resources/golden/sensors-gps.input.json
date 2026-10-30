@@ -1,0 +1,1 @@
+{ "sensorId": "GPS-MHC1", "kind": "GPS", "values": { "lon": 101.3012, "lat": 2.9871, "headingDeg": 92.5, "accuracyM": 2.5 }, "ts": "2026-10-29T08:20:00Z" }

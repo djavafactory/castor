@@ -1,6 +1,7 @@
 package com.djavafactory.castor.gateway.intake.application;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.InstantSource;
 import java.util.ArrayList;
@@ -12,18 +13,20 @@ import jakarta.enterprise.context.ApplicationScoped;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import io.micrometer.core.instrument.MeterRegistry;
 
+import com.djavafactory.castor.gateway.formats.domain.EdiMessage;
 import com.djavafactory.castor.gateway.intake.application.IntakeResult.Item;
 import com.djavafactory.castor.gateway.intake.domain.ApiKeys;
 import com.djavafactory.castor.gateway.intake.domain.InboxRepository;
 import com.djavafactory.castor.gateway.intake.domain.InboxRepository.NewRecord;
 import com.djavafactory.castor.gateway.intake.domain.InboxRepository.Stored;
-import com.djavafactory.castor.gateway.intake.domain.IncomingRecord;
 import com.djavafactory.castor.gateway.intake.domain.IntakeException;
 import com.djavafactory.castor.gateway.intake.domain.IntakeException.Field;
 import com.djavafactory.castor.gateway.intake.domain.IntakeException.Kind;
 import com.djavafactory.castor.gateway.intake.domain.IntegrationSource;
+import com.djavafactory.castor.gateway.intake.domain.RecordKeys;
 import com.djavafactory.castor.gateway.intake.domain.RequestSignature;
 import com.djavafactory.castor.gateway.intake.domain.SecretResolver;
 import com.djavafactory.castor.gateway.intake.domain.Source;
@@ -76,7 +79,7 @@ public class ReceiveEvents {
             }
             byte[] body = readBody(request);
             checkSignature(source, request, body);
-            JsonNode tree = parse(body);
+            JsonNode tree = parse(source.source(), body);
             IntakeResult result = tree.isArray() ? batch(source, tree) : single(source, tree);
             count(result);
             return result;
@@ -129,7 +132,13 @@ public class ReceiveEvents {
                 config.maxClockSkew());
     }
 
-    private static JsonNode parse(byte[] body) {
+    private static JsonNode parse(Source source, byte[] body) {
+        if (source == Source.EDIC) {
+            JsonNode messages = ediText(body);
+            if (messages != null) {
+                return messages;
+            }
+        }
         try {
             JsonNode tree = Json.parse(body);
             if (tree == null || tree.isMissingNode()) {
@@ -142,6 +151,24 @@ public class ReceiveEvents {
         } catch (JsonProcessingException e) {
             throw new IntakeException(Kind.BAD_JSON, "The request body is not valid JSON");
         }
+    }
+
+    /**
+     * Source edic may post the EDI text itself instead of {"edi": "..."}: one message is one record, several are an
+     * array. Null when the body is not EDI text.
+     */
+    private static JsonNode ediText(byte[] body) {
+        String text = new String(body, StandardCharsets.UTF_8).strip();
+        if (!text.startsWith("MSG+")) {
+            return null;
+        }
+        List<String> messages = EdiMessage.split(text);
+        List<JsonNode> records = messages.stream()
+                .<JsonNode>map(message -> JsonNodeFactory.instance.objectNode().put("edi", message))
+                .toList();
+        return records.size() == 1
+                ? records.get(0)
+                : JsonNodeFactory.instance.arrayNode().addAll(records);
     }
 
     private IntakeResult single(IntegrationSource source, JsonNode record) {
@@ -168,19 +195,25 @@ public class ReceiveEvents {
         return new IntakeResult.Batch(store(source, list));
     }
 
-    /** Checks every record, stores the valid ones in one transaction and answers all of them in order. */
-    private List<Item> store(IntegrationSource source, List<JsonNode> records) {
+    /**
+     * Checks every record, stores the valid ones in one transaction and answers all of them in order. The file channel
+     * stores its records the same way, so a record has the same fate whichever door it came through.
+     */
+    public List<Item> store(IntegrationSource source, List<JsonNode> records) {
         Instant receivedAt = clock.instant();
         Item[] items = new Item[records.size()];
         List<NewRecord> accepted = new ArrayList<>();
         List<Integer> positions = new ArrayList<>();
         for (int i = 0; i < records.size(); i++) {
             JsonNode record = records.get(i);
-            List<Field> problems = IncomingRecord.problems(record);
+            List<Field> problems = RecordKeys.problems(source.source(), record);
             if (problems.isEmpty()) {
                 UUID receptionId = ids.next(receivedAt);
                 accepted.add(new NewRecord(
-                        receptionId, IncomingRecord.sourceEventId(record), receivedAt, Json.write(record)));
+                        receptionId,
+                        RecordKeys.sourceEventId(source.source(), record),
+                        receivedAt,
+                        Json.write(record)));
                 positions.add(i);
             } else {
                 items[i] = new Item(i, 422, null, false, problems);

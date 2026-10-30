@@ -1,0 +1,1 @@
+{ "sensorId": "TK1-LEVEL", "kind": "TANK_LEVEL", "values": { "commodity": "EDOIL", "quantity": 3120.75, "uom": "m3", "temperatureC": 48.5, "densityKgM3": 891.2 }, "ts": "2026-10-29T08:23:00Z" }
