@@ -12,7 +12,7 @@ import javax.sql.DataSource;
 public final class TestDatabase {
 
     private static final String TABLES = "SELECT format('%I.%I', schemaname, tablename) FROM pg_tables "
-            + "WHERE schemaname IN ('ref','layout','audit','security') AND tablename <> 'flyway_schema_history' "
+            + "WHERE schemaname IN ('ref','layout','audit','security','ops') AND tablename <> 'flyway_schema_history' "
             + "ORDER BY 1";
 
     private TestDatabase() {}

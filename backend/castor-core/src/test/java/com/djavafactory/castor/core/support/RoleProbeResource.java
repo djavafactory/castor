@@ -10,7 +10,7 @@ public class RoleProbeResource {
 
     @GET
     @Path("/read")
-    @RolesAllowed({"VIEWER", "EDITOR", "PUBLISHER", "ADMIN"})
+    @RolesAllowed({"VIEWER", "OPERATOR", "EDITOR", "PUBLISHER", "ADMIN"})
     public String read() {
         return "ok";
     }

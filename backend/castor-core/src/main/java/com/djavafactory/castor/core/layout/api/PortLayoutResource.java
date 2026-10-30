@@ -71,7 +71,7 @@ public class PortLayoutResource {
      * the newest rows. Drafts and discarded versions are listed for editors and above only.
      */
     @GET
-    @RolesAllowed({"VIEWER", "EDITOR", "PUBLISHER", "ADMIN"})
+    @RolesAllowed({"VIEWER", "OPERATOR", "EDITOR", "PUBLISHER", "ADMIN"})
     public List<VersionResponse> versions(
             @PathParam("portCode") String portCode,
             @QueryParam("status") String status,
@@ -96,7 +96,7 @@ public class PortLayoutResource {
     /** The published version: {layout, features}. ETag = version id and row versions, 304 supported. */
     @GET
     @Path("current")
-    @RolesAllowed({"VIEWER", "EDITOR", "PUBLISHER", "ADMIN"})
+    @RolesAllowed({"VIEWER", "OPERATOR", "EDITOR", "PUBLISHER", "ADMIN"})
     public Response current(@PathParam("portCode") String portCode, @HeaderParam("If-None-Match") String ifNoneMatch) {
         var result = getLayout.current(portCode);
         return cache.tagged(ifNoneMatch, result.etag(), () -> mapper.layout(result.view()));

@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class DatabaseBaselineIT {
 
-    private static final String[] SCHEMAS = {"ref", "layout", "audit", "security"};
+    private static final String[] SCHEMAS = {"ref", "layout", "audit", "security", "ops"};
 
     private static PostgreSQLContainer postgres;
 
@@ -79,13 +79,13 @@ class DatabaseBaselineIT {
                     "postgis");
 
             var owners = s.executeQuery("SELECT nspname, pg_get_userbyid(nspowner) FROM pg_namespace "
-                    + "WHERE nspname IN ('ref','layout','audit','security')");
+                    + "WHERE nspname IN ('ref','layout','audit','security','ops')");
             int count = 0;
             while (owners.next()) {
                 assertEquals("castor_flyway", owners.getString(2), owners.getString(1));
                 count++;
             }
-            assertEquals(4, count);
+            assertEquals(5, count);
         }
     }
 
@@ -121,6 +121,18 @@ class DatabaseBaselineIT {
             assertThrows(SQLException.class, () -> s.execute("UPDATE audit.audit_log SET action = 'y'"));
             assertThrows(SQLException.class, () -> s.execute("DELETE FROM audit.audit_log"));
             assertThrows(SQLException.class, () -> s.execute("TRUNCATE audit.audit_log"));
+        }
+    }
+
+    @Test
+    void immutableOpsTablesCannotBeChangedByAppRole() throws Exception {
+        try (var c = app();
+                Statement s = c.createStatement()) {
+            for (String table : new String[] {"canonical_event", "cargo_movement", "inventory_adjustment"}) {
+                assertThrows(SQLException.class, () -> s.execute("UPDATE ops." + table + " SET event_id = event_id"));
+                assertThrows(SQLException.class, () -> s.execute("DELETE FROM ops." + table));
+            }
+            s.execute("UPDATE ops.state_change SET published_at = now()");
         }
     }
 }

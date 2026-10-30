@@ -20,11 +20,38 @@ public final class LayoutTestSupport {
     public static final QuayFrame FRAME = new QuayFrame(101.3066304, 2.9534057, -120.299);
 
     private static final String[] TABLES = {
-        "layout.asset_link", "layout.equipment_detail", "layout.mobile_detail", "layout.zone_allowed_type",
-        "layout.surface_detail", "layout.flow_detail", "layout.warehouse_detail", "layout.container_yard_detail",
-        "layout.storage_pad_detail", "layout.storage_allowed_cargo", "layout.storage_detail", "layout.crane_detail",
-        "layout.berth_cargo_family", "layout.berth_detail", "layout.asset_revision", "layout.asset",
-        "layout.layout_version", "audit.audit_log"
+        "ops.dead_letter",
+        "ops.reconciliation_item",
+        "ops.stream_cursor",
+        "ops.state_change",
+        "ops.processed_event",
+        "ops.canonical_event",
+        "ops.gate_visit",
+        "ops.inventory_adjustment",
+        "ops.storage_inventory",
+        "ops.cargo_movement",
+        "ops.cargo_lot",
+        "ops.equipment_status_interval",
+        "ops.equipment_state",
+        "ops.vessel_call",
+        "layout.asset_link",
+        "layout.equipment_detail",
+        "layout.mobile_detail",
+        "layout.zone_allowed_type",
+        "layout.surface_detail",
+        "layout.flow_detail",
+        "layout.warehouse_detail",
+        "layout.container_yard_detail",
+        "layout.storage_pad_detail",
+        "layout.storage_allowed_cargo",
+        "layout.storage_detail",
+        "layout.crane_detail",
+        "layout.berth_cargo_family",
+        "layout.berth_detail",
+        "layout.asset_revision",
+        "layout.asset",
+        "layout.layout_version",
+        "audit.audit_log"
     };
 
     private LayoutTestSupport() {}

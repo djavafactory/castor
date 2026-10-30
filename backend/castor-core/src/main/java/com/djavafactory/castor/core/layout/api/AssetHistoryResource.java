@@ -38,7 +38,7 @@ public class AssetHistoryResource {
 
     /** Newest version first. Drafts and discarded versions are listed for editors and above only. */
     @GET
-    @RolesAllowed({"VIEWER", "EDITOR", "PUBLISHER", "ADMIN"})
+    @RolesAllowed({"VIEWER", "OPERATOR", "EDITOR", "PUBLISHER", "ADMIN"})
     public List<Entry> history(@PathParam("assetId") UUID assetId, @Context SecurityContext security) {
         return history.assetHistory(assetId, LayoutResource.isEditor(security)).stream()
                 .map(e -> new Entry(

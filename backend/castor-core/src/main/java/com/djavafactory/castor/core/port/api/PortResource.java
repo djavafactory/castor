@@ -69,21 +69,21 @@ public class PortResource {
     }
 
     @GET
-    @RolesAllowed({"VIEWER", "EDITOR", "PUBLISHER", "ADMIN"})
+    @RolesAllowed({"VIEWER", "OPERATOR", "EDITOR", "PUBLISHER", "ADMIN"})
     public Response list(@HeaderParam("If-None-Match") String ifNoneMatch) {
         return cache.of(ifNoneMatch, listPorts.execute());
     }
 
     @GET
     @Path("{portCode}")
-    @RolesAllowed({"VIEWER", "EDITOR", "PUBLISHER", "ADMIN"})
+    @RolesAllowed({"VIEWER", "OPERATOR", "EDITOR", "PUBLISHER", "ADMIN"})
     public Response get(@PathParam("portCode") String portCode, @HeaderParam("If-None-Match") String ifNoneMatch) {
         return cache.of(ifNoneMatch, toResponse(getPort.execute(portCode)));
     }
 
     @GET
     @Path("{portCode}/control-points")
-    @RolesAllowed({"VIEWER", "EDITOR", "PUBLISHER", "ADMIN"})
+    @RolesAllowed({"VIEWER", "OPERATOR", "EDITOR", "PUBLISHER", "ADMIN"})
     public Response controlPoints(
             @PathParam("portCode") String portCode, @HeaderParam("If-None-Match") String ifNoneMatch) {
         return cache.raw(ifNoneMatch, getControlPoints.execute(portCode));
@@ -91,7 +91,7 @@ public class PortResource {
 
     @GET
     @Path("{portCode}/reference-features")
-    @RolesAllowed({"VIEWER", "EDITOR", "PUBLISHER", "ADMIN"})
+    @RolesAllowed({"VIEWER", "OPERATOR", "EDITOR", "PUBLISHER", "ADMIN"})
     public Response referenceFeatures(
             @PathParam("portCode") String portCode,
             @QueryParam("kind") String kinds,

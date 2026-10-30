@@ -149,7 +149,7 @@ public class LayoutResource {
     }
 
     @GET
-    @RolesAllowed({"VIEWER", "EDITOR", "PUBLISHER", "ADMIN"})
+    @RolesAllowed({"VIEWER", "OPERATOR", "EDITOR", "PUBLISHER", "ADMIN"})
     public List<LayoutVersionResponse> list() {
         return listLayoutVersions.execute().stream()
                 .map(v -> new LayoutVersionResponse(v.id(), v.portCode(), v.versionNo(), v.status()))
@@ -159,7 +159,7 @@ public class LayoutResource {
     /** Any version of the layout. Drafts and discarded versions are visible to editors and above only. */
     @GET
     @Path("{layoutId}")
-    @RolesAllowed({"VIEWER", "EDITOR", "PUBLISHER", "ADMIN"})
+    @RolesAllowed({"VIEWER", "OPERATOR", "EDITOR", "PUBLISHER", "ADMIN"})
     public Response get(
             @PathParam("layoutId") UUID layoutId,
             @HeaderParam("If-None-Match") String ifNoneMatch,
@@ -221,7 +221,7 @@ public class LayoutResource {
      */
     @GET
     @Path("{layoutId}/diff")
-    @RolesAllowed({"VIEWER", "EDITOR", "PUBLISHER", "ADMIN"})
+    @RolesAllowed({"VIEWER", "OPERATOR", "EDITOR", "PUBLISHER", "ADMIN"})
     public DiffResponse diff(
             @PathParam("layoutId") UUID layoutId,
             @QueryParam("against") String against,
@@ -269,7 +269,7 @@ public class LayoutResource {
      */
     @GET
     @Path("{layoutId}/accuracy-report")
-    @RolesAllowed({"VIEWER", "EDITOR", "PUBLISHER", "ADMIN"})
+    @RolesAllowed({"VIEWER", "OPERATOR", "EDITOR", "PUBLISHER", "ADMIN"})
     public AccuracyReportResponse accuracyReport(
             @PathParam("layoutId") UUID layoutId, @Context SecurityContext security) {
         requireVisible(getLayout.byId(layoutId).view().version(), security);
@@ -293,7 +293,7 @@ public class LayoutResource {
     @GET
     @Path("{layoutId}/export")
     @Produces("application/geo+json")
-    @RolesAllowed({"VIEWER", "EDITOR", "PUBLISHER", "ADMIN"})
+    @RolesAllowed({"VIEWER", "OPERATOR", "EDITOR", "PUBLISHER", "ADMIN"})
     public Response export(@PathParam("layoutId") UUID layoutId, @Context SecurityContext security) {
         var version = getLayout.byId(layoutId).view().version();
         requireVisible(version, security);
@@ -350,7 +350,7 @@ public class LayoutResource {
     /** One feature of one version; its ETag is the row version of the revision. */
     @GET
     @Path("{layoutId}/assets/{assetId}")
-    @RolesAllowed({"VIEWER", "EDITOR", "PUBLISHER", "ADMIN"})
+    @RolesAllowed({"VIEWER", "OPERATOR", "EDITOR", "PUBLISHER", "ADMIN"})
     public Response asset(
             @PathParam("layoutId") UUID layoutId,
             @PathParam("assetId") UUID assetId,

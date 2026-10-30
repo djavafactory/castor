@@ -24,7 +24,7 @@ public class AssetTypeResource {
     }
 
     @GET
-    @RolesAllowed({"VIEWER", "EDITOR", "PUBLISHER", "ADMIN"})
+    @RolesAllowed({"VIEWER", "OPERATOR", "EDITOR", "PUBLISHER", "ADMIN"})
     public Response list(@HeaderParam("If-None-Match") String ifNoneMatch) {
         return cache.of(ifNoneMatch, listAssetTypes.execute());
     }

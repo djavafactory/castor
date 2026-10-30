@@ -24,7 +24,7 @@ public class CatalogueResource {
     }
 
     @GET
-    @RolesAllowed({"VIEWER", "EDITOR", "PUBLISHER", "ADMIN"})
+    @RolesAllowed({"VIEWER", "OPERATOR", "EDITOR", "PUBLISHER", "ADMIN"})
     public Response catalogue(@HeaderParam("If-None-Match") String ifNoneMatch) {
         return cache.of(ifNoneMatch, getCatalogue.execute());
     }

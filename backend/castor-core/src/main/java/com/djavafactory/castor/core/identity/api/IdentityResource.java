@@ -41,7 +41,7 @@ public class IdentityResource {
 
     @GET
     @Path("/me")
-    @RolesAllowed({"VIEWER", "EDITOR", "PUBLISHER", "ADMIN"})
+    @RolesAllowed({"VIEWER", "OPERATOR", "EDITOR", "PUBLISHER", "ADMIN"})
     public MeResponse me() {
         UserSummary user = identity.currentUser(current.getPrincipal().getName());
         if (user == null) {
@@ -84,7 +84,7 @@ public class IdentityResource {
     /** Sign out is client side (credentials live in memory only); this only writes the LOGOUT event. */
     @POST
     @Path("/auth/logout")
-    @RolesAllowed({"VIEWER", "EDITOR", "PUBLISHER", "ADMIN"})
+    @RolesAllowed({"VIEWER", "OPERATOR", "EDITOR", "PUBLISHER", "ADMIN"})
     public Response logout(@Context HttpServerRequest request) {
         identity.logout(
                 current.getPrincipal().getName(),

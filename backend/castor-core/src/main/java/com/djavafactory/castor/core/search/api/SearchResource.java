@@ -31,7 +31,7 @@ public class SearchResource {
 
     /** Up to 12 places by name or code. The answer is never cached: it follows what the user typed. */
     @GET
-    @RolesAllowed({"VIEWER", "EDITOR", "PUBLISHER", "ADMIN"})
+    @RolesAllowed({"VIEWER", "OPERATOR", "EDITOR", "PUBLISHER", "ADMIN"})
     public Response search(
             @PathParam("portCode") String portCode,
             @QueryParam("q") String q,

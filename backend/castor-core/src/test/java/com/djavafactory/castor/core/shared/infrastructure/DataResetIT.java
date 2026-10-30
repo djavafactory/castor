@@ -60,6 +60,17 @@ class DataResetIT {
         }
     }
 
+    private long opsRows() throws SQLException {
+        try (var c = dataSource.getConnection();
+                var rs = c.createStatement()
+                        .executeQuery(
+                                "select (select count(*) from ops.stream_cursor) + (select count(*) from ops.state_change)"
+                                        + " + (select count(*) from ops.vessel_call) + (select count(*) from ops.canonical_event)")) {
+            rs.next();
+            return rs.getLong(1);
+        }
+    }
+
     @Test
     void startUpSeededOnce() {
         assertTrue(config.data().resetOnStart());
@@ -70,12 +81,17 @@ class DataResetIT {
     void resetDropsEditsAndSeedsAgainWithTheSameResult() throws SQLException {
         try (var c = dataSource.getConnection()) {
             c.createStatement().execute("create table layout.reset_probe(id int)");
+            c.createStatement()
+                    .execute(
+                            "insert into ops.stream_cursor (port_id, last_sequence) select id, 5 from ref.port limit 1");
         }
+        assertEquals(1, opsRows(), "an operational row exists before the reset");
         assertTrue(probeExists());
 
         int before = CountingSeed.RUNS.get();
         reset.reset();
         assertFalse(probeExists(), "edits made after start are gone");
+        assertEquals(0, opsRows(), "operational data is wiped with the rest");
         assertEquals(before + 1, CountingSeed.RUNS.get());
 
         reset.reset();

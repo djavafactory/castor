@@ -157,8 +157,8 @@ export function LoginPage() {
 
           {demoUsers && (
             <p className="text-xs text-muted">
-              Pick a user above, or type admin, editor or viewer. The password is the same as the
-              username.
+              Pick a user above, or type admin, editor, operator or viewer. The password is the same
+              as the username.
             </p>
           )}
         </form>

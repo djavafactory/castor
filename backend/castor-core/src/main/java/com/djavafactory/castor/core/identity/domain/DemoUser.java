@@ -13,5 +13,6 @@ public record DemoUser(String username, String label, Set<Role> roles) {
                     "Publisher: publishes and restores layouts",
                     Set.of(Role.PUBLISHER, Role.EDITOR, Role.VIEWER)),
             new DemoUser("editor", "Editor: edits layout drafts", Set.of(Role.EDITOR, Role.VIEWER)),
+            new DemoUser("operator", "Operator: monitors and acknowledges alerts", Set.of(Role.OPERATOR, Role.VIEWER)),
             new DemoUser("viewer", "Viewer: monitor only", Set.of(Role.VIEWER)));
 }
