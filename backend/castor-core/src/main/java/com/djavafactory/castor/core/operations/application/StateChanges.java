@@ -8,7 +8,10 @@ import jakarta.enterprise.context.ApplicationScoped;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import com.djavafactory.castor.core.operations.domain.CargoLot;
 import com.djavafactory.castor.core.operations.domain.EquipmentState;
+import com.djavafactory.castor.core.operations.domain.GateVisit;
+import com.djavafactory.castor.core.operations.domain.StorageInventory;
 import com.djavafactory.castor.core.operations.domain.VesselCall;
 
 /**
@@ -22,6 +25,12 @@ public class StateChanges {
     public static final String EQUIPMENT = "equipment";
 
     public static final String VESSEL_CALL = "vessel-call";
+
+    public static final String INVENTORY = "inventory";
+
+    public static final String CARGO_LOT = "cargo-lot";
+
+    public static final String GATE_VISIT = "gate-visit";
 
     private static final TypeReference<Map<String, Object>> OBJECT = new TypeReference<>() {};
 
@@ -53,5 +62,35 @@ public class StateChanges {
                 call.version(),
                 occurredAt,
                 json.convertValue(views.vesselCall(call), OBJECT));
+    }
+
+    public void inventory(StorageInventory inventory, Instant occurredAt) {
+        recorder.record(
+                inventory.portId(),
+                INVENTORY,
+                inventory.storageAssetId() + ":" + inventory.commodity(),
+                inventory.version(),
+                occurredAt,
+                json.convertValue(views.inventory(inventory), OBJECT));
+    }
+
+    public void cargoLot(CargoLot lot, Instant occurredAt) {
+        recorder.record(
+                lot.portId(),
+                CARGO_LOT,
+                lot.id().toString(),
+                lot.version(),
+                occurredAt,
+                json.convertValue(views.cargoLot(lot), OBJECT));
+    }
+
+    public void gateVisit(GateVisit visit, Instant occurredAt) {
+        recorder.record(
+                visit.portId(),
+                GATE_VISIT,
+                visit.truckVisitId() + ":" + visit.gateAssetId(),
+                visit.version(),
+                occurredAt,
+                json.convertValue(views.gateVisit(visit), OBJECT));
     }
 }

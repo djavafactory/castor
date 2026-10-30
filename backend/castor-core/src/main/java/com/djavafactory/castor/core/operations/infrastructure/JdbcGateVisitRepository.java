@@ -22,7 +22,7 @@ public class JdbcGateVisitRepository implements GateVisitRepository {
     @Override
     public Optional<GateVisit> find(long portId, String truckVisitId, UUID gateAssetId) {
         return sql.queryOne(
-                "select port_id, truck_visit_id, gate_asset_id, in_at, out_at, lane, source, quality "
+                "select port_id, truck_visit_id, gate_asset_id, in_at, out_at, lane, source, quality, version "
                         + "from ops.gate_visit where port_id = ? and truck_visit_id = ? and gate_asset_id = ?",
                 r -> new GateVisit(
                         r.lng("port_id"),
@@ -32,20 +32,33 @@ public class JdbcGateVisitRepository implements GateVisitRepository {
                         r.instant("out_at"),
                         r.text("lane"),
                         r.text("source"),
-                        Quality.valueOf(r.text("quality"))),
+                        Quality.valueOf(r.text("quality")),
+                        r.lng("version")),
                 portId,
                 truckVisitId,
                 gateAssetId);
     }
 
     @Override
-    public void save(GateVisit v) {
-        sql.update(
-                "insert into ops.gate_visit (port_id, truck_visit_id, gate_asset_id, in_at, out_at, lane, source, "
-                        + "quality) values (?, ?, ?, ?, ?, ?, ?, ?) "
-                        + "on conflict (port_id, truck_visit_id, gate_asset_id) do update set in_at = excluded.in_at, "
-                        + "out_at = excluded.out_at, lane = excluded.lane, source = excluded.source, "
-                        + "quality = excluded.quality",
+    public GateVisit save(GateVisit v) {
+        long version = sql.queryOne(
+                        "insert into ops.gate_visit (port_id, truck_visit_id, gate_asset_id, in_at, out_at, lane, "
+                                + "source, quality) values (?, ?, ?, ?, ?, ?, ?, ?) "
+                                + "on conflict (port_id, truck_visit_id, gate_asset_id) do update set "
+                                + "in_at = excluded.in_at, out_at = excluded.out_at, lane = excluded.lane, "
+                                + "source = excluded.source, quality = excluded.quality, "
+                                + "version = ops.gate_visit.version + 1 returning version",
+                        r -> r.lng("version"),
+                        v.portId(),
+                        v.truckVisitId(),
+                        v.gateAssetId(),
+                        v.inAt(),
+                        v.outAt(),
+                        v.lane(),
+                        v.source(),
+                        v.quality())
+                .orElseThrow();
+        return new GateVisit(
                 v.portId(),
                 v.truckVisitId(),
                 v.gateAssetId(),
@@ -53,6 +66,7 @@ public class JdbcGateVisitRepository implements GateVisitRepository {
                 v.outAt(),
                 v.lane(),
                 v.source(),
-                v.quality());
+                v.quality(),
+                version);
     }
 }

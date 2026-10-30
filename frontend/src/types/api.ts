@@ -500,6 +500,103 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ports/{portId}/reconciliation-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Review items the projections opened, newest first, at most 500 (OPERATOR, ADMIN)
+         * @description Stale events, source conflicts, balances that would go below zero and stock above capacity. status defaults to OPEN.
+         */
+        get: operations["listReconciliationItems"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ports/{portId}/reconciliation-items/{id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve an item with a note (OPERATOR, ADMIN)
+         * @description Records the human decision (who, when, the note) and nothing else; data changes go through inventory.adjusted events. Audited as RECONCILIATION_RESOLVED.
+         */
+        post: operations["resolveReconciliationItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ports/{portId}/dead-letters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Events the projector gave up on, newest first (OPERATOR, ADMIN)
+         * @description First attempts only, each with the state of its replays.
+         */
+        get: operations["listDeadLetters"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ports/{portId}/dead-letters/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One dead letter with every replay attempt linked to it (OPERATOR, ADMIN) */
+        get: operations["getDeadLetter"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ports/{portId}/dead-letters/{id}/replay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply the stored event again (ADMIN)
+         * @description A new attempt linked to the dead letter by replayOf; the original is never changed or deleted. A replay that fails again is a dead letter of its own. Audited as DEAD_LETTER_REPLAYED, whatever the outcome.
+         */
+        post: operations["replayDeadLetter"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/layouts/{layoutId}": {
         parameters: {
             query?: never;
@@ -1398,15 +1495,17 @@ export interface components {
             /** Format: int64 */
             version: number;
         };
+        /** @description The book balance, the measured level and the usable capacity are separate; each is null or UNKNOWN when it cannot be known (R3), and units are never converted (R4) */
         Inventory: {
             /** @description storageAssetId and commodity joined by a colon */
             id: string;
             /** Format: uuid */
             storageAssetId: string;
             commodity: string;
-            quantity: number;
-            /** @enum {string} */
-            unit: "TONNES" | "PIECES" | "CUBIC_METRES" | "VEHICLES";
+            /** @description The book balance; null while no movement was recorded */
+            quantity?: number | null;
+            /** @enum {string|null} */
+            unit: "TONNES" | "PIECES" | "CUBIC_METRES" | "VEHICLES" | null;
             quality: components["schemas"]["Quality"];
             source: string;
             /** Format: date-time */
@@ -1415,6 +1514,102 @@ export interface components {
             freshnessSlaS: number;
             /** Format: int64 */
             version: number;
+            /**
+             * @description Wet and dry tonnes are never added together
+             * @enum {string|null}
+             */
+            massBasis?: "WET" | "DRY" | null;
+            /** @description A movement would have taken the balance below zero and was not applied */
+            needsReconciliation: boolean;
+            capacity: {
+                /** @enum {string} */
+                status: "KNOWN" | "UNKNOWN";
+                /** @description Capacity times usable ratio from the published layout */
+                value?: number | null;
+                /** @enum {string|null} */
+                unit?: "TONNES" | "PIECES" | "CUBIC_METRES" | "VEHICLES" | null;
+            };
+            /** @description What a tank or silo sensor last read */
+            observed?: {
+                quantity: number;
+                /** @enum {string} */
+                unit: "TONNES" | "PIECES" | "CUBIC_METRES" | "VEHICLES";
+                /** Format: date-time */
+                observedAt: string;
+                source: string;
+                quality: components["schemas"]["Quality"];
+                densityKgM3?: number | null;
+                temperatureC?: number | null;
+            } | null;
+            bookMass: components["schemas"]["Mass"];
+            observedMass: components["schemas"]["Mass"];
+        };
+        /** @description A mass in tonnes. A volume has one only with a density from the event; UNKNOWN has no value. */
+        Mass: {
+            /** @enum {string} */
+            status: "KNOWN" | "UNKNOWN";
+            tonnes?: number | null;
+        };
+        /** @enum {string} */
+        ReconciliationKind: "STALE_EVENT" | "SOURCE_CONFLICT" | "NEGATIVE_BALANCE" | "CAPACITY_EXCEEDED";
+        ReconciliationItem: {
+            /** Format: int64 */
+            id: number;
+            kind: components["schemas"]["ReconciliationKind"];
+            /** @description The stream spelling: equipment, vessel-call, inventory, cargo-lot or gate-visit */
+            entityType: string;
+            entityId: string;
+            /** Format: uuid */
+            eventId?: string | null;
+            eventType?: string | null;
+            /** @description What the rule saw */
+            detail: {
+                [key: string]: unknown;
+            };
+            /** @enum {string} */
+            status: "OPEN" | "RESOLVED";
+            /** Format: date-time */
+            createdAt?: string | null;
+            resolvedBy?: string | null;
+            /** Format: date-time */
+            resolvedAt?: string | null;
+            note?: string | null;
+        };
+        DeadLetter: {
+            /** Format: int64 */
+            id: number;
+            /** Format: uuid */
+            eventId?: string | null;
+            consumer: string;
+            topic: string;
+            partition: number;
+            /** Format: int64 */
+            offset: number;
+            /** @description The first word of error */
+            reason: string;
+            error: string;
+            attempts: number;
+            /** Format: date-time */
+            createdAt?: string | null;
+            /**
+             * Format: int64
+             * @description Set on a replay attempt
+             */
+            replayOf?: number | null;
+            /** @enum {string} */
+            state: "OPEN" | "REPLAYED" | "REPLAY_FAILED";
+            replays: number;
+            /** Format: int64 */
+            lastReplayId?: number | null;
+            type?: string | null;
+            sourceSystem?: string | null;
+            entityId?: string | null;
+            /** @description The message as received */
+            event?: {
+                [key: string]: unknown;
+            } | null;
+            /** @description Only in the detail */
+            replayAttempts?: components["schemas"]["DeadLetter"][] | null;
         };
         /** @description Carried by stream deltas only; the snapshot counts the open visits */
         GateVisit: {
@@ -1434,6 +1629,8 @@ export interface components {
             observedAt?: string | null;
             /** Format: int64 */
             freshnessSlaS: number;
+            /** Format: int64 */
+            version: number;
         };
         LineageEntry: {
             type: string;
@@ -1859,7 +2056,7 @@ export interface operations {
                 from?: string;
                 to?: string;
                 actor?: string;
-                action?: "ASSET_CREATED" | "ASSET_UPDATED" | "ASSET_DELETED" | "DRAFT_CREATED" | "DRAFT_DISCARDED" | "LAYOUT_PUBLISHED" | "LAYOUT_RESTORED" | "LAYOUT_IMPORTED" | "OVERRIDE_RECORDED" | "INTEGRATION_REPLAYED" | "INTEGRATION_KEY_CREATED" | "INTEGRATION_KEY_ROTATED" | "INTEGRATION_KEY_REVOKED" | "INTEGRATION_MAPPING_CREATED" | "INTEGRATION_MAPPING_CLOSED";
+                action?: "ASSET_CREATED" | "ASSET_UPDATED" | "ASSET_DELETED" | "DRAFT_CREATED" | "DRAFT_DISCARDED" | "LAYOUT_PUBLISHED" | "LAYOUT_RESTORED" | "LAYOUT_IMPORTED" | "OVERRIDE_RECORDED" | "INTEGRATION_REPLAYED" | "INTEGRATION_KEY_CREATED" | "INTEGRATION_KEY_ROTATED" | "INTEGRATION_KEY_REVOKED" | "INTEGRATION_MAPPING_CREATED" | "INTEGRATION_MAPPING_CLOSED" | "RECONCILIATION_RESOLVED" | "DEAD_LETTER_REPLAYED";
                 assetId?: string;
                 limit?: number;
                 before?: number;
@@ -2658,6 +2855,235 @@ export interface operations {
                 };
             };
             /** @description Unknown port */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listReconciliationItems: {
+        parameters: {
+            query?: {
+                status?: "OPEN" | "RESOLVED";
+                kind?: components["schemas"]["ReconciliationKind"];
+            };
+            header?: never;
+            path: {
+                /** @description The port code (case-insensitive) */
+                portId: components["parameters"]["PortId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The items */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconciliationItem"][];
+                };
+            };
+            /** @description Unknown status or kind */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The role is not OPERATOR or ADMIN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown port */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    resolveReconciliationItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The port code (case-insensitive) */
+                portId: components["parameters"]["PortId"];
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    note: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The resolved item */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconciliationItem"];
+                };
+            };
+            /** @description The note is missing, blank or too long */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The role is not OPERATOR or ADMIN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown port or item */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The item is resolved already */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listDeadLetters: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The port code (case-insensitive) */
+                portId: components["parameters"]["PortId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The dead letters */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeadLetter"][];
+                };
+            };
+            /** @description The role is not OPERATOR or ADMIN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown port */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getDeadLetter: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The port code (case-insensitive) */
+                portId: components["parameters"]["PortId"];
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The dead letter */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeadLetter"];
+                };
+            };
+            /** @description The role is not OPERATOR or ADMIN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown port or dead letter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    replayDeadLetter: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The port code (case-insensitive) */
+                portId: components["parameters"]["PortId"];
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The outcome and the new attempt */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        outcome: "APPLIED" | "ALREADY_APPLIED" | "FAILED";
+                        attempt: components["schemas"]["DeadLetter"];
+                    };
+                };
+            };
+            /** @description The dead letter holds no readable event */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The role is not ADMIN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown port, dead letter, or an attempt (only first attempts are replayed) */
             404: {
                 headers: {
                     [name: string]: unknown;

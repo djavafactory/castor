@@ -101,6 +101,26 @@ describe('app shell', () => {
     }
   })
 
+  it('shows the Data quality link to an operator and an admin, hides it from everyone else', async () => {
+    for (const [roles, visible] of [
+      [['OPERATOR'], true],
+      [['ADMIN'], true],
+      [['VIEWER'], false],
+      [['EDITOR', 'PUBLISHER'], false],
+    ] as [Role[], boolean][]) {
+      useAuthStore.getState().clearSession()
+      signInAs(roles)
+      const { unmount } = renderShell()
+      await screen.findByRole('group', { name: 'Mode' })
+
+      const link = screen.queryByRole('link', { name: 'Data quality' })
+
+      if (visible) expect(link).toHaveAttribute('href', '/data-quality')
+      else expect(link).not.toBeInTheDocument()
+      unmount()
+    }
+  })
+
   it('tells a viewer that Design is for editors and stays in Monitor', async () => {
     signInAs(['VIEWER'])
     renderShell()

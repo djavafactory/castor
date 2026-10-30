@@ -33,6 +33,7 @@ public final class LayoutTestSupport {
         "ops.cargo_lot",
         "ops.equipment_status_interval",
         "ops.equipment_state",
+        "ops.vessel_call_value",
         "ops.vessel_call",
         "layout.asset_link",
         "layout.equipment_detail",

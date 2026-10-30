@@ -1,18 +1,26 @@
 package com.djavafactory.castor.core.operations.application;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
+import com.djavafactory.castor.contracts.Quantity;
+import com.djavafactory.castor.core.operations.api.CargoLotDto;
 import com.djavafactory.castor.core.operations.api.EquipmentStateDto;
 import com.djavafactory.castor.core.operations.api.GateVisitDto;
 import com.djavafactory.castor.core.operations.api.InventoryDto;
 import com.djavafactory.castor.core.operations.api.LineageEntryDto;
 import com.djavafactory.castor.core.operations.api.VesselCallDto;
+import com.djavafactory.castor.core.operations.domain.CargoLot;
 import com.djavafactory.castor.core.operations.domain.EquipmentState;
 import com.djavafactory.castor.core.operations.domain.GateVisit;
 import com.djavafactory.castor.core.operations.domain.LineageEntry;
+import com.djavafactory.castor.core.operations.domain.MassConversion;
+import com.djavafactory.castor.core.operations.domain.ObservedLevel;
+import com.djavafactory.castor.core.operations.domain.PublishedAssets;
+import com.djavafactory.castor.core.operations.domain.StorageInventory;
 import com.djavafactory.castor.core.operations.domain.VesselCall;
 import com.djavafactory.castor.core.shared.infrastructure.CastorConfig;
 
@@ -24,14 +32,16 @@ import com.djavafactory.castor.core.shared.infrastructure.CastorConfig;
 public class StateViews {
 
     private final CastorConfig.Sla sla;
+    private final PublishedAssets assets;
 
     @Inject
-    StateViews(CastorConfig castor) {
-        this(castor.state().sla());
+    StateViews(CastorConfig castor, PublishedAssets assets) {
+        this(castor.state().sla(), assets);
     }
 
-    StateViews(CastorConfig.Sla sla) {
+    StateViews(CastorConfig.Sla sla, PublishedAssets assets) {
         this.sla = sla;
+        this.assets = assets;
     }
 
     public EquipmentStateDto equipment(EquipmentState e) {
@@ -76,18 +86,59 @@ public class StateViews {
                 c.version());
     }
 
-    public InventoryDto inventory(com.djavafactory.castor.core.operations.domain.StorageInventory i) {
+    public InventoryDto inventory(StorageInventory i) {
+        Quantity book = i.quantity();
+        ObservedLevel level = i.level();
+        // The mass of a book balance counted in volume uses the density of the last observation of the same tank
+        BigDecimal density = level == null ? null : level.densityKgM3();
+        var capacity = assets.usableCapacity(i.portId(), i.storageAssetId())
+                .map(c -> new InventoryDto.Capacity("KNOWN", c.value(), c.unit()))
+                .orElseGet(InventoryDto.Capacity::unknown);
         return new InventoryDto(
                 i.storageAssetId() + ":" + i.commodity(),
                 i.storageAssetId(),
                 i.commodity(),
-                i.quantity().value(),
-                i.quantity().unit(),
+                book == null ? null : book.value(),
+                book == null ? null : book.unit(),
                 i.quality(),
                 i.source(),
                 i.quantityObservedAt(),
                 sla.inventory().toSeconds(),
-                i.version());
+                i.version(),
+                i.massBasis(),
+                i.needsReconciliation(),
+                capacity,
+                level == null
+                        ? null
+                        : new InventoryDto.Observed(
+                                level.quantity().value(),
+                                level.quantity().unit(),
+                                level.observedAt(),
+                                level.source(),
+                                level.quality(),
+                                level.densityKgM3(),
+                                level.temperatureC()),
+                InventoryDto.Mass.of(MassConversion.tonnes(book, density).orElse(null)),
+                InventoryDto.Mass.of(MassConversion.tonnes(level == null ? null : level.quantity(), density)
+                        .orElse(null)));
+    }
+
+    public CargoLotDto cargoLot(CargoLot l) {
+        return new CargoLotDto(
+                l.id().toString(),
+                l.lotCode(),
+                l.consignmentCode(),
+                l.cargoFamily(),
+                l.commodity(),
+                l.unit(),
+                l.registeredQuantity(),
+                l.massBasis(),
+                l.currentLocationId(),
+                l.quality(),
+                l.source(),
+                l.locationOccurredAt(),
+                sla.inventory().toSeconds(),
+                l.version());
     }
 
     public GateVisitDto gateVisit(GateVisit g) {
@@ -102,7 +153,8 @@ public class StateViews {
                 g.quality(),
                 g.source(),
                 observedAt,
-                sla.gateVisit().toSeconds());
+                sla.gateVisit().toSeconds(),
+                g.version());
     }
 
     public LineageEntryDto lineage(LineageEntry l) {

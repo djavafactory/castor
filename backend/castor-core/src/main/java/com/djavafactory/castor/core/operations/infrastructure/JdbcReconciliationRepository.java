@@ -16,7 +16,7 @@ import com.djavafactory.castor.core.operations.domain.ReconciliationStatus;
 public class JdbcReconciliationRepository implements ReconciliationRepository {
 
     private static final String SELECT = "select id, port_id, kind, entity_type, entity_id, event_id, detail, status, "
-            + "resolved_by, note from ops.reconciliation_item ";
+            + "resolved_by, note, created_at, resolved_at from ops.reconciliation_item ";
 
     private final OpsSql sql;
 
@@ -26,19 +26,21 @@ public class JdbcReconciliationRepository implements ReconciliationRepository {
 
     @Override
     public ReconciliationItem open(ReconciliationItem i) {
-        long id = sql.queryOne(
-                        "insert into ops.reconciliation_item (port_id, kind, entity_type, entity_id, event_id, detail) "
-                                + "values (?, ?, ?, ?, ?, ?::jsonb) returning id",
-                        r -> r.lng("id"),
+        Object[] id = sql.queryOne(
+                        "insert into ops.reconciliation_item (port_id, kind, entity_type, entity_id, event_id, detail, "
+                                + "created_at) values (?, ?, ?, ?, ?, ?::jsonb, coalesce(?, now())) "
+                                + "returning id, created_at",
+                        r -> new Object[] {r.lng("id"), r.instant("created_at")},
                         i.portId(),
                         i.kind(),
                         i.entityType(),
                         i.entityId(),
                         i.eventId(),
-                        i.detail() == null ? java.util.Map.of() : i.detail())
+                        i.detail() == null ? java.util.Map.of() : i.detail(),
+                        i.createdAt())
                 .orElseThrow();
         return new ReconciliationItem(
-                id,
+                (Long) id[0],
                 i.portId(),
                 i.kind(),
                 i.entityType(),
@@ -47,6 +49,8 @@ public class JdbcReconciliationRepository implements ReconciliationRepository {
                 i.detail(),
                 ReconciliationStatus.OPEN,
                 null,
+                null,
+                (Instant) id[1],
                 null);
     }
 
@@ -56,13 +60,32 @@ public class JdbcReconciliationRepository implements ReconciliationRepository {
     }
 
     @Override
-    public List<ReconciliationItem> findByStatus(long portId, ReconciliationStatus status, int limit) {
+    public List<ReconciliationItem> findByStatus(
+            long portId, ReconciliationStatus status, ReconciliationKind kind, int limit) {
         return sql.query(
-                SELECT + "where port_id = ? and status = ? order by created_at desc, id desc limit ?",
+                SELECT + "where port_id = ? and status = ? and (?::text is null or kind = ?::text) "
+                        + "order by created_at desc, id desc limit ?",
                 JdbcReconciliationRepository::map,
                 portId,
                 status,
+                kind == null ? null : kind.name(),
+                kind == null ? null : kind.name(),
                 limit);
+    }
+
+    @Override
+    public boolean hasOpen(long portId, ReconciliationKind kind, String entityType, String entityId, String field) {
+        return !sql.query(
+                        "select 1 as one from ops.reconciliation_item where port_id = ? and kind = ? "
+                                + "and entity_type = ? and entity_id = ? and status = 'OPEN' "
+                                + "and detail ->> 'field' = ? limit 1",
+                        r -> 1,
+                        portId,
+                        kind,
+                        entityType,
+                        entityId,
+                        field)
+                .isEmpty();
     }
 
     @Override
@@ -88,6 +111,8 @@ public class JdbcReconciliationRepository implements ReconciliationRepository {
                 r.jsonObject("detail"),
                 r.enumOf(ReconciliationStatus.class, "status"),
                 r.text("resolved_by"),
-                r.text("note"));
+                r.text("note"),
+                r.instant("created_at"),
+                r.instant("resolved_at"));
     }
 }

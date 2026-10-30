@@ -266,7 +266,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [ASSET_CREATED, ASSET_UPDATED, ASSET_DELETED, DRAFT_CREATED, DRAFT_DISCARDED, LAYOUT_PUBLISHED, LAYOUT_RESTORED, LAYOUT_IMPORTED, OVERRIDE_RECORDED, INTEGRATION_REPLAYED, INTEGRATION_KEY_CREATED, INTEGRATION_KEY_ROTATED, INTEGRATION_KEY_REVOKED, INTEGRATION_MAPPING_CREATED, INTEGRATION_MAPPING_CLOSED]
+            enum: [ASSET_CREATED, ASSET_UPDATED, ASSET_DELETED, DRAFT_CREATED, DRAFT_DISCARDED, LAYOUT_PUBLISHED, LAYOUT_RESTORED, LAYOUT_IMPORTED, OVERRIDE_RECORDED, INTEGRATION_REPLAYED, INTEGRATION_KEY_CREATED, INTEGRATION_KEY_ROTATED, INTEGRATION_KEY_REVOKED, INTEGRATION_MAPPING_CREATED, INTEGRATION_MAPPING_CLOSED, RECONCILIATION_RESOLVED, DEAD_LETTER_REPLAYED]
         - {name: assetId, in: query, schema: {type: string}}
         - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
         - {name: before, in: query, schema: {type: integer, format: int64}}
@@ -726,6 +726,130 @@ paths:
                   expiresAt: {type: string, format: date-time}
         '404':
           description: Unknown port
+  /api/v1/ports/{portId}/reconciliation-items:
+    get:
+      operationId: listReconciliationItems
+      summary: Review items the projections opened, newest first, at most 500 (OPERATOR, ADMIN)
+      description: Stale events, source conflicts, balances that would go below zero and stock above capacity. status defaults to OPEN.
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/PortId'
+        - {name: status, in: query, required: false, schema: {type: string, enum: [OPEN, RESOLVED], default: OPEN}}
+        - {name: kind, in: query, required: false, schema: {$ref: '#/components/schemas/ReconciliationKind'}}
+      responses:
+        '200':
+          description: The items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReconciliationItem'
+        '400':
+          description: Unknown status or kind
+        '403':
+          description: The role is not OPERATOR or ADMIN
+        '404':
+          description: Unknown port
+  /api/v1/ports/{portId}/reconciliation-items/{id}/resolve:
+    post:
+      operationId: resolveReconciliationItem
+      summary: Resolve an item with a note (OPERATOR, ADMIN)
+      description: Records the human decision (who, when, the note) and nothing else; data changes go through inventory.adjusted events. Audited as RECONCILIATION_RESOLVED.
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/PortId'
+        - {name: id, in: path, required: true, schema: {type: integer, format: int64}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [note]
+              properties:
+                note: {type: string, minLength: 1, maxLength: 2000}
+      responses:
+        '200':
+          description: The resolved item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReconciliationItem'
+        '400':
+          description: The note is missing, blank or too long
+        '403':
+          description: The role is not OPERATOR or ADMIN
+        '404':
+          description: Unknown port or item
+        '409':
+          description: The item is resolved already
+  /api/v1/ports/{portId}/dead-letters:
+    get:
+      operationId: listDeadLetters
+      summary: Events the projector gave up on, newest first (OPERATOR, ADMIN)
+      description: First attempts only, each with the state of its replays.
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/PortId'
+      responses:
+        '200':
+          description: The dead letters
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeadLetter'
+        '403':
+          description: The role is not OPERATOR or ADMIN
+        '404':
+          description: Unknown port
+  /api/v1/ports/{portId}/dead-letters/{id}:
+    get:
+      operationId: getDeadLetter
+      summary: One dead letter with every replay attempt linked to it (OPERATOR, ADMIN)
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/PortId'
+        - {name: id, in: path, required: true, schema: {type: integer, format: int64}}
+      responses:
+        '200':
+          description: The dead letter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeadLetter'
+        '403':
+          description: The role is not OPERATOR or ADMIN
+        '404':
+          description: Unknown port or dead letter
+  /api/v1/ports/{portId}/dead-letters/{id}/replay:
+    post:
+      operationId: replayDeadLetter
+      summary: Apply the stored event again (ADMIN)
+      description: A new attempt linked to the dead letter by replayOf; the original is never changed or deleted. A replay that fails again is a dead letter of its own. Audited as DEAD_LETTER_REPLAYED, whatever the outcome.
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/PortId'
+        - {name: id, in: path, required: true, schema: {type: integer, format: int64}}
+      responses:
+        '200':
+          description: The outcome and the new attempt
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [outcome, attempt]
+                properties:
+                  outcome: {type: string, enum: [APPLIED, ALREADY_APPLIED, FAILED]}
+                  attempt: {$ref: '#/components/schemas/DeadLetter'}
+        '400':
+          description: The dead letter holds no readable event
+        '403':
+          description: The role is not ADMIN
+        '404':
+          description: Unknown port, dead letter, or an attempt (only first attempts are replayed)
   /api/v1/layouts/{layoutId}:
     delete:
       operationId: discardDraftLayout
@@ -2304,22 +2428,96 @@ components:
         version: {type: integer, format: int64}
     Inventory:
       type: object
-      required: [id, storageAssetId, commodity, quantity, unit, quality, source, observedAt, freshnessSlaS, version]
+      description: The book balance, the measured level and the usable capacity are separate; each is null or UNKNOWN when it cannot be known (R3), and units are never converted (R4)
+      required: [id, storageAssetId, commodity, unit, quality, source, observedAt, freshnessSlaS, version, needsReconciliation, capacity, bookMass, observedMass]
       properties:
         id: {type: string, description: storageAssetId and commodity joined by a colon}
         storageAssetId: {type: string, format: uuid}
         commodity: {type: string}
-        quantity: {type: number}
-        unit: {type: string, enum: [TONNES, PIECES, CUBIC_METRES, VEHICLES]}
+        quantity: {type: number, nullable: true, description: The book balance; null while no movement was recorded}
+        unit: {type: string, nullable: true, enum: [TONNES, PIECES, CUBIC_METRES, VEHICLES]}
         quality: {$ref: '#/components/schemas/Quality'}
         source: {type: string}
         observedAt: {type: string, format: date-time}
         freshnessSlaS: {type: integer, format: int64}
         version: {type: integer, format: int64}
+        massBasis: {type: string, nullable: true, enum: [WET, DRY], description: Wet and dry tonnes are never added together}
+        needsReconciliation: {type: boolean, description: A movement would have taken the balance below zero and was not applied}
+        capacity:
+          type: object
+          required: [status]
+          properties:
+            status: {type: string, enum: [KNOWN, UNKNOWN]}
+            value: {type: number, nullable: true, description: Capacity times usable ratio from the published layout}
+            unit: {type: string, nullable: true, enum: [TONNES, PIECES, CUBIC_METRES, VEHICLES]}
+        observed:
+          type: object
+          nullable: true
+          description: What a tank or silo sensor last read
+          required: [quantity, unit, observedAt, source, quality]
+          properties:
+            quantity: {type: number}
+            unit: {type: string, enum: [TONNES, PIECES, CUBIC_METRES, VEHICLES]}
+            observedAt: {type: string, format: date-time}
+            source: {type: string}
+            quality: {$ref: '#/components/schemas/Quality'}
+            densityKgM3: {type: number, nullable: true}
+            temperatureC: {type: number, nullable: true}
+        bookMass: {$ref: '#/components/schemas/Mass'}
+        observedMass: {$ref: '#/components/schemas/Mass'}
+    Mass:
+      type: object
+      description: A mass in tonnes. A volume has one only with a density from the event; UNKNOWN has no value.
+      required: [status]
+      properties:
+        status: {type: string, enum: [KNOWN, UNKNOWN]}
+        tonnes: {type: number, nullable: true}
+    ReconciliationKind:
+      type: string
+      enum: [STALE_EVENT, SOURCE_CONFLICT, NEGATIVE_BALANCE, CAPACITY_EXCEEDED]
+    ReconciliationItem:
+      type: object
+      required: [id, kind, entityType, entityId, detail, status]
+      properties:
+        id: {type: integer, format: int64}
+        kind: {$ref: '#/components/schemas/ReconciliationKind'}
+        entityType: {type: string, description: 'The stream spelling: equipment, vessel-call, inventory, cargo-lot or gate-visit'}
+        entityId: {type: string}
+        eventId: {type: string, format: uuid, nullable: true}
+        eventType: {type: string, nullable: true}
+        detail: {type: object, additionalProperties: true, description: What the rule saw}
+        status: {type: string, enum: [OPEN, RESOLVED]}
+        createdAt: {type: string, format: date-time, nullable: true}
+        resolvedBy: {type: string, nullable: true}
+        resolvedAt: {type: string, format: date-time, nullable: true}
+        note: {type: string, nullable: true}
+    DeadLetter:
+      type: object
+      required: [id, consumer, topic, partition, offset, reason, error, attempts, state, replays]
+      properties:
+        id: {type: integer, format: int64}
+        eventId: {type: string, format: uuid, nullable: true}
+        consumer: {type: string}
+        topic: {type: string}
+        partition: {type: integer}
+        offset: {type: integer, format: int64}
+        reason: {type: string, description: The first word of error}
+        error: {type: string}
+        attempts: {type: integer}
+        createdAt: {type: string, format: date-time, nullable: true}
+        replayOf: {type: integer, format: int64, nullable: true, description: Set on a replay attempt}
+        state: {type: string, enum: [OPEN, REPLAYED, REPLAY_FAILED]}
+        replays: {type: integer}
+        lastReplayId: {type: integer, format: int64, nullable: true}
+        type: {type: string, nullable: true}
+        sourceSystem: {type: string, nullable: true}
+        entityId: {type: string, nullable: true}
+        event: {type: object, nullable: true, additionalProperties: true, description: The message as received}
+        replayAttempts: {type: array, nullable: true, items: {$ref: '#/components/schemas/DeadLetter'}, description: Only in the detail}
     GateVisit:
       type: object
       description: Carried by stream deltas only; the snapshot counts the open visits
-      required: [id, truckVisitId, gateAssetId, quality, source, freshnessSlaS]
+      required: [id, truckVisitId, gateAssetId, quality, source, freshnessSlaS, version]
       properties:
         id: {type: string, description: truckVisitId and gateAssetId joined by a colon}
         truckVisitId: {type: string}
@@ -2331,6 +2529,7 @@ components:
         source: {type: string}
         observedAt: {type: string, format: date-time, nullable: true}
         freshnessSlaS: {type: integer, format: int64}
+        version: {type: integer, format: int64}
     LineageEntry:
       type: object
       required: [type, occurredAt, source, quality]

@@ -74,6 +74,12 @@ export function IntegrationsPage() {
           >
             Integrations
           </Link>
+          <Link
+            to="/data-quality"
+            className="rounded-full px-3 py-1 text-[13px] font-medium hover:bg-paper-2"
+          >
+            Data quality
+          </Link>
         </nav>
         <span className="ml-auto text-sm font-medium">{username}</span>
       </header>

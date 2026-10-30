@@ -149,7 +149,7 @@ class DeadLetterIT {
     void anEventNamingAnUnknownPortAssetOrTypeIsDeadLetteredWithItsReasonAndNothingElseHappens() {
         CanonicalEvent unknownPort = events.port(events.status(layout.crane(), "IDLE", null), "nowhere");
         CanonicalEvent unknownAsset = events.status(UUID.randomUUID(), "IDLE", null);
-        CanonicalEvent unknownType = events.type(events.status(layout.crane(), "IDLE", null), "cargo.lot.registered");
+        CanonicalEvent unknownType = events.type(events.status(layout.crane(), "IDLE", null), "flow.rate.observed");
         CanonicalEvent madeUpType = events.type(events.status(layout.crane(), "IDLE", null), "made.up");
         CanonicalEvent outside = events.position(layout.crane(), 0.0, 0.0, null, 1);
         CanonicalEvent berthIsNotABerth = events.vesselCall("C1", "ALONGSIDE", layout.pad());
@@ -179,18 +179,11 @@ class DeadLetterIT {
 
     @Test
     void typesWithoutAHandlerYetAreUnknownTypeUntilTheyAreRegistered() {
-        for (String type : List.of(
-                "cargo.lot.registered",
-                "cargo.lot.moved",
-                "storage.level.observed",
-                "inventory.adjusted",
-                "gate.transaction",
-                "flow.rate.observed",
-                "truck.approach.observed")) {
+        for (String type : List.of("flow.rate.observed", "truck.approach.observed")) {
             process(TestEvents.bytes(events.type(events.status(layout.crane(), "IDLE", null), type)));
         }
 
-        assertEquals(7, count(dataSource, "select count(*) from ops.dead_letter where error like 'UNKNOWN_TYPE:%'"));
+        assertEquals(2, count(dataSource, "select count(*) from ops.dead_letter where error like 'UNKNOWN_TYPE:%'"));
     }
 
     @Test

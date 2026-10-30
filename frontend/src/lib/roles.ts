@@ -19,3 +19,13 @@ export function canViewIntegrations(roles: readonly Role[]): boolean {
 export function canAdministerIntegrations(roles: readonly Role[]): boolean {
   return roles.includes('ADMIN')
 }
+
+/** The Data quality panel (review items, dead letters) is for OPERATOR; ADMIN can do everything. */
+export function canViewDataQuality(roles: readonly Role[]): boolean {
+  return roles.includes('OPERATOR') || roles.includes('ADMIN')
+}
+
+/** Replaying a dead letter applies an event again: ADMIN only. */
+export function canReplayDeadLetters(roles: readonly Role[]): boolean {
+  return roles.includes('ADMIN')
+}

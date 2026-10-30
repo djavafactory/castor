@@ -1,6 +1,6 @@
 import { createBrowserRouter, redirect } from 'react-router'
 import { getEnv } from '@/lib/env'
-import { canViewIntegrations } from '@/lib/roles'
+import { canViewDataQuality, canViewIntegrations } from '@/lib/roles'
 import { useAuthStore } from '@/lib/stores/auth-store'
 
 function requireSession() {
@@ -21,6 +21,13 @@ function integrationsOnly() {
   return null
 }
 
+/** Data quality is for OPERATOR and ADMIN; anyone else is sent back to the port. */
+function dataQualityOnly() {
+  requireSession()
+  if (!canViewDataQuality(useAuthStore.getState().roles)) throw redirect('/')
+  return null
+}
+
 // Route-level code splitting: each route module is its own chunk.
 export const router = createBrowserRouter([
   {
@@ -38,6 +45,14 @@ export const router = createBrowserRouter([
     lazy: () =>
       import('@/features/integrations/integrations-page').then((m) => ({
         Component: m.IntegrationsPage,
+      })),
+  },
+  {
+    path: '/data-quality',
+    loader: dataQualityOnly,
+    lazy: () =>
+      import('@/features/data-quality/data-quality-page').then((m) => ({
+        Component: m.DataQualityPage,
       })),
   },
   {

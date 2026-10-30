@@ -1,5 +1,6 @@
 package com.djavafactory.castor.core.operations.infrastructure;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -11,6 +12,8 @@ import com.djavafactory.castor.contracts.Quantity;
 import com.djavafactory.castor.contracts.Unit;
 import com.djavafactory.castor.core.operations.domain.InventoryAdjustment;
 import com.djavafactory.castor.core.operations.domain.InventoryRepository;
+import com.djavafactory.castor.core.operations.domain.MassBasis;
+import com.djavafactory.castor.core.operations.domain.ObservedLevel;
 import com.djavafactory.castor.core.operations.domain.StorageInventory;
 import com.djavafactory.castor.core.shared.domain.ConflictException;
 
@@ -19,7 +22,9 @@ import com.djavafactory.castor.core.shared.domain.ConflictException;
 public class JdbcInventoryRepository implements InventoryRepository {
 
     static final String SELECT = "select port_id, storage_asset_id, commodity, unit, quantity, "
-            + "quantity_observed_at, source, quality, version from ops.storage_inventory ";
+            + "quantity_observed_at, source, quality, version, mass_basis, needs_reconciliation, level_quantity, "
+            + "level_unit, level_at, level_source, level_quality, level_density_kg_m3, level_temperature_c "
+            + "from ops.storage_inventory ";
     private static final String BY_KEY = "where port_id = ? and storage_asset_id = ? and commodity = ?";
 
     private final OpsSql sql;
@@ -50,30 +55,54 @@ public class JdbcInventoryRepository implements InventoryRepository {
 
     @Override
     public StorageInventory insert(StorageInventory i) {
+        ObservedLevel l = i.level();
         sql.update(
                 "insert into ops.storage_inventory (port_id, storage_asset_id, commodity, unit, quantity, "
-                        + "quantity_observed_at, source, quality, version) values (?, ?, ?, ?, ?, ?, ?, ?, 0)",
+                        + "quantity_observed_at, source, quality, version, mass_basis, needs_reconciliation, "
+                        + "level_quantity, level_unit, level_at, level_source, level_quality, level_density_kg_m3, "
+                        + "level_temperature_c) values (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 i.portId(),
                 i.storageAssetId(),
                 i.commodity(),
-                i.quantity().unit(),
-                i.quantity().value(),
+                unit(i),
+                i.quantity() == null ? null : i.quantity().value(),
                 i.quantityObservedAt(),
                 i.source(),
-                i.quality());
+                i.quality(),
+                i.massBasis(),
+                i.needsReconciliation(),
+                l == null ? null : l.quantity().value(),
+                l == null ? null : l.quantity().unit(),
+                l == null ? null : l.observedAt(),
+                l == null ? null : l.source(),
+                l == null ? null : l.quality(),
+                l == null ? null : l.densityKgM3(),
+                l == null ? null : l.temperatureC());
         return withVersion(i, 0);
     }
 
     @Override
     public StorageInventory update(StorageInventory i) {
+        ObservedLevel l = i.level();
         int rows = sql.update(
                 "update ops.storage_inventory set unit = ?, quantity = ?, quantity_observed_at = ?, source = ?, "
-                        + "quality = ?, version = version + 1 " + BY_KEY + " and version = ?",
-                i.quantity().unit(),
-                i.quantity().value(),
+                        + "quality = ?, mass_basis = ?, needs_reconciliation = ?, level_quantity = ?, level_unit = ?, "
+                        + "level_at = ?, level_source = ?, level_quality = ?, level_density_kg_m3 = ?, "
+                        + "level_temperature_c = ?, version = version + 1 " + BY_KEY + " and version = ?",
+                unit(i),
+                i.quantity() == null ? null : i.quantity().value(),
                 i.quantityObservedAt(),
                 i.source(),
                 i.quality(),
+                i.massBasis(),
+                i.needsReconciliation(),
+                l == null ? null : l.quantity().value(),
+                l == null ? null : l.quantity().unit(),
+                l == null ? null : l.observedAt(),
+                l == null ? null : l.source(),
+                l == null ? null : l.quality(),
+                l == null ? null : l.densityKgM3(),
+                l == null ? null : l.temperatureC(),
                 i.portId(),
                 i.storageAssetId(),
                 i.commodity(),
@@ -82,6 +111,11 @@ public class JdbcInventoryRepository implements InventoryRepository {
             throw new ConflictException("Inventory of " + i.commodity() + " changed since version " + i.version());
         }
         return withVersion(i, i.version() + 1);
+    }
+
+    /** The unit column is the book unit, or the unit of the first observation while no book exists yet. */
+    private static Unit unit(StorageInventory i) {
+        return i.quantity() != null ? i.quantity().unit() : i.level().quantity().unit();
     }
 
     @Override
@@ -128,18 +162,35 @@ public class JdbcInventoryRepository implements InventoryRepository {
                 i.quantityObservedAt(),
                 i.source(),
                 i.quality(),
-                version);
+                version,
+                i.massBasis(),
+                i.needsReconciliation(),
+                i.level());
     }
 
     static StorageInventory map(OpsSql.Row r) {
+        BigDecimal book = r.decimal("quantity");
+        String basis = r.text("mass_basis");
+        ObservedLevel level = r.decimal("level_quantity") == null
+                ? null
+                : new ObservedLevel(
+                        new Quantity(r.decimal("level_quantity"), Unit.parse(r.text("level_unit"))),
+                        r.instant("level_at"),
+                        r.text("level_source"),
+                        Quality.valueOf(r.text("level_quality")),
+                        r.decimal("level_density_kg_m3"),
+                        r.decimal("level_temperature_c"));
         return new StorageInventory(
                 r.lng("port_id"),
                 r.uuid("storage_asset_id"),
                 r.text("commodity"),
-                new Quantity(r.decimal("quantity"), Unit.parse(r.text("unit"))),
+                book == null ? null : new Quantity(book, Unit.parse(r.text("unit"))),
                 r.instant("quantity_observed_at"),
                 r.text("source"),
                 Quality.valueOf(r.text("quality")),
-                r.lng("version"));
+                r.lng("version"),
+                basis == null ? null : MassBasis.valueOf(basis),
+                r.bool("needs_reconciliation"),
+                level);
     }
 }

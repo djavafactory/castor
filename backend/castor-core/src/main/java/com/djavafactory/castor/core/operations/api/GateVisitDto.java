@@ -19,4 +19,5 @@ public record GateVisitDto(
         Quality quality,
         String source,
         Instant observedAt,
-        long freshnessSlaS) {}
+        long freshnessSlaS,
+        long version) {}

@@ -49,12 +49,35 @@ export const vesselCallSchema = z.object({
   berthAssetId: text,
 })
 
+/** A mass in tonnes: UNKNOWN has no value (R3), a volume needs a density to have one. */
+const massSchema = z.object({ status: z.string(), tonnes: num })
+
 export const inventorySchema = z.object({
   ...itemBase,
   storageAssetId: text,
   commodity: text,
+  /** The book balance; null while no movement was recorded (unknown, never 0). */
   quantity: num,
   unit: text,
+  massBasis: text,
+  /** A movement that would have gone below zero left the balance as it was: a person has to look. */
+  needsReconciliation: z.boolean().optional(),
+  /** The usable capacity of the area in the published layout; `status` is KNOWN or UNKNOWN. */
+  capacity: z.object({ status: z.string(), value: num, unit: text }).nullish(),
+  /** What a tank or silo sensor last read, next to the book balance and never in place of it. */
+  observed: z
+    .object({
+      quantity: num,
+      unit: text,
+      observedAt: text,
+      source: text,
+      quality: text,
+      densityKgM3: num,
+      temperatureC: num,
+    })
+    .nullish(),
+  bookMass: massSchema.nullish(),
+  observedMass: massSchema.nullish(),
 })
 
 export const gateVisitSchema = z.object({

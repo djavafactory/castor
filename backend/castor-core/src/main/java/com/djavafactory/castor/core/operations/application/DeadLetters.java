@@ -47,6 +47,12 @@ public class DeadLetters {
     }
 
     public DeadLetter record(IncomingRecord record, DeadLetterReason reason, String cause, int attempts) {
+        return record(record, reason, cause, attempts, null);
+    }
+
+    /** {@code replayOf} is the dead letter this one is a new attempt of; the original is never changed. */
+    public DeadLetter record(
+            IncomingRecord record, DeadLetterReason reason, String cause, int attempts, Long replayOf) {
         String text = new String(record.value(), StandardCharsets.UTF_8);
         CanonicalEvent event = decode(text);
         Map<String, Object> body = body(text);
@@ -68,10 +74,13 @@ public class DeadLetters {
                         error,
                         attempts,
                         body,
-                        null)));
+                        replayOf)));
 
         Map<String, Object> message = new LinkedHashMap<>();
         message.put("deadLetterId", stored.id());
+        if (replayOf != null) {
+            message.put("replayOf", replayOf);
+        }
         message.put("consumer", EventApplier.CONSUMER);
         message.put("reason", reason.name());
         message.put("cause", cause);

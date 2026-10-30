@@ -16,7 +16,20 @@ public final class ProjectionTestSupport {
 
     public static final double LAT = 2.9534057;
 
-    public record Layout(long port, UUID crane, UUID berth, UUID pad, List<UUID> cranes) {}
+    /**
+     * {@code yard} is a storage area with no capacity in the layout, {@code shed} one with a usable capacity of 100 t,
+     * {@code tank} a liquid tank of 1,000 m3 and {@code gate} a gate.
+     */
+    public record Layout(
+            long port,
+            UUID crane,
+            UUID berth,
+            UUID pad,
+            List<UUID> cranes,
+            UUID yard,
+            UUID shed,
+            UUID tank,
+            UUID gate) {}
 
     private ProjectionTestSupport() {}
 
@@ -33,6 +46,12 @@ public final class ProjectionTestSupport {
             UUID version = LayoutTestSupport.version(c, 1, "PUBLISHED");
             UUID berth = place(c, version, "B1", "BERTH", 0);
             UUID pad = place(c, version, "PAD1", "STORAGE_PAD", 1);
+            UUID yard = place(c, version, "YARD1", "LAYDOWN_YARD", 8);
+            UUID shed = place(c, version, "SHED1", "TRANSIT_SHED", 9);
+            UUID tank = place(c, version, "TK1", "LIQUID_TANK", 10);
+            UUID gate = place(c, version, "G1", "GATE", 11);
+            capacity(c, shed, version, "100", "t");
+            capacity(c, tank, version, "1000", "m3");
             List<UUID> machines = new ArrayList<>();
             for (int i = 0; i < Math.max(1, cranes); i++) {
                 machines.add(place(c, version, "STS" + (i + 1), "STS_CRANE", 2 + i));
@@ -41,7 +60,7 @@ public final class ProjectionTestSupport {
                 s.executeUpdate("update ref.port set current_published_layout_id = '" + version + "'");
             }
             c.commit();
-            return new Layout(port, machines.get(0), berth, pad, machines);
+            return new Layout(port, machines.get(0), berth, pad, machines, yard, shed, tank, gate);
         } catch (SQLException e) {
             throw new IllegalStateException("Could not publish the test layout", e);
         }
@@ -60,8 +79,14 @@ public final class ProjectionTestSupport {
                     "ops.state_change",
                     "ops.processed_event",
                     "ops.canonical_event",
+                    "ops.gate_visit",
+                    "ops.inventory_adjustment",
+                    "ops.storage_inventory",
+                    "ops.cargo_movement",
+                    "ops.cargo_lot",
                     "ops.equipment_status_interval",
                     "ops.equipment_state",
+                    "ops.vessel_call_value",
                     "ops.vessel_call"
                 }) {
                     s.executeUpdate("delete from " + table);
@@ -128,6 +153,14 @@ public final class ProjectionTestSupport {
         all.add("canonical " + count(dataSource, "select count(*) from ops.canonical_event"));
         all.add("dead " + count(dataSource, "select count(*) from ops.dead_letter"));
         return all;
+    }
+
+    private static void capacity(Connection c, UUID asset, UUID version, String value, String unit)
+            throws SQLException {
+        try (var s = c.createStatement()) {
+            s.executeUpdate("insert into layout.storage_detail (asset_id, layout_version_id, capacity_value, "
+                    + "capacity_unit) values ('" + asset + "', '" + version + "', " + value + ", '" + unit + "')");
+        }
     }
 
     private static UUID place(Connection c, UUID version, String code, String type, int slot) throws SQLException {

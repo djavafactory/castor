@@ -1,5 +1,8 @@
 package com.djavafactory.castor.core.operations.infrastructure;
 
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -51,6 +54,20 @@ public class JdbcEventLogRepository implements EventLogRepository {
                         Quality.valueOf(r.text("quality")),
                         r.jsonObject("body")),
                 eventId);
+    }
+
+    @Override
+    public Map<UUID, String> types(Collection<UUID> eventIds) {
+        Map<UUID, String> types = new HashMap<>();
+        if (eventIds.isEmpty()) {
+            return types;
+        }
+        String marks = String.join(", ", java.util.Collections.nCopies(eventIds.size(), "?"));
+        sql.query(
+                "select event_id, type from ops.canonical_event where event_id in (" + marks + ")",
+                r -> types.put(r.uuid("event_id"), r.text("type")),
+                eventIds.toArray());
+        return types;
     }
 
     @Override

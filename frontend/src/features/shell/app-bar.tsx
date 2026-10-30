@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { reportLogout } from '@/lib/auth-api'
-import { canDesign, canViewIntegrations } from '@/lib/roles'
+import { canDesign, canViewDataQuality, canViewIntegrations } from '@/lib/roles'
 import { useAuthStore, type Role } from '@/lib/stores/auth-store'
 import { useEditorStore } from '@/lib/stores/editor-store'
 import { useSelectionStore } from '@/lib/stores/selection-store'
@@ -43,6 +43,7 @@ export function AppBar() {
       )}
       <ModeSwitch />
       <IntegrationsLink />
+      <DataQualityLink />
       <LayoutStatusBadge />
       <div className="ml-auto flex items-center gap-3">
         {mode === 'monitor' && <ConnectionChip />}
@@ -62,6 +63,20 @@ function IntegrationsLink() {
       className="rounded-full px-3 py-1 text-[13px] font-medium hover:bg-paper-2"
     >
       Integrations
+    </Link>
+  )
+}
+
+/** The Data quality panel (review items, dead letters): OPERATOR and ADMIN only, hidden for everyone else. */
+function DataQualityLink() {
+  const roles = useAuthStore((s) => s.roles)
+  if (!canViewDataQuality(roles)) return null
+  return (
+    <Link
+      to="/data-quality"
+      className="rounded-full px-3 py-1 text-[13px] font-medium hover:bg-paper-2"
+    >
+      Data quality
     </Link>
   )
 }

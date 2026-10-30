@@ -89,6 +89,77 @@ public final class TestEvents {
         return event("vessel.call.updated", "VESSEL_CALL", callCode, clock.instant(), null, payload);
     }
 
+    /** A call update from the source that reports one milestone or field of the call (the others stay unset). */
+    public CanonicalEvent callField(String source, String callCode, String field, String value) {
+        ObjectNode payload = payload().put("callCode", callCode).put(field, value);
+        return source(event("vessel.call.updated", "VESSEL_CALL", callCode, clock.instant(), null, payload), source);
+    }
+
+    /** The lot is registered under the canonical id {@code lotId}, which a later movement names. */
+    public CanonicalEvent lotRegistered(
+            String lotId, String family, String commodity, String unit, double quantity, String massBasis) {
+        ObjectNode payload = payload()
+                .put("lotCode", lotId)
+                .put("cargoFamily", family)
+                .put("commodity", commodity)
+                .put("unit", unit)
+                .put("quantity", quantity);
+        if (massBasis != null) {
+            payload.put("massBasis", massBasis);
+        }
+        return event("cargo.lot.registered", "CARGO_LOT", lotId, clock.instant(), null, payload);
+    }
+
+    public CanonicalEvent lotMoved(String lotId, Object from, Object to, double quantity, String unit) {
+        ObjectNode payload = payload()
+                .put("lotId", lotId)
+                .put("fromId", from.toString())
+                .put("toId", to.toString())
+                .put("quantity", quantity)
+                .put("unit", unit);
+        return event("cargo.lot.moved", "CARGO_LOT", lotId, clock.instant(), null, payload);
+    }
+
+    public CanonicalEvent storageLevel(
+            Object storage, String commodity, double quantity, String unit, Double densityKgM3, Double temperatureC) {
+        ObjectNode payload = payload()
+                .put("storageId", storage.toString())
+                .put("commodity", commodity)
+                .put("quantity", quantity)
+                .put("unit", unit);
+        if (densityKgM3 != null) {
+            payload.put("densityKgM3", densityKgM3);
+        }
+        if (temperatureC != null) {
+            payload.put("temperatureC", temperatureC);
+        }
+        return event("storage.level.observed", "STORAGE", storage.toString(), clock.instant(), null, payload);
+    }
+
+    public CanonicalEvent inventoryAdjusted(
+            Object storage, String commodity, double delta, String unit, String reason) {
+        ObjectNode payload = payload()
+                .put("storageId", storage.toString())
+                .put("delta", delta)
+                .put("unit", unit)
+                .put("reason", reason);
+        if (commodity != null) {
+            payload.put("commodity", commodity);
+        }
+        return event("inventory.adjusted", "STORAGE", storage.toString(), clock.instant(), null, payload);
+    }
+
+    public CanonicalEvent gate(String truckVisit, Object gate, String direction, String lane) {
+        ObjectNode payload = payload()
+                .put("truckVisitId", truckVisit)
+                .put("gateId", gate.toString())
+                .put("direction", direction);
+        if (lane != null) {
+            payload.put("lane", lane);
+        }
+        return event("gate.transaction", "GATE", gate.toString(), clock.instant(), null, payload);
+    }
+
     public CanonicalEvent withPayload(CanonicalEvent e, ObjectNode payload) {
         return copy(e, e.type(), e.entityId(), e.occurredAt(), e.sourceSequence(), payload);
     }

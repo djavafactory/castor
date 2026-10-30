@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { canAdministerIntegrations, canDesign, canPublish, canViewIntegrations } from './roles'
+import {
+  canAdministerIntegrations,
+  canDesign,
+  canPublish,
+  canReplayDeadLetters,
+  canViewDataQuality,
+  canViewIntegrations,
+} from './roles'
 
 describe('roles', () => {
   it('lets an operator or an admin look at the integrations, nobody else', () => {
@@ -13,6 +20,14 @@ describe('roles', () => {
     expect(canAdministerIntegrations(['ADMIN'])).toBe(true)
     expect(canAdministerIntegrations(['OPERATOR'])).toBe(false)
     expect(canAdministerIntegrations(['VIEWER'])).toBe(false)
+  })
+
+  it('shows the Data quality panel to an operator or an admin and lets only an admin replay', () => {
+    expect(canViewDataQuality(['OPERATOR'])).toBe(true)
+    expect(canViewDataQuality(['ADMIN'])).toBe(true)
+    expect(canViewDataQuality(['VIEWER', 'EDITOR', 'PUBLISHER'])).toBe(false)
+    expect(canReplayDeadLetters(['ADMIN'])).toBe(true)
+    expect(canReplayDeadLetters(['OPERATOR'])).toBe(false)
   })
 
   it('keeps the designer and publisher rules', () => {

@@ -8,19 +8,16 @@ import jakarta.enterprise.context.ApplicationScoped;
 
 import com.djavafactory.castor.core.operations.domain.EventOrder;
 import com.djavafactory.castor.core.operations.domain.Provenance;
-import com.djavafactory.castor.core.operations.domain.ReconciliationItem;
 import com.djavafactory.castor.core.operations.domain.ReconciliationKind;
-import com.djavafactory.castor.core.operations.domain.ReconciliationRepository;
-import com.djavafactory.castor.core.operations.domain.ReconciliationStatus;
 
 /** The stale-event rule applied to a projection row, and the review item an older event opens. */
 @ApplicationScoped
 public class StaleEvents {
 
-    private final ReconciliationRepository reconciliation;
+    private final Reconciliations reconciliations;
 
-    StaleEvents(ReconciliationRepository reconciliation) {
-        this.reconciliation = reconciliation;
+    StaleEvents(Reconciliations reconciliations) {
+        this.reconciliations = reconciliations;
     }
 
     /** True when the event is older than the row that last changed with {@code rowProvenance}. */
@@ -50,16 +47,6 @@ public class StaleEvents {
         detail.put("currentSource", rowProvenance.source());
         detail.put("currentOccurredAt", rowOccurredAt.toString());
         detail.put("currentSourceSequence", rowSequence);
-        reconciliation.open(new ReconciliationItem(
-                null,
-                ctx.portId(),
-                ReconciliationKind.STALE_EVENT,
-                entityType,
-                entityId,
-                ctx.eventId(),
-                detail,
-                ReconciliationStatus.OPEN,
-                null,
-                null));
+        reconciliations.open(ctx, ReconciliationKind.STALE_EVENT, entityType, entityId, detail);
     }
 }
