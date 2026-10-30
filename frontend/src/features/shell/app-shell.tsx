@@ -1,3 +1,4 @@
+import { LiveStreamRunner } from '@/features/live'
 import { NewVersionWatcher } from './published-version'
 import { useUiStore, type Mode } from '@/lib/stores/ui-store'
 import { AppBar } from './app-bar'
@@ -37,6 +38,7 @@ export function AppShell() {
       <NarrowNotice mode={mode} />
       <WorkArea />
       {mode === 'monitor' && <NewVersionWatcher />}
+      {mode === 'monitor' && <LiveStreamRunner />}
     </div>
   )
 }

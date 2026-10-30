@@ -9,6 +9,8 @@ import { basicCredential, useAuthStore, type Role } from '@/lib/stores/auth-stor
 import { useEditorStore } from '@/lib/stores/editor-store'
 import { useSelectionStore } from '@/lib/stores/selection-store'
 import { useUiStore } from '@/lib/stores/ui-store'
+import { startLiveStream, stopLiveStream } from '@/features/live/live-stream'
+import { useLiveStore } from '@/features/live'
 import { layoutFixture, layoutWire, currentLayoutFixture, portFixture } from '@/test/fixtures'
 import { server } from '@/test/setup'
 import { AppShell } from './app-shell'
@@ -16,6 +18,12 @@ import { MONITOR_RELOADED_MESSAGE, NOT_AN_EDITOR_MESSAGE, SAVE_FAILED_PROMPT } f
 
 vi.mock('sonner', () => ({
   toast: Object.assign(vi.fn(), { error: vi.fn(), loading: vi.fn(() => 'id'), dismiss: vi.fn() }),
+}))
+
+// The stream client has its own tests (src/features/live); here Monitor only has to start and stop it
+vi.mock('@/features/live/live-stream', () => ({
+  startLiveStream: vi.fn(),
+  stopLiveStream: vi.fn(),
 }))
 
 const BASE = 'http://api.test/api'
@@ -528,7 +536,7 @@ describe('Monitor of the published layout', () => {
     expect(label.previousElementSibling).toHaveTextContent('Westports')
   })
 
-  it('is read-only and has no live data: no palette, no editing tabs, no live bar', async () => {
+  it('is read-only: no palette, no editing tabs, no events feed or KPIs', async () => {
     publishedAs(3, '"a"')
     signInAs(['VIEWER'])
     renderShell()
@@ -536,10 +544,31 @@ describe('Monitor of the published layout', () => {
 
     expect(screen.queryByLabelText('Asset palette')).toBeNull()
     expect(screen.queryByRole('tab', { name: /Inspector|Issues|Versions/ })).toBeNull()
-    expect(screen.queryByText(/live|KPI|schedule|connected|events/i)).toBeNull()
+    expect(screen.queryByText(/KPI|schedule|events/i)).toBeNull()
     expect(
       screen.getByText('Select something in the 3D view to see its details.'),
     ).toBeInTheDocument()
+  })
+
+  it('starts the live stream in Monitor, shows the connection chip, and stops the stream in Design', async () => {
+    publishedAs(3, '"a"')
+    signInAs(['EDITOR'])
+    server.use(
+      http.get(`${BASE}/v1/ports/WESTPORTS/layouts/draft`, () => HttpResponse.json(layoutWire())),
+    )
+    useLiveStore.getState().reset()
+    renderShell()
+    await screen.findByText(/Published v3/)
+    expect(startLiveStream).toHaveBeenCalledWith('WESTPORTS', 'http://api.test/api')
+    expect(screen.queryByRole('status', { name: /Live connection/ })).toBeNull()
+
+    act(() => useLiveStore.getState().setConnection('live', 0))
+    expect(screen.getByRole('status', { name: /Live connection: Live/ })).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Design' }))
+    await waitFor(() => expect(stopLiveStream).toHaveBeenCalled())
+    expect(screen.queryByRole('status', { name: /Live connection/ })).toBeNull()
+    useLiveStore.getState().reset()
   })
 
   it('is the start mode and drops the version text in Design', async () => {

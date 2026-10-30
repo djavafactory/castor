@@ -19,6 +19,7 @@ const STACK_SPECS = [
   '**/responsive.spec.ts',
   '**/gateway.spec.ts',
   '**/integrations.spec.ts',
+  '**/live-stream.spec.ts',
   '**/acceptance/*.spec.ts',
 ]
 

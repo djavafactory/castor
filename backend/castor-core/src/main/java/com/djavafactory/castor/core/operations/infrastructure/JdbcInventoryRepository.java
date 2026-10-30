@@ -18,7 +18,7 @@ import com.djavafactory.castor.core.shared.domain.ConflictException;
 @ApplicationScoped
 public class JdbcInventoryRepository implements InventoryRepository {
 
-    private static final String SELECT = "select port_id, storage_asset_id, commodity, unit, quantity, "
+    static final String SELECT = "select port_id, storage_asset_id, commodity, unit, quantity, "
             + "quantity_observed_at, source, quality, version from ops.storage_inventory ";
     private static final String BY_KEY = "where port_id = ? and storage_asset_id = ? and commodity = ?";
 
@@ -131,7 +131,7 @@ public class JdbcInventoryRepository implements InventoryRepository {
                 version);
     }
 
-    private static StorageInventory map(OpsSql.Row r) {
+    static StorageInventory map(OpsSql.Row r) {
         return new StorageInventory(
                 r.lng("port_id"),
                 r.uuid("storage_asset_id"),

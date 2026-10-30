@@ -4,7 +4,7 @@ Reusable port digital twin for conventional cargo ports. The first port is Westp
 
 ## What Castor is
 
-Castor is a reusable digital twin for conventional cargo ports: a 3D replica of the port (berths, yards, warehouses, cranes, roads) that is built, checked and published in a browser-based layout designer, and shown in a read-only Monitor view. The first port is Westports Malaysia (Pulau Indah, Port Klang). Phase 1 is the designer and the replica, with no live data: see [Phase 1 scope](#phase-1-scope).
+Castor is a reusable digital twin for conventional cargo ports: a 3D replica of the port (berths, yards, warehouses, cranes, roads) that is built, checked and published in a browser-based layout designer, and shown in a read-only Monitor view. The first port is Westports Malaysia (Pulau Indah, Port Klang). Phase 1 is the designer and the replica; live state reaches the browser in Phase 2 (STATE-02): see [Phase 1 scope](#phase-1-scope).
 
 ## Prerequisites
 
@@ -261,7 +261,7 @@ Scenario Lab / what-if simulation, connection to real Westports systems, any com
 6. **R6 Cargo families and event types are data** (`ref.cargo_family`, the contract catalogue). Nothing hard-codes conventional cargo; containers are added later as data.
 7. **R7 Browsers call castor-core only.** Services: castor-gateway (ingest), castor-core (state, API, WebSocket), castor-emulator (synthetic sources). Gateway and emulator internal APIs are never routed through the frontend nginx.
 8. **R8 Server code takes time from an injected `java.time.InstantSource`**, never `Instant.now()` or sleeps in business code (needed for stepped-clock tests and the demo clock).
-9. **R9 Flyway versions are reserved per ticket** so parallel tickets never clash. castor-core: STATE-01 V10, INGEST-03 V11, STATE-03 V12, STATE-04 V13, EMULATOR-02 V14, ANALYTICS-01 V15, ANALYTICS-02 V16, ANALYTICS-03 V17, ANALYTICS-05 V19, OPS-03 V20, OPS-01 V21. castor-gateway (own history in schema `ingest`): INGEST-02 V1, INGEST-03 V2, INGEST-04 V3, OPS-03 V4. An unused number is simply skipped.
+9. **R9 Flyway versions are reserved per ticket** so parallel tickets never clash. castor-core: STATE-01 V10, INGEST-03 V11, STATE-03 V12, STATE-04 V13, EMULATOR-02 V14, ANALYTICS-01 V15, ANALYTICS-02 V16, ANALYTICS-03 V17, ANALYTICS-05 V19, STATE-02 V18, OPS-03 V20, OPS-01 V21. castor-gateway (own history in schema `ingest`): INGEST-02 V1, INGEST-03 V2, INGEST-04 V3, OPS-03 V4. An unused number is simply skipped.
 
 ### Test rules (T1-T4)
 
@@ -368,7 +368,7 @@ No conventional-cargo-only assumption may be hard-coded into the asset registry,
 
 1. **In scope:** login, app shell, Design mode (layout designer), Monitor mode (read-only viewer of the published layout), versioned layouts (draft, publish, restore), GeoJSON import/export, accuracy checks.
 2. **Out of scope in Phase 1:** everything live. Live events, the ingest gateway, Kafka, the simulator, WebSocket, vessel calls, KPIs and alerts are the subject of Phase 2: see [Phase 2 scope](#phase-2-scope) for what is in and what stays out.
-3. Monitor mode shows no live data in Phase 1: no events feed, no ships tab, no KPIs, no live bar, no "Live / Reconnecting" connection chip.
+3. Monitor mode shows no live data views in Phase 1: no events feed, no ships tab, no KPIs, no live bar. STATE-02 replaces the "no live data" rule with the browser stream client: Monitor starts it, holds the live state in memory (`src/features/live`) and shows the Live / Reconnecting... / Offline connection chip in the app bar. Drawing live equipment in 3D stays out (LIVE-01), and the new-layout-version check is unchanged.
 4. The 3D ground is flat (y = 0). No bumps or waves on land, roads or pads. Waves only on water.
 5. Coordinates are stored as WGS84 [longitude, latitude] (EPSG:4326). Lengths, areas and distances are computed in metres in EPSG:3380 (GDM2000 / Selangor Grid). The 3D scene uses local metres in the quay frame (SETUP-03). Never compute metres from raw degrees.
 6. Google Maps (or any geocoder) may be used to find a place, never as a data source: no tracing over its imagery, no stored geocoding results.
@@ -436,6 +436,22 @@ actions/checkout v7, actions/setup-java v6, actions/setup-node v7, actions/uploa
 ### Decisions
 
 Record decisions and behaviour changes here, newest first.
+
+#### STATE-02: Live stream: state snapshot, WebSocket deltas and the browser client
+
+##### Live stream contract
+
+1. **Paths use the port code** like every other API path (`westports`; the ticket text writes `{portId}`). All three endpoints are VIEWER and above.
+2. **Snapshot.** `GET /api/v1/ports/{portCode}/state/snapshot` returns `{sequence, serverTime, clockSpeed, equipment[], vesselCalls[], inventories[], openGateVisits, openReconciliationItems}` from one read transaction (repeatable read); `sequence` is `ops.stream_cursor.last_sequence` (0 when nothing was recorded), `openGateVisits` and `openReconciliationItems` are counts. Every item has `id` (its stream `entityId`), `quality`, `source`, `observedAt`, `freshnessSlaS` (R3: the SLA in seconds; the browser computes FRESH/STALE from `observedAt` and the server clock) and `version`. `EquipmentStateDto` also has `assetId`, `status`, `statusReason`, `position` (`{lon, lat, headingDeg, accuracyM, observedAt}` or null), `assignment` and `lastOccurredAt`; `VesselCallDto` the call fields (`callCode`, `vesselName`, `imo`, `loaM`, `beamM`, `status`, `eta`, `ata`, `etd`, `atd`, `berthAssetId`); `InventoryDto` `storageAssetId`, `commodity`, `quantity`, `unit`; `GateVisitDto` `truckVisitId`, `gateAssetId`, `inAt`, `outAt`, `lane`. Unknown values are null, never 0.
+3. **Entity ids.** `entityType` is `equipment` (id = asset id), `vessel-call` (id = call id), `inventory` (id = `<storageAssetId>:<commodity>`) or `gate-visit` (id = `<truckVisitId>:<gateAssetId>`). A projection records the DTO of the entity as the state change body, so `delta.data` is exactly one snapshot item.
+4. **Ticket.** Browsers cannot send Basic auth on a WebSocket: `POST /api/v1/ports/{portCode}/stream/ticket` (Basic auth) returns `{ticket, expiresAt}`, valid 30 s, single use, bound to the user and the port. `WS /api/v1/ports/{portCode}/stream?ticket=<ticket>`: an unknown, used, expired or other-port ticket is refused at the handshake with HTTP 401.
+5. **Server messages** (text JSON): `{"type":"delta","sequence","entityType","entityId","entityVersion","occurredAt","data"}` per state change, in sequence order, consecutive per port; `{"type":"heartbeat","sequence","serverTime","clockSpeed"}` every 15 s, where `sequence` is the last delta the server sent on this stream. The client never sends anything.
+6. **Close codes.** 4001 `resync`: the send queue passed 1,000 messages, fetch a fresh snapshot (reconnect). The server also closes a session when its user is disabled or loses every role.
+7. **Client contract.** (1) get a ticket and open the stream, (2) buffer deltas, (3) fetch the snapshot, (4) drop buffered deltas with `sequence <= snapshot.sequence` and apply the rest in order, then apply live deltas. A delta whose `sequence` is not the last applied + 1 is a gap, and so is a heartbeat whose `sequence` is above the last applied one: close, fetch a fresh snapshot and start again. Any close or error reconnects with backoff 1 s doubling to 30 s (reset after a snapshot is applied). A delta whose `entityVersion` is not above the stored version of that entity is ignored (the snapshot may be newer than its `sequence`).
+8. **Server clock.** `serverNow = serverTime + (performance.now() - receivedAt) x clockSpeed`, set from the snapshot and corrected by each heartbeat.
+9. **Delivery inside core.** Each instance reads new `ops.state_change` rows in sequence order, woken by Postgres `LISTEN/NOTIFY` (channel `ops_state_change`, trigger V18) with a 1 s polling fallback, and hands them to its WebSocket hub. No Kafka is involved. Freshness SLAs (seconds) are `castor.state.sla.*` (equipment 120, vessel call 900, inventory 900, gate visit 900).
+10. **Vessel call cargo progress.** `GET /api/v1/ports/{portCode}/vessel-calls/{id}` reports, per cargo family and unit, the registered quantity of the lots that moved to or from the call's berth between its arrival (`ata`) and departure (`atd`, else now), and the quantity moved there in that window. A call without berth or arrival has no cargo progress.
+11. **Flyway.** STATE-02 takes castor-core V18 (the number was unused).
 
 #### INGEST-04: Integration operations: gateway admin API, core Integrations API and the Integrations page
 

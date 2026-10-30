@@ -9,6 +9,7 @@ import { useSelectionStore } from '@/lib/stores/selection-store'
 import { useUiStore, type Mode } from '@/lib/stores/ui-store'
 import { confirmLeaveDesign, MONITOR_RELOADED_MESSAGE, NOT_AN_EDITOR_MESSAGE } from './leave-design'
 import { Badge } from '@/components/ui/badge'
+import { ConnectionChip, stopLiveStream } from '@/features/live'
 import { enterDesign } from '@/features/design/enter-design'
 import { LayoutStatusBadge } from '@/features/design/layout-status-badge'
 import { ApiError } from '@/lib/api-client'
@@ -44,6 +45,7 @@ export function AppBar() {
       <IntegrationsLink />
       <LayoutStatusBadge />
       <div className="ml-auto flex items-center gap-3">
+        {mode === 'monitor' && <ConnectionChip />}
         <UserMenu />
       </div>
     </header>
@@ -136,6 +138,7 @@ function UserMenu() {
 
   function signOut() {
     void reportLogout() // reads the credential before it is cleared below
+    stopLiveStream()
     useAuthStore.getState().clearSession()
     useEditorStore.getState().reset()
     useSelectionStore.getState().clear()

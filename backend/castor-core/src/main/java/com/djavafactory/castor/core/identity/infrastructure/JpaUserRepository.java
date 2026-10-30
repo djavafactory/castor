@@ -33,6 +33,19 @@ public class JpaUserRepository implements UserRepository {
 
     @Override
     @Transactional
+    public Set<Role> activeRoles(String username) {
+        return em.createQuery(
+                        "select u from UserAccount u where lower(u.username) = :name and u.enabled = true",
+                        UserAccount.class)
+                .setParameter("name", username.toLowerCase())
+                .getResultStream()
+                .findFirst()
+                .map(u -> Set.copyOf(u.roles))
+                .orElse(Set.of());
+    }
+
+    @Override
+    @Transactional
     public List<UserSummary> findReviewers() {
         return em
                 .createQuery(

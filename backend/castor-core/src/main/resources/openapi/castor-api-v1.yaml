@@ -628,6 +628,104 @@ paths:
           description: The role is not OPERATOR or ADMIN
         '404':
           description: Unknown port
+  /api/v1/ports/{portId}/state/snapshot:
+    get:
+      operationId: getStateSnapshot
+      summary: One consistent picture of the port (VIEWER and above)
+      description: One read transaction. sequence is the stream cursor at read time; deltas after it are not in the lists. Every item has quality, source, observedAt and freshnessSlaS (R2, R3).
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/PortId'
+      responses:
+        '200':
+          description: The snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Snapshot'
+        '404':
+          description: Unknown port
+  /api/v1/ports/{portId}/assets/{assetId}/state:
+    get:
+      operationId: getAssetState
+      summary: The state of one machine or storage area with its last 20 canonical events (VIEWER and above)
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/PortId'
+        - name: assetId
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: The state; kind is EQUIPMENT, STORAGE or NONE (no state reported yet)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetState'
+        '404':
+          description: Unknown port or asset
+  /api/v1/ports/{portId}/vessel-calls:
+    get:
+      operationId: listVesselCalls
+      summary: Vessel calls, newest arrival first, at most 500 (VIEWER and above)
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/PortId'
+        - {name: status, in: query, required: false, schema: {type: string, enum: [EXPECTED, ALONGSIDE, DEPARTED, CANCELLED]}}
+        - {name: from, in: query, required: false, description: Calls whose span ends at or after this UTC time, schema: {type: string, format: date-time}}
+        - {name: to, in: query, required: false, description: Calls whose span starts at or before this UTC time, schema: {type: string, format: date-time}}
+      responses:
+        '200':
+          description: The calls
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VesselCall'
+        '400':
+          description: Malformed status, from or to
+        '404':
+          description: Unknown port
+  /api/v1/ports/{portId}/vessel-calls/{id}:
+    get:
+      operationId: getVesselCall
+      summary: A vessel call with its event timeline and cargo progress per family (VIEWER and above)
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/PortId'
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: The call
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VesselCallDetail'
+        '404':
+          description: Unknown port or call
+  /api/v1/ports/{portId}/stream/ticket:
+    post:
+      operationId: createStreamTicket
+      summary: A single-use ticket (30 s, bound to the user and the port) that opens the WebSocket (VIEWER and above)
+      description: The stream itself is WS /api/v1/ports/{portId}/stream?ticket=...; a missing, used, expired or other-port ticket is refused at the handshake with 401. See the README Live stream contract.
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/PortId'
+      responses:
+        '200':
+          description: The ticket
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ticket, expiresAt]
+                properties:
+                  ticket: {type: string}
+                  expiresAt: {type: string, format: date-time}
+        '404':
+          description: Unknown port
   /api/v1/layouts/{layoutId}:
     delete:
       operationId: discardDraftLayout
@@ -2142,3 +2240,127 @@ components:
           format: uuid
         message:
           type: string
+    Quality:
+      type: string
+      enum: [OBSERVED, INFERRED, SIMULATED]
+    Snapshot:
+      type: object
+      required: [sequence, serverTime, clockSpeed, equipment, vesselCalls, inventories, openGateVisits, openReconciliationItems]
+      properties:
+        sequence: {type: integer, format: int64}
+        serverTime: {type: string, format: date-time}
+        clockSpeed: {type: number, format: double}
+        equipment: {type: array, items: {$ref: '#/components/schemas/EquipmentState'}}
+        vesselCalls: {type: array, items: {$ref: '#/components/schemas/VesselCall'}}
+        inventories: {type: array, items: {$ref: '#/components/schemas/Inventory'}}
+        openGateVisits: {type: integer, format: int64}
+        openReconciliationItems: {type: integer, format: int64}
+    EquipmentState:
+      type: object
+      required: [id, assetId, status, quality, source, observedAt, freshnessSlaS, lastOccurredAt, version]
+      properties:
+        id: {type: string}
+        assetId: {type: string, format: uuid}
+        status: {type: string, enum: [WORKING, IDLE, BLOCKED, STARVED, DOWN, MAINTENANCE]}
+        statusReason: {type: string, nullable: true}
+        position:
+          type: object
+          nullable: true
+          required: [lon, lat, observedAt]
+          properties:
+            lon: {type: number, format: double}
+            lat: {type: number, format: double}
+            headingDeg: {type: number, nullable: true}
+            accuracyM: {type: number, nullable: true}
+            observedAt: {type: string, format: date-time}
+        assignment: {type: object, nullable: true, additionalProperties: true}
+        quality: {$ref: '#/components/schemas/Quality'}
+        source: {type: string}
+        observedAt: {type: string, format: date-time}
+        freshnessSlaS: {type: integer, format: int64}
+        lastOccurredAt: {type: string, format: date-time}
+        version: {type: integer, format: int64}
+    VesselCall:
+      type: object
+      required: [id, callCode, status, quality, source, observedAt, freshnessSlaS, lastOccurredAt, version]
+      properties:
+        id: {type: string}
+        callCode: {type: string}
+        vesselName: {type: string, nullable: true}
+        imo: {type: string, nullable: true}
+        loaM: {type: number, nullable: true}
+        beamM: {type: number, nullable: true}
+        status: {type: string, enum: [EXPECTED, ALONGSIDE, DEPARTED, CANCELLED]}
+        eta: {type: string, format: date-time, nullable: true}
+        ata: {type: string, format: date-time, nullable: true}
+        etd: {type: string, format: date-time, nullable: true}
+        atd: {type: string, format: date-time, nullable: true}
+        berthAssetId: {type: string, format: uuid, nullable: true}
+        quality: {$ref: '#/components/schemas/Quality'}
+        source: {type: string}
+        observedAt: {type: string, format: date-time}
+        freshnessSlaS: {type: integer, format: int64}
+        lastOccurredAt: {type: string, format: date-time}
+        version: {type: integer, format: int64}
+    Inventory:
+      type: object
+      required: [id, storageAssetId, commodity, quantity, unit, quality, source, observedAt, freshnessSlaS, version]
+      properties:
+        id: {type: string, description: storageAssetId and commodity joined by a colon}
+        storageAssetId: {type: string, format: uuid}
+        commodity: {type: string}
+        quantity: {type: number}
+        unit: {type: string, enum: [TONNES, PIECES, CUBIC_METRES, VEHICLES]}
+        quality: {$ref: '#/components/schemas/Quality'}
+        source: {type: string}
+        observedAt: {type: string, format: date-time}
+        freshnessSlaS: {type: integer, format: int64}
+        version: {type: integer, format: int64}
+    GateVisit:
+      type: object
+      description: Carried by stream deltas only; the snapshot counts the open visits
+      required: [id, truckVisitId, gateAssetId, quality, source, freshnessSlaS]
+      properties:
+        id: {type: string, description: truckVisitId and gateAssetId joined by a colon}
+        truckVisitId: {type: string}
+        gateAssetId: {type: string, format: uuid}
+        inAt: {type: string, format: date-time, nullable: true}
+        outAt: {type: string, format: date-time, nullable: true}
+        lane: {type: string, nullable: true}
+        quality: {$ref: '#/components/schemas/Quality'}
+        source: {type: string}
+        observedAt: {type: string, format: date-time, nullable: true}
+        freshnessSlaS: {type: integer, format: int64}
+    LineageEntry:
+      type: object
+      required: [type, occurredAt, source, quality]
+      properties:
+        type: {type: string}
+        occurredAt: {type: string, format: date-time}
+        source: {type: string}
+        quality: {$ref: '#/components/schemas/Quality'}
+    AssetState:
+      type: object
+      required: [assetId, kind, inventories, lineage]
+      properties:
+        assetId: {type: string, format: uuid}
+        kind: {type: string, enum: [EQUIPMENT, STORAGE, NONE]}
+        equipment: {allOf: [{$ref: '#/components/schemas/EquipmentState'}], nullable: true}
+        inventories: {type: array, items: {$ref: '#/components/schemas/Inventory'}}
+        lineage: {type: array, items: {$ref: '#/components/schemas/LineageEntry'}}
+    VesselCallDetail:
+      type: object
+      required: [call, timeline, cargo]
+      properties:
+        call: {$ref: '#/components/schemas/VesselCall'}
+        timeline: {type: array, items: {$ref: '#/components/schemas/LineageEntry'}}
+        cargo:
+          type: array
+          items:
+            type: object
+            required: [cargoFamily, unit, moved]
+            properties:
+              cargoFamily: {type: string}
+              unit: {type: string, enum: [TONNES, PIECES, CUBIC_METRES, VEHICLES]}
+              registered: {type: number, nullable: true}
+              moved: {type: number}

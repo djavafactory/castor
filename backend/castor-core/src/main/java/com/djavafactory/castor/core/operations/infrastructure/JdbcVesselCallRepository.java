@@ -17,7 +17,7 @@ import com.djavafactory.castor.core.shared.domain.ConflictException;
 @ApplicationScoped
 public class JdbcVesselCallRepository implements VesselCallRepository {
 
-    private static final String SELECT = "select id, port_id, call_code, vessel_name, imo, loa_m, beam_m, status, eta, "
+    static final String SELECT = "select id, port_id, call_code, vessel_name, imo, loa_m, beam_m, status, eta, "
             + "ata, etd, atd, berth_asset_id, source, quality, observed_at, last_occurred_at, version "
             + "from ops.vessel_call ";
 
@@ -125,7 +125,7 @@ public class JdbcVesselCallRepository implements VesselCallRepository {
                 c.version() + 1);
     }
 
-    private static VesselCall map(OpsSql.Row r) {
+    static VesselCall map(OpsSql.Row r) {
         return new VesselCall(
                 r.uuid("id"),
                 r.lng("port_id"),

@@ -47,6 +47,51 @@ public interface CastorConfig {
 
     Gateway gateway();
 
+    State state();
+
+    interface State {
+        Sla sla();
+
+        Stream stream();
+
+        Snapshot snapshot();
+    }
+
+    /** How long an observed value stays fresh (R3), per kind of entity; sent with every item of the snapshot. */
+    interface Sla {
+        @WithDefault("PT120S")
+        Duration equipment();
+
+        @WithDefault("PT15M")
+        Duration vesselCall();
+
+        @WithDefault("PT15M")
+        Duration inventory();
+
+        @WithDefault("PT15M")
+        Duration gateVisit();
+    }
+
+    interface Stream {
+        /** How long a stream ticket can be redeemed. */
+        @WithDefault("PT30S")
+        Duration ticketTtl();
+
+        /** Interval of the heartbeat message and of the check that a session's user may still read. */
+        @WithDefault("PT15S")
+        Duration heartbeat();
+
+        /** Messages one session may have waiting before it is closed with 4001 "resync". */
+        @WithDefault("1000")
+        int maxQueue();
+    }
+
+    interface Snapshot {
+        /** Departed and cancelled vessel calls stay in the snapshot this long after their last change. */
+        @WithDefault("PT24H")
+        Duration recentCalls();
+    }
+
     interface Gateway {
         /** Base URL of castor-gateway's API (GATEWAY_URL); core calls its internal admin API there, never a browser. */
         @WithDefault("http://localhost:8082")

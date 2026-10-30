@@ -409,6 +409,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ports/{portId}/state/snapshot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One consistent picture of the port (VIEWER and above)
+         * @description One read transaction. sequence is the stream cursor at read time; deltas after it are not in the lists. Every item has quality, source, observedAt and freshnessSlaS (R2, R3).
+         */
+        get: operations["getStateSnapshot"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ports/{portId}/assets/{assetId}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The state of one machine or storage area with its last 20 canonical events (VIEWER and above) */
+        get: operations["getAssetState"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ports/{portId}/vessel-calls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Vessel calls, newest arrival first, at most 500 (VIEWER and above) */
+        get: operations["listVesselCalls"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ports/{portId}/vessel-calls/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A vessel call with its event timeline and cargo progress per family (VIEWER and above) */
+        get: operations["getVesselCall"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ports/{portId}/stream/ticket": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * A single-use ticket (30 s, bound to the user and the port) that opens the WebSocket (VIEWER and above)
+         * @description The stream itself is WS /api/v1/ports/{portId}/stream?ticket=...; a missing, used, expired or other-port ticket is refused at the handshake with 401. See the README Live stream contract.
+         */
+        post: operations["createStreamTicket"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/layouts/{layoutId}": {
         parameters: {
             query?: never;
@@ -1228,6 +1319,148 @@ export interface components {
             /** Format: uuid */
             assetId?: string;
             message: string;
+        };
+        /** @enum {string} */
+        Quality: "OBSERVED" | "INFERRED" | "SIMULATED";
+        Snapshot: {
+            /** Format: int64 */
+            sequence: number;
+            /** Format: date-time */
+            serverTime: string;
+            /** Format: double */
+            clockSpeed: number;
+            equipment: components["schemas"]["EquipmentState"][];
+            vesselCalls: components["schemas"]["VesselCall"][];
+            inventories: components["schemas"]["Inventory"][];
+            /** Format: int64 */
+            openGateVisits: number;
+            /** Format: int64 */
+            openReconciliationItems: number;
+        };
+        EquipmentState: {
+            id: string;
+            /** Format: uuid */
+            assetId: string;
+            /** @enum {string} */
+            status: "WORKING" | "IDLE" | "BLOCKED" | "STARVED" | "DOWN" | "MAINTENANCE";
+            statusReason?: string | null;
+            position?: {
+                /** Format: double */
+                lon: number;
+                /** Format: double */
+                lat: number;
+                headingDeg?: number | null;
+                accuracyM?: number | null;
+                /** Format: date-time */
+                observedAt: string;
+            } | null;
+            assignment?: {
+                [key: string]: unknown;
+            } | null;
+            quality: components["schemas"]["Quality"];
+            source: string;
+            /** Format: date-time */
+            observedAt: string;
+            /** Format: int64 */
+            freshnessSlaS: number;
+            /** Format: date-time */
+            lastOccurredAt: string;
+            /** Format: int64 */
+            version: number;
+        };
+        VesselCall: {
+            id: string;
+            callCode: string;
+            vesselName?: string | null;
+            imo?: string | null;
+            loaM?: number | null;
+            beamM?: number | null;
+            /** @enum {string} */
+            status: "EXPECTED" | "ALONGSIDE" | "DEPARTED" | "CANCELLED";
+            /** Format: date-time */
+            eta?: string | null;
+            /** Format: date-time */
+            ata?: string | null;
+            /** Format: date-time */
+            etd?: string | null;
+            /** Format: date-time */
+            atd?: string | null;
+            /** Format: uuid */
+            berthAssetId?: string | null;
+            quality: components["schemas"]["Quality"];
+            source: string;
+            /** Format: date-time */
+            observedAt: string;
+            /** Format: int64 */
+            freshnessSlaS: number;
+            /** Format: date-time */
+            lastOccurredAt: string;
+            /** Format: int64 */
+            version: number;
+        };
+        Inventory: {
+            /** @description storageAssetId and commodity joined by a colon */
+            id: string;
+            /** Format: uuid */
+            storageAssetId: string;
+            commodity: string;
+            quantity: number;
+            /** @enum {string} */
+            unit: "TONNES" | "PIECES" | "CUBIC_METRES" | "VEHICLES";
+            quality: components["schemas"]["Quality"];
+            source: string;
+            /** Format: date-time */
+            observedAt: string;
+            /** Format: int64 */
+            freshnessSlaS: number;
+            /** Format: int64 */
+            version: number;
+        };
+        /** @description Carried by stream deltas only; the snapshot counts the open visits */
+        GateVisit: {
+            /** @description truckVisitId and gateAssetId joined by a colon */
+            id: string;
+            truckVisitId: string;
+            /** Format: uuid */
+            gateAssetId: string;
+            /** Format: date-time */
+            inAt?: string | null;
+            /** Format: date-time */
+            outAt?: string | null;
+            lane?: string | null;
+            quality: components["schemas"]["Quality"];
+            source: string;
+            /** Format: date-time */
+            observedAt?: string | null;
+            /** Format: int64 */
+            freshnessSlaS: number;
+        };
+        LineageEntry: {
+            type: string;
+            /** Format: date-time */
+            occurredAt: string;
+            source: string;
+            quality: components["schemas"]["Quality"];
+        };
+        AssetState: {
+            /** Format: uuid */
+            assetId: string;
+            /** @enum {string} */
+            kind: "EQUIPMENT" | "STORAGE" | "NONE";
+            equipment?: components["schemas"]["EquipmentState"] | null;
+            inventories: components["schemas"]["Inventory"][];
+            lineage: components["schemas"]["LineageEntry"][];
+        };
+        VesselCallDetail: {
+            call: components["schemas"]["VesselCall"];
+            timeline: components["schemas"]["LineageEntry"][];
+            cargo: {
+                cargoFamily: string;
+                /** @enum {string} */
+                unit: "TONNES" | "PIECES" | "CUBIC_METRES" | "VEHICLES";
+                registered?: number | null;
+                moved: number;
+            }[];
         };
     };
     responses: never;
@@ -2254,6 +2487,175 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Unknown port */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getStateSnapshot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The port code (case-insensitive) */
+                portId: components["parameters"]["PortId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The snapshot */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Snapshot"];
+                };
+            };
+            /** @description Unknown port */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getAssetState: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The port code (case-insensitive) */
+                portId: components["parameters"]["PortId"];
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The state; kind is EQUIPMENT, STORAGE or NONE (no state reported yet) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetState"];
+                };
+            };
+            /** @description Unknown port or asset */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listVesselCalls: {
+        parameters: {
+            query?: {
+                status?: "EXPECTED" | "ALONGSIDE" | "DEPARTED" | "CANCELLED";
+                /** @description Calls whose span ends at or after this UTC time */
+                from?: string;
+                /** @description Calls whose span starts at or before this UTC time */
+                to?: string;
+            };
+            header?: never;
+            path: {
+                /** @description The port code (case-insensitive) */
+                portId: components["parameters"]["PortId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The calls */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VesselCall"][];
+                };
+            };
+            /** @description Malformed status, from or to */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown port */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getVesselCall: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The port code (case-insensitive) */
+                portId: components["parameters"]["PortId"];
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The call */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VesselCallDetail"];
+                };
+            };
+            /** @description Unknown port or call */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createStreamTicket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The port code (case-insensitive) */
+                portId: components["parameters"]["PortId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The ticket */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ticket: string;
+                        /** Format: date-time */
+                        expiresAt: string;
+                    };
+                };
             };
             /** @description Unknown port */
             404: {
