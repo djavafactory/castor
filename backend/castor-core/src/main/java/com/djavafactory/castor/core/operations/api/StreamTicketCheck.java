@@ -4,11 +4,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 
 import io.quarkus.websockets.next.HttpUpgradeCheck;
 import io.smallrye.mutiny.Uni;
-import io.smallrye.mutiny.infrastructure.Infrastructure;
 
-import com.djavafactory.castor.core.operations.application.OperationsPorts;
 import com.djavafactory.castor.core.operations.application.StreamTickets;
-import com.djavafactory.castor.core.shared.domain.ResourceNotFoundException;
 
 /**
  * The handshake of the stream: the ticket in the query is redeemed (once) and must belong to the port in the path.
@@ -17,11 +14,9 @@ import com.djavafactory.castor.core.shared.domain.ResourceNotFoundException;
 @ApplicationScoped
 public class StreamTicketCheck implements HttpUpgradeCheck {
 
-    private final OperationsPorts ports;
     private final StreamTickets tickets;
 
-    StreamTicketCheck(OperationsPorts ports, StreamTickets tickets) {
-        this.ports = ports;
+    StreamTicketCheck(StreamTickets tickets) {
         this.tickets = tickets;
     }
 
@@ -32,12 +27,8 @@ public class StreamTicketCheck implements HttpUpgradeCheck {
 
     @Override
     public Uni<CheckResult> perform(HttpUpgradeContext context) {
-        String ticket = context.httpRequest().getParam("ticket");
-        String code = context.pathParam("portId");
-        // Redeeming reads the database: not on the event loop
-        return Uni.createFrom()
-                .item(() -> redeem(code, ticket))
-                .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
+        return tickets.redeemOnWorker(
+                        context.pathParam("portId"), context.httpRequest().getParam("ticket"))
                 .onItem()
                 .transformToUni(grant -> {
                     if (grant == null) {
@@ -47,18 +38,5 @@ public class StreamTicketCheck implements HttpUpgradeCheck {
                     context.userData().put(StreamEndpoint.PORT_ID, grant.portId());
                     return CheckResult.permitUpgrade();
                 });
-    }
-
-    private record Grant(String username, long portId) {}
-
-    private Grant redeem(String code, String ticket) {
-        try {
-            long portId = ports.portId(code);
-            return tickets.redeem(portId, ticket)
-                    .map(name -> new Grant(name, portId))
-                    .orElse(null);
-        } catch (ResourceNotFoundException e) {
-            return null;
-        }
     }
 }

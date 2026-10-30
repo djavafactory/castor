@@ -1,6 +1,7 @@
 package com.djavafactory.castor.core.operations.infrastructure;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -79,6 +80,25 @@ public class JdbcStateChangeRepository implements StateChangeRepository {
                 at,
                 portId,
                 upToSequence);
+    }
+
+    @Override
+    public Map<Long, String> portsWithUnpublished() {
+        Map<Long, String> ports = new LinkedHashMap<>();
+        sql.query(
+                        "select p.id, p.code from ref.port p where exists (select 1 from ops.state_change c "
+                                + "where c.port_id = p.id and c.published_at is null) order by p.id",
+                        r -> Map.entry(r.lng("id"), r.text("code")))
+                .forEach(e -> ports.put(e.getKey(), e.getValue()));
+        return ports;
+    }
+
+    @Override
+    public boolean tryLockPublishing(long portId) {
+        // the first key names the lock (the digits of "STATE" and 03), the second the port
+        return sql.queryOne(
+                        "select pg_try_advisory_xact_lock(5300003, ?::int) as locked", r -> r.bool("locked"), portId)
+                .orElse(false);
     }
 
     @Override

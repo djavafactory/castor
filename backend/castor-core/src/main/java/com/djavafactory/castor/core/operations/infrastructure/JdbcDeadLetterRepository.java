@@ -70,7 +70,7 @@ public class JdbcDeadLetterRepository implements DeadLetterRepository {
     private static DeadLetter map(OpsSql.Row r) {
         return new DeadLetter(
                 r.longOrNull("id"),
-                r.lng("port_id"),
+                r.longOrNull("port_id"),
                 r.text("consumer"),
                 r.uuid("event_id"),
                 r.text("topic"),

@@ -26,6 +26,15 @@ public interface StateChangeRepository {
 
     void markPublished(long portId, long upToSequence, Instant at);
 
+    /** Ports that have changes not yet published: port id and port code, by id. */
+    Map<Long, String> portsWithUnpublished();
+
+    /**
+     * Takes the right to publish the port's changes until the end of the caller's transaction; false when another
+     * instance holds it, so two instances never send the same change.
+     */
+    boolean tryLockPublishing(long portId);
+
     /** The last sequence handed out; 0 when none. */
     long lastSequence(long portId);
 }

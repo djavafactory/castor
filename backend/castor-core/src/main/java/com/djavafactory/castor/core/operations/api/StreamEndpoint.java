@@ -11,7 +11,6 @@ import io.quarkus.websockets.next.WebSocketConnection;
 
 import com.djavafactory.castor.core.operations.application.StreamHub;
 import com.djavafactory.castor.core.operations.application.StreamSession;
-import com.djavafactory.castor.core.shared.infrastructure.CastorConfig;
 
 /**
  * The live stream of a port: deltas and heartbeats go out, nothing comes in. The hub decides what is sent; this class
@@ -27,9 +26,9 @@ public class StreamEndpoint {
     private final StreamHub hub;
     private final int maxQueue;
 
-    StreamEndpoint(StreamHub hub, CastorConfig castor) {
+    StreamEndpoint(StreamHub hub) {
         this.hub = hub;
-        this.maxQueue = castor.state().stream().maxQueue();
+        this.maxQueue = hub.maxQueue();
     }
 
     @OnOpen

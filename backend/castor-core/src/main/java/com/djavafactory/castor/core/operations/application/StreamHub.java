@@ -11,6 +11,7 @@ import java.util.concurrent.CopyOnWriteArraySet;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
+import jakarta.inject.Inject;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -19,6 +20,7 @@ import com.djavafactory.castor.core.identity.domain.UserRepository;
 import com.djavafactory.castor.core.identity.domain.UserSignedOut;
 import com.djavafactory.castor.core.operations.domain.StateChange;
 import com.djavafactory.castor.core.shared.domain.ClockInfo;
+import com.djavafactory.castor.core.shared.infrastructure.CastorConfig;
 
 /**
  * The browsers connected to this instance. Gets every state change in sequence order from the change feed and sends it
@@ -37,8 +39,15 @@ public class StreamHub implements StateChangeSink {
     private final InstantSource clock;
     private final ClockInfo clockInfo;
     private final UserRepository users;
+    private final int maxQueue;
 
-    StreamHub(ObjectMapper json, InstantSource clock, ClockInfo clockInfo, UserRepository users) {
+    @Inject
+    StreamHub(ObjectMapper json, InstantSource clock, ClockInfo clockInfo, UserRepository users, CastorConfig castor) {
+        this(json, clock, clockInfo, users, castor.state().stream().maxQueue());
+    }
+
+    private StreamHub(ObjectMapper json, InstantSource clock, ClockInfo clockInfo, UserRepository users, int maxQueue) {
+        this.maxQueue = maxQueue;
         this.json = json;
         this.clock = clock;
         this.clockInfo = clockInfo;
@@ -47,7 +56,12 @@ public class StreamHub implements StateChangeSink {
 
     /** A hub for a test or another process, without CDI. */
     public static StreamHub of(ObjectMapper json, InstantSource clock, ClockInfo clockInfo, UserRepository users) {
-        return new StreamHub(json, clock, clockInfo, users);
+        return new StreamHub(json, clock, clockInfo, users, 1000);
+    }
+
+    /** Messages one session may have waiting before it is closed with 4001. */
+    public int maxQueue() {
+        return maxQueue;
     }
 
     public synchronized void register(StreamSession session) {

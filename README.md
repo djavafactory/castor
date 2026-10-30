@@ -437,6 +437,35 @@ actions/checkout v7, actions/setup-java v6, actions/setup-node v7, actions/uploa
 
 Record decisions and behaviour changes here, newest first.
 
+#### STATE-03: Idempotent event consumer with equipment and vessel call projections
+
+castor-core turns canonical events into current equipment and vessel call state exactly once, without letting old events overwrite newer state.
+
+##### Consumer, retries and dead letters
+
+1. **One transaction per event.** Channel `canonical` reads `castor.ingest.canonical.v1` as group `castor-core-projector` (blocking, ordered, offsets committed only after the method returns). `EventApplier.apply` decodes and checks the event, inserts `ops.processed_event` (a conflict means it was applied before: nothing else happens), stores the event in `ops.canonical_event`, runs the handler of its type, which changes state and records the state change, and commits. Only then is the offset acknowledged, so a crash in between delivers the record again and the guard turns it into a no-op. `castor.state.projector` and the channel settings are in `application.properties`; `CASTOR_PROJECTOR_ENABLED=false` switches the consumer off.
+2. **Bounded retry.** A failure that is not a rejection is tried `castor.state.projector.attempts` (3) times; the wait after the 1st and 2nd failed attempt is the 1st and 2nd value of `castor.state.projector.backoff` (200 ms, 1 s, 5 s; the 5 s is used only if the attempts are raised). Then the event is dead-lettered with reason `PROCESSING_FAILED` and the partition goes on. An event that can never succeed is dead-lettered at once, with 1 attempt.
+3. **Dead letters.** A row in `ops.dead_letter` (consumer `castor-core-projector`, topic, partition, offset, attempts, the event as received in `body`, `error` = `<REASON>: <cause>`) written in its own transaction, and a message on `castor.integration.dlq.v1` (key `aggregateId`, header `reason`) with `deadLetterId`, `reason`, `cause`, `attempts`, `source {topic, partition, offset}`, `reference {portId, sourceSystem, sourceEventId, receptionId, eventId, type, entityId}` and the event. A dead-lettered event is not marked processed, so a replay applies it. If the row or the message cannot be written, the channel stops (readiness DOWN) with the offset unacknowledged: nothing is lost, the event comes again after a restart.
+4. **Reasons.** `UNKNOWN_TYPE` (no handler: unknown types, and cargo, storage, gate, flow and truck types until STATE-04 registers handlers), `UNKNOWN_PORT` (`portId` is no port code; the row has no `port_id`, V12 makes it nullable), `UNKNOWN_ENTITY` (asset, berth or call not in the published layout, or a `berthId` that is not a BERTH), `OUT_OF_EXTENT` (position outside `ref.port.extent`), `INVALID_EVENT` (unreadable, schema violation, a status that is not in the catalogue), `PROCESSING_FAILED`.
+5. **Handlers.** One `EventHandler` bean per type, found by `HandlerRegistry` by type code; two handlers for one type stop the start. `ProjectorFaults` is the seam the tests use to break the consumer before the handler and after the commit.
+
+##### Decisions: event ordering and reconciliation
+
+1. **Rule.** Kafka orders events per `aggregateId` only, and two sources can describe one machine, so an event is compared with the row it would change. From the same `sourceSystem` and with a `sourceSequence` on both sides, a lower sequence is older. In every other case an earlier `occurredAt` is older. Equal is not older. The row keeps `last_occurred_at`, `last_source_sequence` and the source of the last event it applied (`EventOrder`).
+2. **An older event** is stored in `ops.canonical_event` (evidence), does not change the row, records no state change and opens one `STALE_EVENT` item in `ops.reconciliation_item` (entity, event id and both orderings in `detail`). The processed-event guard makes it exactly one per event.
+3. **Status history is still written.** An older `equipment.status.changed` is inserted into `ops.equipment_status_interval` at its true time: it splits the closed interval it falls into (`WORKING 0..20` plus an event `IDLE` at 10 gives `WORKING 0..10`, `IDLE 10..20`). It does nothing when it falls into the open interval (that is the machine's current status, which an older event must not replace), at an instant an interval already starts, or where the interval already says the same.
+4. **The row is the unit of ordering**, not the field: a position that is newer than a status makes an older status event stale. Provenance (source, quality, observedAt) of an equipment row is that of the last applied event.
+5. **Unknown is not zero (R3).** A position or assignment for a machine that never reported a status creates the row with status NULL (V12 drops NOT NULL); the status interval starts with the first status event. A vessel call first seen without `status` gets the one its milestones imply (`atd` DEPARTED, `ata` ALONGSIDE, else EXPECTED).
+6. **Idempotency is by `eventId`.** The gateway derives it from the reception, so a replayed record is a different event and is applied under the ordering rule above.
+
+##### Projections
+
+1. **equipment.status.changed** sets status and reason, closes the open interval at the event time and opens the next (a repeated identical status keeps its interval and only refreshes the observation). **equipment.position.observed** sets position (Point 4326), heading, accuracy, `position_observed_at` (= `occurredAt`); a heading that rounds to 360.00 becomes 0.00. **equipment.assignment.changed** is the whole assignment: targets it does not name are dropped, no target means NULL. The asset id is `entityId` and must be a published asset.
+2. **vessel.call.updated** upserts `ops.vessel_call` by `callCode`; a field the event does not carry keeps its value. `berthId` must be a BERTH asset of the published layout (V12 adds `vessel_call.last_source_sequence`).
+3. **Change bodies.** Each applied event records one `ops.state_change` row in the same transaction, with `entityType` `equipment` or `vessel-call` (the STATE-02 stream contract; the ticket text spells them EQUIPMENT and VESSEL_CALL, but the browser client accepts only the stream spelling) and the STATE-02 DTO as `body`. Values are rounded to the column precision and instants cut to microseconds before the DTO is built, so the body equals the snapshot item read back.
+4. **Kafka publisher.** `StateChangePublisher` (every second, `castor.state.publisher.enabled`, `.batch` 500) sends rows with `published_at` NULL in order to `castor.state.changed.v1` (key = port code, value `{portId, sequence, entityType, entityId, entityVersion, occurredAt, data}`) and marks them published after the broker acknowledged. At-least-once: a crash between send and mark sends a change again, a consumer drops it by `sequence`. One instance publishes a port at a time (advisory lock) and the relay stops at the first failed send, so the order never breaks.
+5. **Flyway.** STATE-03 takes castor-core V12.
+
 #### STATE-02: Live stream: state snapshot, WebSocket deltas and the browser client
 
 ##### Live stream contract

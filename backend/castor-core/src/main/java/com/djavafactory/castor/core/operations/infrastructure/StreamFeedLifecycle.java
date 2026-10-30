@@ -10,12 +10,13 @@ import io.quarkus.runtime.StartupEvent;
 import io.quarkus.scheduler.Scheduled;
 import org.jboss.logging.Logger;
 
+import com.djavafactory.castor.core.operations.application.StateFeed;
 import com.djavafactory.castor.core.operations.application.StreamHub;
 import com.djavafactory.castor.core.operations.domain.StateChangeRepository;
 
 /** Runs this instance's change feed into its WebSocket hub, and the hub's heartbeat and session checks. */
 @ApplicationScoped
-public class StreamFeedLifecycle {
+public class StreamFeedLifecycle implements StateFeed {
 
     private static final Logger LOG = Logger.getLogger(StreamFeedLifecycle.class);
 
@@ -40,7 +41,7 @@ public class StreamFeedLifecycle {
         feed.close();
     }
 
-    /** For tests that reset the data: deliver only what is written from now on. */
+    @Override
     public void rebase() {
         feed.rebase();
     }

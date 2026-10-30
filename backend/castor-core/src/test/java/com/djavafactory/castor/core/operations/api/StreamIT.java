@@ -42,12 +42,12 @@ import com.djavafactory.castor.contracts.Quality;
 import com.djavafactory.castor.contracts.Quantity;
 import com.djavafactory.castor.contracts.Unit;
 import com.djavafactory.castor.core.operations.application.StateChangeRecorder;
+import com.djavafactory.castor.core.operations.application.StateFeed;
 import com.djavafactory.castor.core.operations.application.StateViews;
 import com.djavafactory.castor.core.operations.application.StreamHub;
 import com.djavafactory.castor.core.operations.domain.InventoryRepository;
 import com.djavafactory.castor.core.operations.domain.StorageInventory;
 import com.djavafactory.castor.core.operations.domain.StreamTicketRepository;
-import com.djavafactory.castor.core.operations.infrastructure.StreamFeedLifecycle;
 import com.djavafactory.castor.core.support.LayoutTestSupport;
 
 import static io.restassured.RestAssured.given;
@@ -85,7 +85,7 @@ class StreamIT {
     ObjectMapper json;
 
     @Inject
-    StreamFeedLifecycle feed;
+    StateFeed feed;
 
     @Inject
     StreamHub hub;

@@ -1,6 +1,7 @@
 package com.djavafactory.castor.core.shared.infrastructure;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -55,6 +56,30 @@ public interface CastorConfig {
         Stream stream();
 
         Snapshot snapshot();
+
+        Projector projector();
+
+        Publisher publisher();
+    }
+
+    /** The consumer that turns canonical events into state (STATE-03). */
+    interface Projector {
+        /** Tries per event before it becomes a dead letter. */
+        @WithDefault("3")
+        int attempts();
+
+        /** Wait after the 1st, 2nd, ... failed attempt; the last value repeats when there are more attempts. */
+        @WithDefault("PT0.2S,PT1S,PT5S")
+        List<Duration> backoff();
+    }
+
+    /** The relay of state changes to Kafka for consumers other than the browser hub. */
+    interface Publisher {
+        @WithDefault("true")
+        boolean enabled();
+
+        @WithDefault("500")
+        int batch();
     }
 
     /** How long an observed value stays fresh (R3), per kind of entity; sent with every item of the snapshot. */

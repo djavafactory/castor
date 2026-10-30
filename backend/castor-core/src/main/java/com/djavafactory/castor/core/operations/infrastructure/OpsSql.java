@@ -127,6 +127,10 @@ class OpsSql {
             return get(() -> rs.getBigDecimal(column));
         }
 
+        boolean bool(String column) {
+            return get(() -> rs.getBoolean(column));
+        }
+
         Long longOrNull(String column) {
             return get(() -> {
                 long value = rs.getLong(column);

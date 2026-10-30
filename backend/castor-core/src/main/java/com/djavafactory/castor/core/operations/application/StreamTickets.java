@@ -13,7 +13,11 @@ import java.util.Optional;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 
+import io.smallrye.mutiny.Uni;
+import io.smallrye.mutiny.infrastructure.Infrastructure;
+
 import com.djavafactory.castor.core.operations.domain.StreamTicketRepository;
+import com.djavafactory.castor.core.shared.domain.ResourceNotFoundException;
 import com.djavafactory.castor.core.shared.infrastructure.CastorConfig;
 
 /**
@@ -26,12 +30,14 @@ public class StreamTickets {
     public record Ticket(String ticket, Instant expiresAt) {}
 
     private final StreamTicketRepository tickets;
+    private final OperationsPorts ports;
     private final InstantSource clock;
     private final CastorConfig castor;
     private final SecureRandom random = new SecureRandom();
 
-    StreamTickets(StreamTicketRepository tickets, InstantSource clock, CastorConfig castor) {
+    StreamTickets(StreamTicketRepository tickets, OperationsPorts ports, InstantSource clock, CastorConfig castor) {
         this.tickets = tickets;
+        this.ports = ports;
         this.clock = clock;
         this.castor = castor;
     }
@@ -54,6 +60,25 @@ public class StreamTickets {
             return Optional.empty();
         }
         return tickets.redeem(hash(ticket), portId, clock.instant());
+    }
+
+    /** Who a handshake belongs to. */
+    public record Grant(String username, long portId) {}
+
+    /** Redeems the ticket of the port with that code on a worker thread (it reads the database); null when refused. */
+    public Uni<Grant> redeemOnWorker(String portCode, String ticket) {
+        return Uni.createFrom()
+                .item(() -> {
+                    try {
+                        long portId = ports.portId(portCode);
+                        return redeem(portId, ticket)
+                                .map(name -> new Grant(name, portId))
+                                .orElse(null);
+                    } catch (ResourceNotFoundException e) {
+                        return null;
+                    }
+                })
+                .runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
     }
 
     static String hash(String ticket) {

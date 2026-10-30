@@ -23,6 +23,12 @@ public interface EquipmentRepository {
     /** Closes the open interval of the machine at the given time; false when none is open. */
     boolean closeInterval(long portId, UUID assetId, Instant endedAt);
 
+    /** The interval that covers the instant (start included, end excluded), open or closed. */
+    Optional<EquipmentStatusInterval> intervalAt(long portId, UUID assetId, Instant at);
+
+    /** Gives the interval that started at {@code startedAt} the end time; false when there is none. */
+    boolean endInterval(long portId, UUID assetId, Instant startedAt, Instant endedAt);
+
     /** Newest first. */
     List<EquipmentStatusInterval> intervals(long portId, UUID assetId, int limit);
 }

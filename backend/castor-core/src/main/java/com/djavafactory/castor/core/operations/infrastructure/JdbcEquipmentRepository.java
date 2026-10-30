@@ -139,6 +139,30 @@ public class JdbcEquipmentRepository implements EquipmentRepository {
     }
 
     @Override
+    public Optional<EquipmentStatusInterval> intervalAt(long portId, UUID assetId, Instant at) {
+        return sql.queryOne(
+                INTERVAL_SELECT + "where port_id = ? and asset_id = ? and started_at <= ? "
+                        + "and (ended_at is null or ended_at > ?) order by started_at desc limit 1",
+                JdbcEquipmentRepository::mapInterval,
+                portId,
+                assetId,
+                at,
+                at);
+    }
+
+    @Override
+    public boolean endInterval(long portId, UUID assetId, Instant startedAt, Instant endedAt) {
+        return sql.update(
+                        "update ops.equipment_status_interval set ended_at = ? "
+                                + "where port_id = ? and asset_id = ? and started_at = ?",
+                        endedAt,
+                        portId,
+                        assetId,
+                        startedAt)
+                == 1;
+    }
+
+    @Override
     public List<EquipmentStatusInterval> intervals(long portId, UUID assetId, int limit) {
         return sql.query(
                 INTERVAL_SELECT + "where port_id = ? and asset_id = ? order by started_at desc, id desc limit ?",

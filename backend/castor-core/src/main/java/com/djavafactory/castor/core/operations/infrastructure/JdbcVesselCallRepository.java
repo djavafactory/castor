@@ -18,7 +18,7 @@ import com.djavafactory.castor.core.shared.domain.ConflictException;
 public class JdbcVesselCallRepository implements VesselCallRepository {
 
     static final String SELECT = "select id, port_id, call_code, vessel_name, imo, loa_m, beam_m, status, eta, "
-            + "ata, etd, atd, berth_asset_id, source, quality, observed_at, last_occurred_at, version "
+            + "ata, etd, atd, berth_asset_id, source, quality, observed_at, last_occurred_at, last_source_sequence, version "
             + "from ops.vessel_call ";
 
     private final OpsSql sql;
@@ -43,8 +43,8 @@ public class JdbcVesselCallRepository implements VesselCallRepository {
         UUID id = c.id() == null ? UUID.randomUUID() : c.id();
         sql.update(
                 "insert into ops.vessel_call (id, port_id, call_code, vessel_name, imo, loa_m, beam_m, status, eta, ata, "
-                        + "etd, atd, berth_asset_id, source, quality, observed_at, last_occurred_at, version) "
-                        + "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)",
+                        + "etd, atd, berth_asset_id, source, quality, observed_at, last_occurred_at, last_source_sequence, version) "
+                        + "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)",
                 id,
                 c.portId(),
                 c.callCode(),
@@ -61,7 +61,8 @@ public class JdbcVesselCallRepository implements VesselCallRepository {
                 c.provenance().source(),
                 c.provenance().quality(),
                 c.provenance().observedAt(),
-                c.lastOccurredAt());
+                c.lastOccurredAt(),
+                c.lastSourceSequence());
         return new VesselCall(
                 id,
                 c.portId(),
@@ -78,6 +79,7 @@ public class JdbcVesselCallRepository implements VesselCallRepository {
                 c.berthAssetId(),
                 c.provenance(),
                 c.lastOccurredAt(),
+                c.lastSourceSequence(),
                 0);
     }
 
@@ -86,7 +88,7 @@ public class JdbcVesselCallRepository implements VesselCallRepository {
         int rows = sql.update(
                 "update ops.vessel_call set vessel_name = ?, imo = ?, loa_m = ?, beam_m = ?, status = ?, eta = ?, "
                         + "ata = ?, etd = ?, atd = ?, berth_asset_id = ?, source = ?, quality = ?, observed_at = ?, "
-                        + "last_occurred_at = ?, version = version + 1 where id = ? and version = ?",
+                        + "last_occurred_at = ?, last_source_sequence = ?, version = version + 1 where id = ? and version = ?",
                 c.vesselName(),
                 c.imo(),
                 c.loaM(),
@@ -101,6 +103,7 @@ public class JdbcVesselCallRepository implements VesselCallRepository {
                 c.provenance().quality(),
                 c.provenance().observedAt(),
                 c.lastOccurredAt(),
+                c.lastSourceSequence(),
                 c.id(),
                 c.version());
         if (rows != 1) {
@@ -122,6 +125,7 @@ public class JdbcVesselCallRepository implements VesselCallRepository {
                 c.berthAssetId(),
                 c.provenance(),
                 c.lastOccurredAt(),
+                c.lastSourceSequence(),
                 c.version() + 1);
     }
 
@@ -142,6 +146,7 @@ public class JdbcVesselCallRepository implements VesselCallRepository {
                 r.uuid("berth_asset_id"),
                 new Provenance(r.text("source"), Quality.valueOf(r.text("quality")), r.instant("observed_at")),
                 r.instant("last_occurred_at"),
+                r.longOrNull("last_source_sequence"),
                 r.lng("version"));
     }
 }

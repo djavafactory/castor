@@ -3,6 +3,7 @@ package com.djavafactory.castor.core.operations.application;
 import java.time.Instant;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 
 import com.djavafactory.castor.core.operations.api.EquipmentStateDto;
 import com.djavafactory.castor.core.operations.api.GateVisitDto;
@@ -24,8 +25,13 @@ public class StateViews {
 
     private final CastorConfig.Sla sla;
 
+    @Inject
     StateViews(CastorConfig castor) {
-        this.sla = castor.state().sla();
+        this(castor.state().sla());
+    }
+
+    StateViews(CastorConfig.Sla sla) {
+        this.sla = sla;
     }
 
     public EquipmentStateDto equipment(EquipmentState e) {
