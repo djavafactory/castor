@@ -121,6 +121,8 @@ jobs:
           . ../.env
           set +a
           export E2E_USERNAME="$CASTOR_ADMIN_USERNAME" E2E_PASSWORD="$CASTOR_ADMIN_PASSWORD"
+          # The gateway answers on the host loopback only (compose publishes 127.0.0.1:DEV_GATEWAY_PORT)
+          export E2E_GATEWAY_URL="http://localhost:${DEV_GATEWAY_PORT:-8082}"
           PW_VERSION=$(node -p "require('@playwright/test/package.json').version")
           IMAGE="mcr.microsoft.com/playwright:v$PW_VERSION-noble"
           status=0
@@ -129,7 +131,8 @@ jobs:
             -e CI "$IMAGE" npm run test:e2e || status=1
           # Specs that need the real backend and seed data run against the dev stack
           docker run --rm --ipc=host --network host -v "$GITHUB_WORKSPACE":/work -w /work/frontend \
-            -e CI -e E2E_USERNAME -e E2E_PASSWORD -e E2E_BASE_URL="http://localhost:${DEV_WEB_PORT:-8080}" \
+            -e CI -e E2E_USERNAME -e E2E_PASSWORD -e E2E_GATEWAY_URL -e GATEWAY_DEMO_KEY \
+            -e E2E_BASE_URL="http://localhost:${DEV_WEB_PORT:-8080}" \
             -e E2E_API_URL="http://localhost:${DEV_WEB_PORT:-8080}/api" \
             "$IMAGE" npm run test:e2e || status=1
           exit $status
@@ -156,6 +159,13 @@ jobs:
         include:
           - image: castor-core
             context: backend
+          # The same Dockerfile as castor-core, built for the gateway module
+          - image: castor-gateway
+            context: backend
+            args: |
+              MODULE=castor-gateway
+              API_PORT=8082
+              MANAGEMENT_PORT=9002
           - image: castor-frontend
             context: frontend
     steps:
@@ -183,6 +193,7 @@ jobs:
             BUILD_VERSION=${{ steps.tags.outputs.BUILD_VERSION }}
             GIT_COMMIT=${{ steps.tags.outputs.GIT_COMMIT }}
             BUILD_TIME=${{ steps.tags.outputs.BUILD_TIME }}
+            ${{ matrix.args }}
           tags: ${{ steps.tags.outputs.list }}
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}

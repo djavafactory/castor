@@ -8,6 +8,12 @@
       "port": 8081
     },
     {
+      "name": "castor-gateway-local",
+      "runtimeExecutable": "C:/Program Files/Git/bin/bash.exe",
+      "runtimeArgs": ["-lc", "set -a && . ./.env && set +a && cd backend && ./mvnw -pl castor-gateway quarkus:dev -Dquarkus.profile=local"],
+      "port": 8082
+    },
+    {
       "name": "castor-frontend-local",
       "runtimeExecutable": "C:/Program Files/Git/bin/bash.exe",
       "runtimeArgs": ["-lc", "cd frontend && npm run dev"],

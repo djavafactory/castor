@@ -1,6 +1,6 @@
 # Castor environments. Variables come from the root .env (copy .env.example).
 #   local: docker compose --profile local up -d --wait     (database and Kafka, apps run on the host)
-#   dev:   docker compose --profile dev up -d --build --wait   (database, Kafka, backend, frontend in containers)
+#   dev:   docker compose --profile dev up -d --build --wait   (database, Kafka, backend, gateway, frontend in containers)
 # Container, network and volume names are fixed per environment so local and dev never collide.
 name: castor
 
@@ -147,6 +147,44 @@ services:
       DB_FLYWAY_PASSWORD: castor_flyway_dev
     networks: [castor-dev-net]
     expose: ["8081", "9000"]
+    restart: unless-stopped
+
+  # The ingest gateway (INGEST-02). Same Dockerfile as the backend, built for another module. It is not behind the
+  # frontend's nginx (rule R7); the API port is published on the host loopback only, for the e2e helper and the emulator
+  # that run on the host. Schema ingest is emptied at every start, like the backend's data (CASTOR_RESET_ON_START).
+  castor-dev-gateway:
+    profiles: [dev]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        MODULE: castor-gateway
+        API_PORT: "8082"
+        MANAGEMENT_PORT: "9002"
+        BUILD_VERSION: ${BUILD_VERSION:-}
+        GIT_COMMIT: ${GIT_COMMIT:-}
+        BUILD_TIME: ${BUILD_TIME:-}
+    image: castor-dev-gateway:local
+    container_name: castor-dev-gateway
+    depends_on:
+      castor-dev-db:
+        condition: service_healthy
+      castor-dev-kafka:
+        condition: service_healthy
+    environment:
+      CASTOR_ENV: dev
+      KAFKA_BOOTSTRAP_SERVERS: castor-dev-kafka:9092
+      CASTOR_RESET_ON_START: "true"
+      CASTOR_PORT_CODE: ${CASTOR_PORT_CODE:-westports}
+      GATEWAY_DEMO_KEY: ${GATEWAY_DEMO_KEY:?set GATEWAY_DEMO_KEY in .env}
+      DB_URL: jdbc:postgresql://castor-dev-db:5432/${POSTGRES_DB:-castor}
+      # Local/dev-only role password from db/init/01-roles.sql; the role owns schema ingest and runs the migrations too
+      DB_GATEWAY_USERNAME: castor_gateway
+      DB_GATEWAY_PASSWORD: castor_gateway_dev
+    networks: [castor-dev-net]
+    ports:
+      - "127.0.0.1:${DEV_GATEWAY_PORT:-8082}:8082"
+    expose: ["9002"]
     restart: unless-stopped
 
   castor-dev-frontend:

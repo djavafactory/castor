@@ -1,6 +1,6 @@
 # Castor backend
 
-Quarkus (Java 25) REST service `castor-core`: layouts, geometry, identity, audit. Maven multi-module, created in SETUP-04.
+Quarkus (Java 25) REST service `castor-core`: layouts, geometry, identity, audit; and `castor-gateway` (INGEST-02), the ingest gateway. Maven multi-module, created in SETUP-04.
 
 ## Stack and versions
 
@@ -23,6 +23,7 @@ Full list: root [README](../README.md#technology-stack).
 `com.djavafactory.castor.<service>.<bounded-context>.<layer>`
 
 - service: `castor-core`; contexts: `port`, `layout`, `geometry`, `identity`, `audit`, `shared`.
+- service: `castor-gateway`; contexts: `intake` (endpoint, keys, signature, inbox), `normalize` (normalizer, `SourceAdapter` SPI, adapters), `relay` (outbox, Kafka publisher), `housekeeping`, `shared`. Same layering rules as castor-core (ArchUnit), plus: no `Instant.now()`, `System.currentTimeMillis()` or `Thread.sleep` in server code (rule R8; time comes from an injected `InstantSource`).
 - `castor-contracts` is a plain-Java module (no Quarkus) shared by every service: `com.djavafactory.castor.contracts` holds the canonical event envelope, the JSON Schemas of schema version 1 (`schemas/v1/`), `Unit`, `Topics`, `CanonicalEventValidator`, `CanonicalEventCodec` and `TopicProvisioner`. See README "Decisions" (INGEST-01) for the compatibility policy.
 - layers: `api` (REST, DTOs) -> `application` (use cases) -> `domain` (pure Java, no framework imports) <- `infrastructure` (Hibernate, security, file import).
 
@@ -38,6 +39,7 @@ Reference data and later seed data must also come from migrations (or test fixtu
 
 ```
 ./mvnw -pl castor-core quarkus:dev                     # run locally
+./mvnw -pl castor-gateway quarkus:dev                  # the ingest gateway (:8082, management :9002)
 ./mvnw -B spotless:check verify                              # format, unit (*Test), integration (*IT), coverage
 ./mvnw spotless:apply                                        # format
 ```
@@ -71,6 +73,12 @@ Tests run in the Quarkus profile `test`, which inherits `dev` (`%test.quarkus.co
 In `prod`, `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `DB_FLYWAY_USERNAME`, `DB_FLYWAY_PASSWORD` and `CASTOR_CORS_ORIGINS` are required. A missing one stops start-up with a message naming the variable. `CASTOR_CORS_ORIGINS` is a comma separated list; `*` is refused.
 
 The environment is named by `CASTOR_ENV` (local, dev or test), independent of the Quarkus profile. The `castor.*` settings are bound in `CastorConfig`. `ConfigGuard` stops start-up for demo login, placeholders, short admin passwords or open CORS when `CASTOR_ENV` is anything else, and refuses `CASTOR_RESET_ON_START=true` outside dev and test. With the flag on, every start drops and recreates the schemas (Flyway clean, enabled only then) and runs the `DataSeedStep` beans.
+
+### castor-gateway
+
+Run and test it like castor-core: Dev Services start one PostGIS and one Kafka broker per test JVM, `./mvnw -pl castor-gateway verify` runs its unit, ArchUnit and integration tests with the same JaCoCo gates (85 % in `*.domain` packages, 70 % overall). The workers (normalizer, relay, housekeeping) are switched off in tests (`castor.workers.enabled=false`) and run by hand (`NormalizeInbox.runOnce()`, `RelayOutbox.runOnce()`, `RunHousekeeping.runOnce()`); `IntakePipelineIT` and `IntakeBootstrapIT` switch them on (`LivePipeline` profile). `TestClock` replaces the system clock in every test. `RelayOutageIT` stops and restarts its own Testcontainers broker; `IntakeRolesIT` migrates a database prepared with `db/init/01-roles.sql` as `castor_gateway`.
+
+Behaviour, endpoint contract, delivery guarantees and settings: root README, "INGEST-02: Ingest gateway, durable inbox and outbox relay". Its schema `ingest` is owned by `castor_gateway`; `DB_GATEWAY_USERNAME` and `DB_GATEWAY_PASSWORD` are required in every deployed environment (and `KAFKA_BOOTSTRAP_SERVERS`). Health `/q/health/ready` includes "Database migrations" and "Kafka" on the management port 9002, metrics `castor_gateway_*` on `/q/metrics`.
 
 ### Behaviour worth knowing
 

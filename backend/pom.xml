@@ -14,6 +14,7 @@
   <modules>
     <module>castor-contracts</module>
     <module>castor-core</module>
+    <module>castor-gateway</module>
   </modules>
 
   <properties>

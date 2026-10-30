@@ -16,7 +16,7 @@ Castor is a reusable digital twin for conventional cargo ports: a 3D replica of 
 
 ```
 castor/
-  backend/                  Maven multi-module (Quarkus), see backend/README.md
+  backend/                  Maven multi-module (Quarkus): castor-contracts, castor-core, castor-gateway; see backend/README.md
   frontend/                 React + Vite + Three.js, see frontend/README.md
   fixtures/                 coordinates.json shared by backend and frontend coordinate tests (CORE-01)
   scripts/                  generate-coordinate-fixtures.mjs
@@ -26,7 +26,7 @@ castor/
   .gitignore  .editorconfig  README.md  CHANGELOG.md  VERSION
 ```
 
-Each app owns its Dockerfile (`backend/Dockerfile`, `frontend/Dockerfile`). There is no `gateway/` folder in Phase 1; it is added when the Phase 2 gateway work starts.
+Each app owns its Dockerfile (`backend/Dockerfile`, `frontend/Dockerfile`). The backend Dockerfile builds either service: `MODULE=castor-core` (default) or `MODULE=castor-gateway` (INGEST-02, with `API_PORT=8082 MANAGEMENT_PORT=9002`).
 
 Data flow (Phase 1): browser frontend <-> backend (REST) -> PostgreSQL + PostGIS. Phase 2 adds Westports systems -> gateway -> Kafka -> backend and a WebSocket to the frontend; see [Target architecture](#target-architecture).
 
@@ -55,7 +55,16 @@ Details and limits: [backend/README.md](backend/README.md#run-and-test) and [fro
 
 Kafka needs no setup either: the same Dev Services start a throwaway single-node `apache/kafka:4.2.2` broker next to the database, for `quarkus:dev` and for every test (one broker per test JVM, never shared with a broker you started yourself). castor-core creates its four topics at start.
 
-There is no gateway yet, so it has no run instructions; it gets its own README when the gateway work starts.
+The ingest gateway (castor-gateway, INGEST-02) starts the same way, in a third terminal, on :8082 (health and metrics on :9002); the browser never calls it:
+
+```
+cd backend && ./mvnw -pl castor-gateway quarkus:dev
+curl -i -X POST http://localhost:8082/api/v1/ports/westports/integrations/canonical/events \
+  -H 'X-Castor-Key: local-gateway-demo-key' -H 'Content-Type: application/json' \
+  -d '{"schemaVersion":1,"sourceSystem":"CURL","sourceEventId":"curl-1","type":"equipment.status.changed","entityType":"EQUIPMENT","entityId":"crane-1","aggregateId":"crane-1","occurredAt":"2026-10-29T08:20:00Z","quality":"SIMULATED","payload":{"status":"IDLE"}}'
+```
+
+Without `GATEWAY_DEMO_KEY` in the environment the key is `local-gateway-demo-key`. It answers `202 {"receptionId": ...}`; the same command again answers `200` with `"duplicate": true`. See [INGEST-02](#ingest-02-ingest-gateway-durable-inbox-and-outbox-relay).
 
 ### With a persistent Docker database and broker
 
@@ -65,6 +74,7 @@ The database and Kafka run in Docker; backend and frontend run on your machine w
 cp .env.example .env                       # then replace every CHANGE_ME value
 docker compose --profile local up -d --wait   # castor-local-db 127.0.0.1:${LOCAL_DB_PORT:-5432}, castor-local-kafka 127.0.0.1:${LOCAL_KAFKA_PORT:-9092}
 cd backend && ./mvnw -pl castor-core quarkus:dev -Dquarkus.profile=local   # local = dev settings + the Docker database
+cd backend && ./mvnw -pl castor-gateway quarkus:dev -Dquarkus.profile=local   # the gateway, with .env exported (launch.json: castor-gateway-local)
 cd frontend && cp .env.example .env.local && npm ci && npm run dev
 ```
 
@@ -74,6 +84,7 @@ cd frontend && cp .env.example .env.local && npm ci && npm run dev
 | Kafka (bootstrap server) | localhost:9092 (`LOCAL_KAFKA_PORT`) |
 | API, Swagger UI | http://localhost:8081, http://localhost:8081/q/swagger-ui |
 | Health (management port) | http://localhost:9000/q/health/ready |
+| Ingest gateway, its health and OpenAPI (management port) | http://localhost:8082, http://localhost:9002/q/health/ready, http://localhost:9002/q/openapi |
 
 The `local` profile reads the broker address from `kafka.bootstrap.servers` (`localhost:${LOCAL_KAFKA_PORT:9092}`). Tests never use it. An exported `KAFKA_BOOTSTRAP_SERVERS` (for example the root `.env` you exported to run the local backend) switches Dev Services off, so run the backend tests in a shell where it is unset: `KafkaTestIsolationTest` fails the build otherwise.
 
@@ -85,20 +96,20 @@ docker compose --profile local down -v && docker compose --profile local up -d
 
 ## Run the dev environment
 
-The whole built app in containers (`castor-dev-db`, `castor-dev-kafka`, `castor-dev-backend`, `castor-dev-frontend`). Only the frontend port is published; the database, Kafka (`castor-dev-kafka:9092` on the `castor-dev-net` network) and `/q/*` management endpoints are not reachable from the host. Runs side by side with local.
+The whole built app in containers (`castor-dev-db`, `castor-dev-kafka`, `castor-dev-backend`, `castor-dev-gateway`, `castor-dev-frontend`). The frontend port is published, and the gateway API on the host loopback only (`127.0.0.1:${DEV_GATEWAY_PORT:-8082}`, for the e2e helper and the emulator that run on the host; it is not behind the frontend's nginx); the database, Kafka (`castor-dev-kafka:9092` on the `castor-dev-net` network) and `/q/*` management endpoints are not reachable from the host. Runs side by side with local.
 
 ```
 docker compose --profile dev up -d --build --wait   # app at http://localhost:${DEV_WEB_PORT:-8080}
 docker compose --profile dev down
 ```
 
-Every backend start in dev wipes and reseeds the data (`CASTOR_RESET_ON_START=true`, set by `compose.yaml`). The dev Kafka keeps its data on tmpfs, so it is empty after every container start; the backend waits for it to be healthy and recreates the topics.
+Every backend start in dev wipes and reseeds the data (`CASTOR_RESET_ON_START=true`, set by `compose.yaml`), and every gateway start empties schema `ingest` the same way (inbox, outbox, quarantine; the sources and the demo key are written again from `.env`). The dev Kafka keeps its data on tmpfs, so it is empty after every container start; the backend waits for it to be healthy and recreates the topics.
 
 ## Tests
 
 | What | Command | Needs |
 | --- | --- | --- |
-| Backend unit, ArchUnit and integration tests (throwaway PostGIS and Kafka, see [Phase 2 test rules](#test-rules-t1-t4)) | `cd backend && ./mvnw -B spotless:check verify` | Docker, Java 25 |
+| Backend unit, ArchUnit and integration tests of castor-core and castor-gateway (throwaway PostGIS and Kafka, see [Phase 2 test rules](#test-rules-t1-t4)) | `cd backend && ./mvnw -B spotless:check verify` | Docker, Java 25 |
 | Frontend lint, types, unit tests | `cd frontend && npm ci && npm run lint && npm run typecheck && npm test` | Node 24 |
 | Bundle size budget | `cd frontend && npm run build && npm run bundle:check` | Node 24 |
 | End to end, mocked API (login, design system) | `cd frontend && npx playwright install chromium && npm run test:e2e` | Node 24 |
@@ -116,6 +127,7 @@ Each environment is a set of variables; see `.env.example` and `frontend/.env.ex
 - The backend refuses to start when `CASTOR_ENV` is anything else and demo login is on, a value contains `CHANGE_ME`, the admin password has fewer than 14 characters, or CORS origins are empty or `*`.
 - `CASTOR_RESET_ON_START=true` is allowed only in dev or test, otherwise start-up fails with "Refusing to wipe data: reset-on-start is only allowed in dev or test".
 - Kafka: `KAFKA_BOOTSTRAP_SERVERS` is required in every deployed environment (compose dev sets `castor-dev-kafka:9092`); `LOCAL_KAFKA_PORT` is the host port of `castor-local-kafka`; `CASTOR_KAFKA_REPLICATION_FACTOR` (default 1, the local and dev value) is the replication factor of the topics castor-core creates at start.
+- Gateway (INGEST-02): `GATEWAY_DEMO_KEY` is the API key (`X-Castor-Key`) of every source in local, dev and test; compose requires it, CI replaces its `CHANGE_ME` value, and a protected environment refuses to start with it set. `DB_GATEWAY_USERNAME` and `DB_GATEWAY_PASSWORD` are the `castor_gateway` role (the one login that owns schema `ingest` and runs its migrations; required in every deployed environment). `DEV_GATEWAY_PORT` is the host port of `castor-dev-gateway`. `GATEWAY_HMAC_<REF>` is the secret of a source that signs its requests (`hmac_secret_ref`). `CASTOR_FAIL_POINT` (`before-normalize`, `before-relay`, `after-send-before-mark`; with `CASTOR_FAIL_POINT_MODE=halt` the process ends there instead of the run) rehearses a crash and is refused outside local, dev and test.
 - `CASTOR_SERVICE_TOKEN` is the shared secret of every internal API between core, gateway and emulator. CI replaces every `CHANGE_ME` value with a random one.
 
 ## Data
@@ -361,6 +373,21 @@ actions/checkout v7, actions/setup-java v6, actions/setup-node v7, actions/uploa
 ### Decisions
 
 Record decisions and behaviour changes here, newest first.
+
+#### INGEST-02: Ingest gateway, durable inbox and outbox relay
+
+Sources hand events to Castor over HTTPS; once castor-gateway answers 202 the event is in the database, and from there it reaches `castor.ingest.canonical.v1` without being lost. It is a separate small Quarkus service (`backend/castor-gateway`, HTTP 8082, management 9002) with the quality bar of castor-core (same BOM, Spotless, JaCoCo gates, health, JSON logs, Problem Details). It uses plain JDBC and its own schema `ingest` (Flyway history inside it, migration `V1__ingest.sql`), owned by the login `castor_gateway` that runs the migrations and the service; that role has no right anywhere else (`IntakeRolesIT` proves it, and proves that the dev reset, a Flyway clean, works with it alone).
+
+1. **Endpoint:** `POST /api/v1/ports/{portId}/integrations/{source}/events`. `portId` is the port code (`westports`), as in castor-core's URLs; `source` is `canonical`, `cbas`, `itap`, `scss`, `edic` or `sensors`. The key is the header `X-Castor-Key`: a random 32-byte value written `ck_<base64url>`, stored only as its SHA-256 hash and a prefix label in `ingest.api_key` (shown once, by `IssueApiKey`; revoked keys stop working). The body is one JSON record or an array of up to 500.
+2. **Checks, in this order, each a Problem Details error:** key (401), source enabled (403), size of at most 256 KB (413), signature (401), JSON (400), then `sourceEventId` and `occurredAt` present and well formed (422, with `errors[].pointer`). A key checks one source of one port, so an unknown port or source answers 401 like a wrong key. More than 500 records answers 413, an empty array 422, JSON that is neither an object nor an array 400. The size is also enforced for chunked bodies (the bytes are counted).
+3. **Signed webhook (optional):** `X-Castor-Timestamp` (Unix seconds or an ISO-8601 instant) and `X-Castor-Signature` = lower-case hex of `HMAC-SHA256(secret, timestamp + "." + body)`. A request more than 5 minutes from the gateway clock (`castor.intake.max-clock-skew`) is refused, and so is one with only one of the two headers, a missing signature when the source has `require_signature`, and a wrong signature whenever the source has a secret. `hmac_secret_ref` names the secret (`gateway.hmac.<ref>`, environment variable `GATEWAY_HMAC_<REF>`); the database never holds a secret.
+4. **Answers:** a new record is stored in `ingest.inbox` (`reception_id` UUIDv7, `received_at` from the injected `InstantSource`, `raw` jsonb with exact decimals, status `RECEIVED`) and committed **before** the answer `202 {"receptionId"}`. `UNIQUE (port_id, source, source_event_id)` makes a repeat answer `200 {"receptionId" of the first, "duplicate": true}`, also when two requests race. An array answers `207 {"items": [{"index", "status", "receptionId", "duplicate", "errors"}]}` with the status each record would have had alone (202, 200, 422, or 400 for JSON the database cannot hold, such as an escaped NUL); all valid records of the array are one transaction, and reception ids increase in array order (a monotonic UUIDv7 generator), so the events of one aggregate keep their order. Inbox rows are never deleted: their key is what recognises a repeat.
+5. **Normalizer:** every 0.5 s takes up to 200 `RECEIVED` rows (`FOR UPDATE SKIP LOCKED`, oldest first), asks the `SourceAdapter` of the row's source (`interface SourceAdapter { String source(); List<CanonicalEvent> normalize(InboxRecord) throws Rejection; }`, any CDI bean) and, in **one transaction per batch**, writes `ingest.outbox` rows and sets `NORMALIZED`, or writes `ingest.quarantine` (reason code, detail) and sets `QUARANTINED`. `eventId` is the name-based UUID of `(receptionId, index)` and always replaces whatever an adapter wrote, so a retried normalization gives the same ids. This ticket ships the adapter of source `canonical`: the body is a canonical envelope, the fields the gateway owns (`eventId`, `receptionId`, `receivedAt`, `portId` = the port of the URL) are set by the gateway, and the event is checked with `CanonicalEventValidator`. Quarantine reasons: `SCHEMA_INVALID` (the detail lists the first 5 violations with their JSON Pointer), `PORT_MISMATCH` (the envelope names another port), `NO_ADAPTER`, `ADAPTER_ERROR` (the error is logged under an `errorId`, never put in the detail) and any code an adapter's own `Rejection` carries. A quarantined record is not published. The system sources (`cbas`, `itap`, `scss`, `edic`, `sensors`) are created disabled (403) until INGEST-03 adds their adapters.
+6. **Relay:** every 0.5 s publishes up to 500 unpublished outbox rows to `castor.ingest.canonical.v1` in outbox order (key `aggregateId`, headers `eventId` and `type`; idempotent producer, `acks=all`) and sets `published_at` only after the broker's acknowledgement. After a message the broker did not acknowledge, no later message of the same aggregate is marked, so the next run sends them again in order. One relay runs at a time across all gateway processes (a Postgres advisory lock). **Delivery is at least once:** a crash between the acknowledgement and the mark, or a send that timed out although the broker kept the message (for instance while it restarts), sends the event again with the same `eventId`; nothing is lost, and the consumer (STATE-03) must drop a repeated `eventId`. A broker that is away costs the relay one send timeout (`castor.relay.send-timeout`, 10 s) per run and nothing else: intake keeps answering 202, readiness reports DOWN (liveness does not), and the outbox is published when the broker returns. The gateway creates the Kafka topics at start but does not refuse to start without a broker; the relay creates them before its first send.
+7. **Housekeeping (hourly):** published outbox rows and the raw payload of `NORMALIZED` inbox rows go after 7 days, quarantine entries and the raw payload of their records after 30 (`castor.retention.outbox`, `.raw`, `.quarantine`). Unpublished outbox rows are never deleted.
+8. **Fail points** (`FailPoint`, test and rehearsal hook): `before-normalize`, `before-relay` and `after-send-before-mark` stop the current worker run as a crash at that point would. `RelayIT` uses them for PRD 19.2 (an event answered 202, gateway stopped before the relay, gateway restarted: on Kafka once) and for the at-least-once window.
+9. **Local and dev:** `GATEWAY_DEMO_KEY` (default `local-gateway-demo-key` in `quarkus:dev` and tests) is written hashed as the key of every source at each start; the sources of the port (`CASTOR_PORT_CODE`) are created with `canonical` enabled. Changing the key and restarting revokes the old one. `CASTOR_RESET_ON_START` (true in the dev stack) empties schema `ingest` at start with the same guard as castor-core: refused outside dev and test. **Existing database volumes** were created before the role existed (the init script runs only on an empty data directory): either recreate them (`docker compose --profile local down -v`) or run once as the superuser: `CREATE ROLE castor_gateway LOGIN PASSWORD 'castor_gateway_dev' NOSUPERUSER NOCREATEDB NOCREATEROLE; GRANT CONNECT ON DATABASE castor TO castor_gateway; CREATE SCHEMA ingest AUTHORIZATION castor_gateway;`.
+10. **Metrics** (management port `/q/metrics`): `castor_gateway_intake_total{outcome=accepted|duplicate|rejected}`, `castor_gateway_normalized_total{result=normalized|quarantined}`, `castor_gateway_published_total`.
 
 #### INGEST-01: Canonical event contract and its compatibility policy
 

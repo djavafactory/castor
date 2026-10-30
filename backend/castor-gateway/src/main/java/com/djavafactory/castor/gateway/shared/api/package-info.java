@@ -1,0 +1,2 @@
+/** shared api: REST resources and DTOs. */
+package com.djavafactory.castor.gateway.shared.api;
