@@ -45,7 +45,9 @@ public final class Mappings {
                 at,
                 MappingException.UNKNOWN_MAPPING,
                 MappingException.AMBIGUOUS_MAPPING,
-                () -> sourceSystem + " " + entityType + " '" + sourceId + "'");
+                () -> sourceSystem + " " + entityType + " '" + sourceId + "'",
+                entityType,
+                sourceId);
     }
 
     /** The canonical code of a source family or commodity code, valid at {@code at}. */
@@ -59,7 +61,9 @@ public final class Mappings {
                 at,
                 MappingException.UNKNOWN_CARGO_MAPPING,
                 MappingException.AMBIGUOUS_MAPPING,
-                () -> sourceSystem + " " + entityType + " code '" + sourceId + "'");
+                () -> sourceSystem + " " + entityType + " code '" + sourceId + "'",
+                null,
+                null);
     }
 
     /** The unit must be one the canonical cargo family is measured in; a family without a rule is not checked. */
@@ -83,14 +87,17 @@ public final class Mappings {
             Instant at,
             String noneCode,
             String manyCode,
-            java.util.function.Supplier<String> what)
+            java.util.function.Supplier<String> what,
+            String subjectType,
+            String subjectId)
             throws MappingException {
         List<MappingRow> valid = found.stream().filter(row -> row.validAt(at)).toList();
         if (valid.isEmpty()) {
-            throw new MappingException(noneCode, "No mapping for " + what.get() + " at " + at);
+            throw new MappingException(noneCode, "No mapping for " + what.get() + " at " + at, subjectType, subjectId);
         }
         if (valid.size() > 1) {
-            throw new MappingException(manyCode, "More than one mapping for " + what.get() + " at " + at);
+            throw new MappingException(
+                    manyCode, "More than one mapping for " + what.get() + " at " + at, subjectType, subjectId);
         }
         return valid.get(0).canonicalId();
     }

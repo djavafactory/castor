@@ -139,6 +139,9 @@ services:
       CASTOR_ADMIN_USERNAME: ${CASTOR_ADMIN_USERNAME:-admin}
       CASTOR_ADMIN_PASSWORD: ${CASTOR_ADMIN_PASSWORD:?set CASTOR_ADMIN_PASSWORD in .env}
       CASTOR_CORS_ORIGINS: http://localhost:${DEV_WEB_PORT:-8080}
+      # The Integrations API (INGEST-04) calls the gateway's internal admin API on the dev network with the service token
+      GATEWAY_URL: http://castor-dev-gateway:8082
+      CASTOR_SERVICE_TOKEN: ${CASTOR_SERVICE_TOKEN:-local-service-token}
       DB_URL: jdbc:postgresql://castor-dev-db:5432/${POSTGRES_DB:-castor}
       # Local/dev-only role passwords from db/init/01-roles.sql
       DB_USERNAME: castor_app
@@ -183,6 +186,8 @@ services:
       # File drop (INGEST-03): {source}/ folders in this volume, shared with the emulator (EMULATOR-01)
       GATEWAY_DROP_DIR: /drop
       GATEWAY_DEMO_KEY: ${GATEWAY_DEMO_KEY:?set GATEWAY_DEMO_KEY in .env}
+      # The admin API under /internal/ answers castor-core only, with this token (INGEST-04)
+      CASTOR_SERVICE_TOKEN: ${CASTOR_SERVICE_TOKEN:-local-service-token}
       DB_URL: jdbc:postgresql://castor-dev-db:5432/${POSTGRES_DB:-castor}
       # Local/dev-only role password from db/init/01-roles.sql; the role owns schema ingest and runs the migrations too
       DB_GATEWAY_USERNAME: castor_gateway

@@ -18,11 +18,28 @@ public final class Rejection extends Exception {
     /** The adapter failed with an error of its own. */
     public static final String ADAPTER_ERROR = "ADAPTER_ERROR";
 
+    /**
+     * What the rejection is about, when it is one thing: the source entity type and the id the source used ("BERTH",
+     * "B9" for an unmapped berth). It lets the quarantine be counted per source id.
+     */
+    public record Subject(String type, String id) {}
+
     private final String reasonCode;
+    private final Subject subject;
 
     public Rejection(String reasonCode, String detail) {
+        this(reasonCode, detail, null);
+    }
+
+    public Rejection(String reasonCode, String detail, Subject subject) {
         super(detail);
         this.reasonCode = reasonCode;
+        this.subject = subject;
+    }
+
+    /** The subject of the rejection, null when it has none. */
+    public Subject subject() {
+        return subject;
     }
 
     public String reasonCode() {

@@ -1,5 +1,6 @@
 export * from './exchange'
 export * from './hooks'
+export * from './integrations'
 export * from './mutations'
 export * from './schemas'
 export {

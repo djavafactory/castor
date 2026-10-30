@@ -1,5 +1,6 @@
 import { createBrowserRouter, redirect } from 'react-router'
 import { getEnv } from '@/lib/env'
+import { canViewIntegrations } from '@/lib/roles'
 import { useAuthStore } from '@/lib/stores/auth-store'
 
 function requireSession() {
@@ -13,6 +14,13 @@ function localOrDevOnly() {
   return requireSession()
 }
 
+/** Integrations are for OPERATOR and ADMIN; anyone else is sent back to the port. */
+function integrationsOnly() {
+  requireSession()
+  if (!canViewIntegrations(useAuthStore.getState().roles)) throw redirect('/')
+  return null
+}
+
 // Route-level code splitting: each route module is its own chunk.
 export const router = createBrowserRouter([
   {
@@ -23,6 +31,14 @@ export const router = createBrowserRouter([
     path: '/',
     loader: requireSession,
     lazy: () => import('@/features/shell/app-shell').then((m) => ({ Component: m.AppShell })),
+  },
+  {
+    path: '/integrations',
+    loader: integrationsOnly,
+    lazy: () =>
+      import('@/features/integrations/integrations-page').then((m) => ({
+        Component: m.IntegrationsPage,
+      })),
   },
   {
     path: '/design-system',

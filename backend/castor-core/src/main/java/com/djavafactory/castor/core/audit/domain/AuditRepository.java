@@ -17,6 +17,17 @@ public interface AuditRepository {
             String after,
             String requestId);
 
+    /** Appends a row of a change that belongs to the port, not to a layout version (integrations). */
+    void appendForPort(
+            String portCode,
+            String actor,
+            AuditAction action,
+            String entityKind,
+            String entityId,
+            String before,
+            String after,
+            String requestId);
+
     /** Newest first by id; the filter's before is an exclusive id bound. */
     List<AuditEntry> find(String portCode, AuditFilter filter);
 }

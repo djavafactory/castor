@@ -113,9 +113,9 @@ class IntakeBootstrapIT extends PipelineSupport {
     }
 
     @Test
-    void schemaIngestHasItsOwnFlywayHistoryAtVersion2() {
+    void schemaIngestHasItsOwnFlywayHistoryAtVersion3() {
         assertEquals(
-                List.of("1", "2"),
+                List.of("1", "2", "3"),
                 Db.column(
                         dataSource,
                         "select version from ingest.flyway_schema_history where success and version is not null order by installed_rank"));

@@ -207,6 +207,208 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ports/{portId}/integrations/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The sources of a port with their counters of the last 24 hours (OPERATOR, ADMIN)
+         * @description Proxied to the ingest gateway. accepted, duplicate and quarantined count the last 24 hours; freshness compares the last record received with the source's freshness SLA (UNKNOWN when it never sent one).
+         */
+        get: operations["listIntegrationSources"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ports/{portId}/integrations/sources/{source}/keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The API keys of a source, newest first, prefix only (OPERATOR, ADMIN) */
+        get: operations["listIntegrationKeys"];
+        put?: never;
+        /**
+         * Create an API key for a source (ADMIN)
+         * @description The key is in the answer once and cannot be read again. Audited as INTEGRATION_KEY_CREATED, without the key.
+         */
+        post: operations["createIntegrationKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ports/{portId}/integrations/sources/{source}/keys/{keyId}/rotate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke a key and issue a new one in one step (ADMIN)
+         * @description The old key stops working at once. The key of GATEWAY_DEMO_KEY cannot be rotated here. Audited as INTEGRATION_KEY_ROTATED.
+         */
+        post: operations["rotateIntegrationKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ports/{portId}/integrations/sources/{source}/keys/{keyId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke an API key (ADMIN)
+         * @description Audited as INTEGRATION_KEY_REVOKED.
+         */
+        delete: operations["revokeIntegrationKey"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ports/{portId}/integrations/quarantine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What the gateway refused and why, newest first (OPERATOR, ADMIN)
+         * @description Keyset pagination. Pass nextBefore of the last page as before to get the next one. A replay that is refused again is its own entry with replayOf set.
+         */
+        get: operations["listQuarantine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ports/{portId}/integrations/quarantine/{receptionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One quarantined record with its payload and replay attempts (OPERATOR, ADMIN)
+         * @description Keys and secrets in the payload are masked as [REDACTED]. raw is null once housekeeping removed the payload.
+         */
+        get: operations["getQuarantined"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ports/{portId}/integrations/quarantine/{receptionId}/replay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Put a quarantined record through the pipeline again (ADMIN)
+         * @description Creates a new inbox row linked to the original (replayOf); the original and its quarantine entry are not changed. A record that is still broken gives a second linked attempt. Audited as INTEGRATION_REPLAYED.
+         */
+        post: operations["replayQuarantined"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ports/{portId}/integrations/mappings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The identity mappings of a port (OPERATOR, ADMIN) */
+        get: operations["listIdentityMappings"];
+        put?: never;
+        /**
+         * Map a source id to a canonical id (ADMIN)
+         * @description Valid from effectiveFrom (default the epoch) to effectiveTo (default none), the end excluded. Audited as INTEGRATION_MAPPING_CREATED with the signed-in user.
+         */
+        post: operations["createIdentityMapping"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ports/{portId}/integrations/mappings/{id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * End a mapping (ADMIN)
+         * @description The mapping is never deleted. Audited as INTEGRATION_MAPPING_CLOSED.
+         */
+        post: operations["closeIdentityMapping"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ports/{portId}/integrations/mappings/unresolved": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Source ids the quarantine could not map, with how many records wait on each (OPERATOR, ADMIN)
+         * @description UNKNOWN_MAPPING and AMBIGUOUS_MAPPING counts per source id. A record whose replay succeeded is not counted.
+         */
+        get: operations["listUnresolvedMappings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/layouts/{layoutId}": {
         parameters: {
             query?: never;
@@ -462,6 +664,114 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        IntegrationSource: {
+            code: string;
+            enabled: boolean;
+            requireSignature: boolean;
+            /** @enum {string} */
+            qualityDefault: "OBSERVED" | "INFERRED" | "SIMULATED";
+            activeKeys: number;
+            /**
+             * Format: int64
+             * @description Records received in the last 24 hours
+             */
+            accepted: number;
+            /**
+             * Format: int64
+             * @description Repeats answered "duplicate" in the last 24 hours
+             */
+            duplicate: number;
+            /**
+             * Format: int64
+             * @description Records of the last 24 hours that were quarantined
+             */
+            quarantined: number;
+            /** Format: date-time */
+            lastReceivedAt?: string | null;
+            /** @enum {string} */
+            freshness: "FRESH" | "STALE" | "UNKNOWN";
+            /** Format: int64 */
+            freshnessSlaSeconds: number;
+        };
+        IntegrationKey: {
+            /** Format: int64 */
+            id: number;
+            /** @description The first characters of the key */
+            prefix: string;
+            /** @enum {string} */
+            origin: "issued" | "env";
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            revokedAt?: string | null;
+            /** @description The whole key; only in the answer that creates it */
+            key?: string | null;
+        };
+        QuarantineEntry: {
+            /** Format: int64 */
+            id: number;
+            /** Format: uuid */
+            receptionId: string;
+            source: string;
+            sourceEventId: string;
+            reasonCode: string;
+            detail: string;
+            /** Format: date-time */
+            receivedAt: string;
+            /** Format: date-time */
+            quarantinedAt: string;
+            /**
+             * Format: uuid
+             * @description The original record when this entry is a replay that was refused again
+             */
+            replayOf?: string | null;
+            /** @description How many replays the original has had */
+            replays: number;
+            /** @enum {string|null} */
+            latestReplayStatus?: "RECEIVED" | "NORMALIZED" | "QUARANTINED" | null;
+            /** @description The source entity type a mapping failure is about */
+            subjectType?: string | null;
+            /** @description The id the source used */
+            subjectId?: string | null;
+        };
+        QuarantineDetail: {
+            entry: components["schemas"]["QuarantineEntry"];
+            /** @description The payload as received, with keys and secrets masked; null once removed */
+            raw?: unknown;
+            rawAvailable: boolean;
+            /** @description Every replay of the original, oldest first */
+            attempts: {
+                /** Format: uuid */
+                receptionId: string;
+                /** Format: date-time */
+                receivedAt: string;
+                /** @enum {string} */
+                status: "RECEIVED" | "NORMALIZED" | "QUARANTINED";
+                reasonCode?: string | null;
+                detail?: string | null;
+                /** @description Canonical events the replay produced */
+                events: number;
+                /** @description How many of them the gateway has published */
+                published: number;
+            }[];
+        };
+        IdentityMapping: {
+            /** Format: int64 */
+            id: number;
+            /** @enum {string} */
+            sourceSystem: "cbas" | "itap" | "scss" | "edic" | "sensors";
+            /** @enum {string} */
+            sourceEntityType: "EQUIPMENT" | "STORAGE" | "BERTH" | "GATE" | "VESSEL_CALL";
+            sourceId: string;
+            canonicalId: string;
+            /** Format: date-time */
+            effectiveFrom: string;
+            /** Format: date-time */
+            effectiveTo?: string | null;
+            createdBy: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
         LayoutVersionSummary: {
             /** Format: uuid */
             id: string;
@@ -894,7 +1204,7 @@ export interface components {
             note: string;
         };
         /** @enum {string} */
-        Role: "VIEWER" | "EDITOR" | "PUBLISHER" | "ADMIN";
+        Role: "VIEWER" | "OPERATOR" | "EDITOR" | "PUBLISHER" | "ADMIN";
         ProblemDetails: {
             /** Format: uri */
             type: string;
@@ -922,6 +1232,11 @@ export interface components {
     };
     responses: never;
     parameters: {
+        /** @description The port code (case-insensitive) */
+        PortId: string;
+        IntegrationSource: "canonical" | "cbas" | "itap" | "scss" | "edic" | "sensors";
+        KeyId: number;
+        ReceptionId: string;
         LayoutId: string;
         PortCode: string;
     };
@@ -1311,7 +1626,7 @@ export interface operations {
                 from?: string;
                 to?: string;
                 actor?: string;
-                action?: "ASSET_CREATED" | "ASSET_UPDATED" | "ASSET_DELETED" | "DRAFT_CREATED" | "DRAFT_DISCARDED" | "LAYOUT_PUBLISHED" | "LAYOUT_RESTORED" | "LAYOUT_IMPORTED" | "OVERRIDE_RECORDED";
+                action?: "ASSET_CREATED" | "ASSET_UPDATED" | "ASSET_DELETED" | "DRAFT_CREATED" | "DRAFT_DISCARDED" | "LAYOUT_PUBLISHED" | "LAYOUT_RESTORED" | "LAYOUT_IMPORTED" | "OVERRIDE_RECORDED" | "INTEGRATION_REPLAYED" | "INTEGRATION_KEY_CREATED" | "INTEGRATION_KEY_ROTATED" | "INTEGRATION_KEY_REVOKED" | "INTEGRATION_MAPPING_CREATED" | "INTEGRATION_MAPPING_CLOSED";
                 assetId?: string;
                 limit?: number;
                 before?: number;
@@ -1361,6 +1676,579 @@ export interface operations {
                 content?: never;
             };
             /** @description The role is not ADMIN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown port */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listIntegrationSources: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The port code (case-insensitive) */
+                portId: components["parameters"]["PortId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One entry per source */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["IntegrationSource"][];
+                    };
+                };
+            };
+            /** @description The role is not OPERATOR or ADMIN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown port */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The ingest gateway did not answer */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listIntegrationKeys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The port code (case-insensitive) */
+                portId: components["parameters"]["PortId"];
+                source: components["parameters"]["IntegrationSource"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The keys */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["IntegrationKey"][];
+                    };
+                };
+            };
+            /** @description The role is not OPERATOR or ADMIN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown port or source */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createIntegrationKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The port code (case-insensitive) */
+                portId: components["parameters"]["PortId"];
+                source: components["parameters"]["IntegrationSource"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The new key, with its secret in key */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationKey"];
+                };
+            };
+            /** @description The role is not ADMIN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown port or source */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    rotateIntegrationKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The port code (case-insensitive) */
+                portId: components["parameters"]["PortId"];
+                source: components["parameters"]["IntegrationSource"];
+                keyId: components["parameters"]["KeyId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The new key, with its secret in key */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationKey"];
+                };
+            };
+            /** @description The role is not ADMIN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown port, source or key */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The key is revoked already or comes from the environment */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    revokeIntegrationKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The port code (case-insensitive) */
+                portId: components["parameters"]["PortId"];
+                source: components["parameters"]["IntegrationSource"];
+                keyId: components["parameters"]["KeyId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The key, revoked */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationKey"];
+                };
+            };
+            /** @description The role is not ADMIN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown port, source or key */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The key is revoked already or comes from the environment */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listQuarantine: {
+        parameters: {
+            query?: {
+                source?: string;
+                reason?: string;
+                limit?: number;
+                before?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The port code (case-insensitive) */
+                portId: components["parameters"]["PortId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of quarantine entries */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["QuarantineEntry"][];
+                        /** Format: int64 */
+                        nextBefore?: number | null;
+                    };
+                };
+            };
+            /** @description The role is not OPERATOR or ADMIN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown port */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getQuarantined: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The port code (case-insensitive) */
+                portId: components["parameters"]["PortId"];
+                receptionId: components["parameters"]["ReceptionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The entry */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuarantineDetail"];
+                };
+            };
+            /** @description The role is not OPERATOR or ADMIN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown port or record */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    replayQuarantined: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The port code (case-insensitive) */
+                portId: components["parameters"]["PortId"];
+                receptionId: components["parameters"]["ReceptionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The new reception id and the original it repeats */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        receptionId: string;
+                        /** Format: uuid */
+                        replayOf: string;
+                    };
+                };
+            };
+            /** @description The role is not ADMIN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown port, or the record is not in the quarantine */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The payload was removed after its retention (RAW_EXPIRED), or an earlier replay has not been processed yet (REPLAY_PENDING) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listIdentityMappings: {
+        parameters: {
+            query?: {
+                source?: "cbas" | "itap" | "scss" | "edic" | "sensors";
+                entityType?: "EQUIPMENT" | "STORAGE" | "BERTH" | "GATE" | "VESSEL_CALL";
+                /** @description Part of the source id */
+                sourceId?: string;
+                state?: "open" | "closed" | "all";
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The port code (case-insensitive) */
+                portId: components["parameters"]["PortId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The mappings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["IdentityMapping"][];
+                    };
+                };
+            };
+            /** @description The role is not OPERATOR or ADMIN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown port */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createIdentityMapping: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The port code (case-insensitive) */
+                portId: components["parameters"]["PortId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    sourceSystem: "cbas" | "itap" | "scss" | "edic" | "sensors";
+                    /** @enum {string} */
+                    sourceEntityType: "EQUIPMENT" | "STORAGE" | "BERTH" | "GATE" | "VESSEL_CALL";
+                    sourceId: string;
+                    canonicalId: string;
+                    /** Format: date-time */
+                    effectiveFrom?: string;
+                    /** Format: date-time */
+                    effectiveTo?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description The mapping */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdentityMapping"];
+                };
+            };
+            /** @description The role is not ADMIN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown port */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Another mapping of the same source id is valid in that period (MAPPING_OVERLAP) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A field is missing or not allowed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    closeIdentityMapping: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The port code (case-insensitive) */
+                portId: components["parameters"]["PortId"];
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: date-time
+                     * @description Default now
+                     */
+                    effectiveTo?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The closed mapping */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdentityMapping"];
+                };
+            };
+            /** @description The role is not ADMIN */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown port or mapping */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The mapping is closed already */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The end is not after the start */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listUnresolvedMappings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The port code (case-insensitive) */
+                portId: components["parameters"]["PortId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One entry per source id and reason */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            source: string;
+                            entityType: string;
+                            sourceId: string;
+                            /** @enum {string} */
+                            reasonCode: "UNKNOWN_MAPPING" | "AMBIGUOUS_MAPPING";
+                            /** Format: int64 */
+                            records: number;
+                            /** Format: date-time */
+                            lastSeenAt: string;
+                        }[];
+                    };
+                };
+            };
+            /** @description The role is not OPERATOR or ADMIN */
             403: {
                 headers: {
                     [name: string]: unknown;

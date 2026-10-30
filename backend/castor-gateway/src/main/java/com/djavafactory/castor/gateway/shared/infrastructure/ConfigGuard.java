@@ -54,6 +54,9 @@ public final class ConfigGuard {
         if (castor.failPoint().isPresent()) {
             problems.add("CASTOR_FAIL_POINT must not be set");
         }
+        if (castor.admin().serviceToken().filter(token -> !token.isBlank()).isEmpty()) {
+            problems.add("CASTOR_SERVICE_TOKEN must be set");
+        }
         values.forEach((name, value) -> {
             if (value.contains(PLACEHOLDER)) {
                 problems.add(name + " still contains " + PLACEHOLDER);

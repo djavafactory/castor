@@ -78,7 +78,8 @@ public class NormalizeInbox {
             List<CanonicalEvent> events = adapter.normalize(record);
             return new Decision.Normalized(stamp(events, record.receptionId()));
         } catch (Rejection rejection) {
-            return new Decision.Quarantined(rejection.reasonCode(), truncate(rejection.getMessage()));
+            return new Decision.Quarantined(
+                    rejection.reasonCode(), truncate(rejection.getMessage()), rejection.subject());
         } catch (RuntimeException e) {
             String errorId = UUID.randomUUID().toString();
             LOG.errorf(

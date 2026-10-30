@@ -30,7 +30,9 @@ class ConfigGuardTest {
                         "castor.admin.password",
                         adminPassword,
                         "castor.data.reset-on-start",
-                        String.valueOf(reset)))
+                        String.valueOf(reset),
+                        "castor.gateway.service-token",
+                        "a-random-service-token"))
                 .build()
                 .getConfigMapping(CastorConfig.class);
     }
@@ -94,6 +96,18 @@ class ConfigGuardTest {
     @Test
     void protectedEnvironmentWithSafeSettingsStarts() {
         assertDoesNotThrow(() -> ConfigGuard.verify(config("staging", false, false, STRONG), ORIGINS, Map.of()));
+    }
+
+    @Test
+    void protectedEnvironmentNeedsTheServiceTokenOfTheInternalApis() {
+        var withoutToken = new SmallRyeConfigBuilder()
+                .withMapping(CastorConfig.class)
+                .withDefaultValues(Map.of(
+                        "castor.env", "staging", "castor.port-code", "westports", "castor.admin.password", STRONG))
+                .build()
+                .getConfigMapping(CastorConfig.class);
+
+        assertTrue(message(withoutToken, ORIGINS, Map.of()).contains("CASTOR_SERVICE_TOKEN must be set"));
     }
 
     @Test

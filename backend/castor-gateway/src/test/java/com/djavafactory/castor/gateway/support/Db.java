@@ -14,7 +14,9 @@ public final class Db {
 
     /** Empties the tables the pipeline fills. Sources and keys stay: they are the bootstrap, not test data. */
     public static void reset(DataSource dataSource) {
-        execute(dataSource, "truncate ingest.quarantine, ingest.outbox, ingest.inbox restart identity cascade");
+        execute(
+                dataSource,
+                "truncate ingest.quarantine, ingest.outbox, ingest.inbox, ingest.intake_duplicate restart identity cascade");
     }
 
     public static int execute(DataSource dataSource, String sql, Object... args) {

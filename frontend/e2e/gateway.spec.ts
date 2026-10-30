@@ -71,14 +71,16 @@ test.describe('Ingest gateway', () => {
     expect(wrongKey.status()).toBe(401)
     expect(wrongKey.headers()['content-type']).toContain('application/problem+json')
 
-    const disabled = await request.post(
+    // Every source of the dev stack is enabled since INGEST-03 (a disabled one answers 403: IntakeEndpointIT). A record
+    // that is not in the source's own format is refused at the door: CBAS wants its msgId, not a canonical event
+    const wrongFormat = await request.post(
       `${gatewayUrl}/api/v1/ports/westports/integrations/cbas/events`,
       {
         headers,
-        data: canonicalEvent('e2e-disabled'),
+        data: canonicalEvent('e2e-wrong-format'),
       },
     )
-    expect(disabled.status()).toBe(403)
+    expect(wrongFormat.status()).toBe(422)
 
     const malformed = await request.post(`${gatewayUrl}${eventsPath}`, {
       headers: { ...headers, 'Content-Type': 'application/json' },

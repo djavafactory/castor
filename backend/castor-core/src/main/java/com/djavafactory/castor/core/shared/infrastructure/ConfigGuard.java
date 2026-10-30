@@ -53,6 +53,9 @@ public final class ConfigGuard {
         if (castor.admin().password().length() < MIN_ADMIN_PASSWORD_LENGTH) {
             problems.add("CASTOR_ADMIN_PASSWORD must have at least " + MIN_ADMIN_PASSWORD_LENGTH + " characters");
         }
+        if (castor.gateway().serviceToken().filter(token -> !token.isBlank()).isEmpty()) {
+            problems.add("CASTOR_SERVICE_TOKEN must be set");
+        }
         if (corsOrigins.isEmpty() || corsOrigins.stream().anyMatch(o -> o.isBlank() || o.contains("*"))) {
             problems.add("CASTOR_CORS_ORIGINS must list explicit origins, not empty or *");
         }

@@ -32,7 +32,8 @@ public class JdbcNormalizationStore implements NormalizationStore {
             "insert into ingest.outbox (reception_id, event_index, event_id, port_id, aggregate_id, event_type, payload, created_at) "
                     + "values (?, ?, ?, ?, ?, ?, ?::jsonb, ?) on conflict (reception_id, event_index) do nothing";
     private static final String INSERT_QUARANTINE =
-            "insert into ingest.quarantine (reception_id, reason_code, detail, created_at) values (?, ?, ?, ?) "
+            "insert into ingest.quarantine (reception_id, reason_code, detail, created_at, subject_type, subject_id) "
+                    + "values (?, ?, ?, ?, ?, ?) "
                     + "on conflict (reception_id) do nothing";
     private static final String SET_NORMALIZED =
             "update ingest.inbox set status = 'NORMALIZED', normalized_at = ? where reception_id = ?";
@@ -126,6 +127,8 @@ public class JdbcNormalizationStore implements NormalizationStore {
             ps.setString(2, q.reasonCode());
             ps.setString(3, q.detail());
             ps.setTimestamp(4, now);
+            ps.setString(5, q.subject() == null ? null : q.subject().type());
+            ps.setString(6, q.subject() == null ? null : q.subject().id());
             ps.executeUpdate();
         }
     }

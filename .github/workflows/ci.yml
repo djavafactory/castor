@@ -28,6 +28,8 @@ jobs:
 
   backend:
     runs-on: ubuntu-24.04
+    # Core and gateway tests start PostGIS and Kafka containers: a hang fails the job instead of running for hours
+    timeout-minutes: 40
     defaults:
       run:
         working-directory: backend

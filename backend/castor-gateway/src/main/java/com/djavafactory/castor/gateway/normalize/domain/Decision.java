@@ -10,6 +10,15 @@ public sealed interface Decision {
     /** The events to put in the outbox, with their final eventIds. */
     record Normalized(List<CanonicalEvent> events) implements Decision {}
 
-    /** The record goes to the quarantine and nothing is published. */
-    record Quarantined(String reasonCode, String detail) implements Decision {}
+    /**
+     * The record goes to the quarantine and nothing is published.
+     *
+     * @param subject what the failure was about, null when it is not about one source id
+     */
+    record Quarantined(String reasonCode, String detail, Rejection.Subject subject) implements Decision {
+
+        public Quarantined(String reasonCode, String detail) {
+            this(reasonCode, detail, null);
+        }
+    }
 }

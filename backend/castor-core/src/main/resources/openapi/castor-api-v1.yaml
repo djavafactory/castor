@@ -266,7 +266,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [ASSET_CREATED, ASSET_UPDATED, ASSET_DELETED, DRAFT_CREATED, DRAFT_DISCARDED, LAYOUT_PUBLISHED, LAYOUT_RESTORED, LAYOUT_IMPORTED, OVERRIDE_RECORDED]
+            enum: [ASSET_CREATED, ASSET_UPDATED, ASSET_DELETED, DRAFT_CREATED, DRAFT_DISCARDED, LAYOUT_PUBLISHED, LAYOUT_RESTORED, LAYOUT_IMPORTED, OVERRIDE_RECORDED, INTEGRATION_REPLAYED, INTEGRATION_KEY_CREATED, INTEGRATION_KEY_ROTATED, INTEGRATION_KEY_REVOKED, INTEGRATION_MAPPING_CREATED, INTEGRATION_MAPPING_CLOSED]
         - {name: assetId, in: query, schema: {type: string}}
         - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
         - {name: before, in: query, schema: {type: integer, format: int64}}
@@ -302,6 +302,330 @@ paths:
           description: Malformed from, to, action or limit
         '403':
           description: The role is not ADMIN
+        '404':
+          description: Unknown port
+  /api/v1/ports/{portId}/integrations/sources:
+    get:
+      operationId: listIntegrationSources
+      summary: The sources of a port with their counters of the last 24 hours (OPERATOR, ADMIN)
+      description: Proxied to the ingest gateway. accepted, duplicate and quarantined count the last 24 hours; freshness compares the last record received with the source's freshness SLA (UNKNOWN when it never sent one).
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/PortId'
+      responses:
+        '200':
+          description: One entry per source
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/IntegrationSource'
+        '403':
+          description: The role is not OPERATOR or ADMIN
+        '404':
+          description: Unknown port
+        '502':
+          description: The ingest gateway did not answer
+  /api/v1/ports/{portId}/integrations/sources/{source}/keys:
+    get:
+      operationId: listIntegrationKeys
+      summary: The API keys of a source, newest first, prefix only (OPERATOR, ADMIN)
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/PortId'
+        - $ref: '#/components/parameters/IntegrationSource'
+      responses:
+        '200':
+          description: The keys
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/IntegrationKey'
+        '403':
+          description: The role is not OPERATOR or ADMIN
+        '404':
+          description: Unknown port or source
+    post:
+      operationId: createIntegrationKey
+      summary: Create an API key for a source (ADMIN)
+      description: The key is in the answer once and cannot be read again. Audited as INTEGRATION_KEY_CREATED, without the key.
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/PortId'
+        - $ref: '#/components/parameters/IntegrationSource'
+      responses:
+        '201':
+          description: The new key, with its secret in key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntegrationKey'
+        '403':
+          description: The role is not ADMIN
+        '404':
+          description: Unknown port or source
+  /api/v1/ports/{portId}/integrations/sources/{source}/keys/{keyId}/rotate:
+    post:
+      operationId: rotateIntegrationKey
+      summary: Revoke a key and issue a new one in one step (ADMIN)
+      description: The old key stops working at once. The key of GATEWAY_DEMO_KEY cannot be rotated here. Audited as INTEGRATION_KEY_ROTATED.
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/PortId'
+        - $ref: '#/components/parameters/IntegrationSource'
+        - $ref: '#/components/parameters/KeyId'
+      responses:
+        '201':
+          description: The new key, with its secret in key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntegrationKey'
+        '403':
+          description: The role is not ADMIN
+        '404':
+          description: Unknown port, source or key
+        '409':
+          description: The key is revoked already or comes from the environment
+  /api/v1/ports/{portId}/integrations/sources/{source}/keys/{keyId}:
+    delete:
+      operationId: revokeIntegrationKey
+      summary: Revoke an API key (ADMIN)
+      description: Audited as INTEGRATION_KEY_REVOKED.
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/PortId'
+        - $ref: '#/components/parameters/IntegrationSource'
+        - $ref: '#/components/parameters/KeyId'
+      responses:
+        '200':
+          description: The key, revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntegrationKey'
+        '403':
+          description: The role is not ADMIN
+        '404':
+          description: Unknown port, source or key
+        '409':
+          description: The key is revoked already or comes from the environment
+  /api/v1/ports/{portId}/integrations/quarantine:
+    get:
+      operationId: listQuarantine
+      summary: What the gateway refused and why, newest first (OPERATOR, ADMIN)
+      description: Keyset pagination. Pass nextBefore of the last page as before to get the next one. A replay that is refused again is its own entry with replayOf set.
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/PortId'
+        - {name: source, in: query, schema: {type: string}}
+        - {name: reason, in: query, schema: {type: string}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 200, default: 50}}
+        - {name: before, in: query, schema: {type: integer, format: int64}}
+      responses:
+        '200':
+          description: One page of quarantine entries
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/QuarantineEntry'
+                  nextBefore:
+                    type: [integer, 'null']
+                    format: int64
+        '403':
+          description: The role is not OPERATOR or ADMIN
+        '404':
+          description: Unknown port
+  /api/v1/ports/{portId}/integrations/quarantine/{receptionId}:
+    get:
+      operationId: getQuarantined
+      summary: One quarantined record with its payload and replay attempts (OPERATOR, ADMIN)
+      description: Keys and secrets in the payload are masked as [REDACTED]. raw is null once housekeeping removed the payload.
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/PortId'
+        - $ref: '#/components/parameters/ReceptionId'
+      responses:
+        '200':
+          description: The entry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuarantineDetail'
+        '403':
+          description: The role is not OPERATOR or ADMIN
+        '404':
+          description: Unknown port or record
+  /api/v1/ports/{portId}/integrations/quarantine/{receptionId}/replay:
+    post:
+      operationId: replayQuarantined
+      summary: Put a quarantined record through the pipeline again (ADMIN)
+      description: Creates a new inbox row linked to the original (replayOf); the original and its quarantine entry are not changed. A record that is still broken gives a second linked attempt. Audited as INTEGRATION_REPLAYED.
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/PortId'
+        - $ref: '#/components/parameters/ReceptionId'
+      responses:
+        '201':
+          description: The new reception id and the original it repeats
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [receptionId, replayOf]
+                properties:
+                  receptionId: {type: string, format: uuid}
+                  replayOf: {type: string, format: uuid}
+        '403':
+          description: The role is not ADMIN
+        '404':
+          description: Unknown port, or the record is not in the quarantine
+        '409':
+          description: The payload was removed after its retention (RAW_EXPIRED), or an earlier replay has not been processed yet (REPLAY_PENDING)
+  /api/v1/ports/{portId}/integrations/mappings:
+    get:
+      operationId: listIdentityMappings
+      summary: The identity mappings of a port (OPERATOR, ADMIN)
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/PortId'
+        - {name: source, in: query, schema: {type: string, enum: [cbas, itap, scss, edic, sensors]}}
+        - {name: entityType, in: query, schema: {type: string, enum: [EQUIPMENT, STORAGE, BERTH, GATE, VESSEL_CALL]}}
+        - {name: sourceId, in: query, description: Part of the source id, schema: {type: string}}
+        - {name: state, in: query, schema: {type: string, enum: [open, closed, all], default: all}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 1000, default: 200}}
+      responses:
+        '200':
+          description: The mappings
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/IdentityMapping'
+        '403':
+          description: The role is not OPERATOR or ADMIN
+        '404':
+          description: Unknown port
+    post:
+      operationId: createIdentityMapping
+      summary: Map a source id to a canonical id (ADMIN)
+      description: Valid from effectiveFrom (default the epoch) to effectiveTo (default none), the end excluded. Audited as INTEGRATION_MAPPING_CREATED with the signed-in user.
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/PortId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sourceSystem, sourceEntityType, sourceId, canonicalId]
+              properties:
+                sourceSystem: {type: string, enum: [cbas, itap, scss, edic, sensors]}
+                sourceEntityType: {type: string, enum: [EQUIPMENT, STORAGE, BERTH, GATE, VESSEL_CALL]}
+                sourceId: {type: string}
+                canonicalId: {type: string}
+                effectiveFrom: {type: string, format: date-time}
+                effectiveTo: {type: [string, 'null'], format: date-time}
+      responses:
+        '201':
+          description: The mapping
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentityMapping'
+        '403':
+          description: The role is not ADMIN
+        '404':
+          description: Unknown port
+        '409':
+          description: Another mapping of the same source id is valid in that period (MAPPING_OVERLAP)
+        '422':
+          description: A field is missing or not allowed
+  /api/v1/ports/{portId}/integrations/mappings/{id}/close:
+    post:
+      operationId: closeIdentityMapping
+      summary: End a mapping (ADMIN)
+      description: The mapping is never deleted. Audited as INTEGRATION_MAPPING_CLOSED.
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/PortId'
+        - {name: id, in: path, required: true, schema: {type: integer, format: int64}}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                effectiveTo: {type: string, format: date-time, description: Default now}
+      responses:
+        '200':
+          description: The closed mapping
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentityMapping'
+        '403':
+          description: The role is not ADMIN
+        '404':
+          description: Unknown port or mapping
+        '409':
+          description: The mapping is closed already
+        '422':
+          description: The end is not after the start
+  /api/v1/ports/{portId}/integrations/mappings/unresolved:
+    get:
+      operationId: listUnresolvedMappings
+      summary: Source ids the quarantine could not map, with how many records wait on each (OPERATOR, ADMIN)
+      description: UNKNOWN_MAPPING and AMBIGUOUS_MAPPING counts per source id. A record whose replay succeeded is not counted.
+      security: [{basicAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/PortId'
+      responses:
+        '200':
+          description: One entry per source id and reason
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [source, entityType, sourceId, reasonCode, records, lastSeenAt]
+                      properties:
+                        source: {type: string}
+                        entityType: {type: string}
+                        sourceId: {type: string}
+                        reasonCode: {type: string, enum: [UNKNOWN_MAPPING, AMBIGUOUS_MAPPING]}
+                        records: {type: integer, format: int64}
+                        lastSeenAt: {type: string, format: date-time}
+        '403':
+          description: The role is not OPERATOR or ADMIN
         '404':
           description: Unknown port
   /api/v1/layouts/{layoutId}:
@@ -879,6 +1203,34 @@ paths:
           description: The version is not a draft
 components:
   parameters:
+    PortId:
+      name: portId
+      in: path
+      required: true
+      description: The port code (case-insensitive)
+      schema:
+        type: string
+    IntegrationSource:
+      name: source
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [canonical, cbas, itap, scss, edic, sensors]
+    KeyId:
+      name: keyId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    ReceptionId:
+      name: receptionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     LayoutId:
       name: layoutId
       in: path
@@ -897,6 +1249,84 @@ components:
       type: http
       scheme: basic
   schemas:
+    IntegrationSource:
+      type: object
+      required: [code, enabled, requireSignature, qualityDefault, activeKeys, accepted, duplicate, quarantined, freshness, freshnessSlaSeconds]
+      properties:
+        code: {type: string}
+        enabled: {type: boolean}
+        requireSignature: {type: boolean}
+        qualityDefault: {type: string, enum: [OBSERVED, INFERRED, SIMULATED]}
+        activeKeys: {type: integer}
+        accepted: {type: integer, format: int64, description: Records received in the last 24 hours}
+        duplicate: {type: integer, format: int64, description: Repeats answered "duplicate" in the last 24 hours}
+        quarantined: {type: integer, format: int64, description: Records of the last 24 hours that were quarantined}
+        lastReceivedAt: {type: [string, 'null'], format: date-time}
+        freshness: {type: string, enum: [FRESH, STALE, UNKNOWN]}
+        freshnessSlaSeconds: {type: integer, format: int64}
+    IntegrationKey:
+      type: object
+      required: [id, prefix, origin, createdAt]
+      properties:
+        id: {type: integer, format: int64}
+        prefix: {type: string, description: The first characters of the key, to recognise it}
+        origin: {type: string, enum: [issued, env]}
+        createdAt: {type: string, format: date-time}
+        revokedAt: {type: [string, 'null'], format: date-time}
+        key: {type: [string, 'null'], description: The whole key; only in the answer that creates it}
+    QuarantineEntry:
+      type: object
+      required: [id, receptionId, source, sourceEventId, reasonCode, detail, receivedAt, quarantinedAt, replays]
+      properties:
+        id: {type: integer, format: int64}
+        receptionId: {type: string, format: uuid}
+        source: {type: string}
+        sourceEventId: {type: string}
+        reasonCode: {type: string}
+        detail: {type: string}
+        receivedAt: {type: string, format: date-time}
+        quarantinedAt: {type: string, format: date-time}
+        replayOf: {type: [string, 'null'], format: uuid, description: The original record when this entry is a replay that was refused again}
+        replays: {type: integer, description: How many replays the original has had}
+        latestReplayStatus: {type: [string, 'null'], enum: [RECEIVED, NORMALIZED, QUARANTINED, null]}
+        subjectType: {type: [string, 'null'], description: The source entity type a mapping failure is about}
+        subjectId: {type: [string, 'null'], description: The id the source used}
+    QuarantineDetail:
+      type: object
+      required: [entry, rawAvailable, attempts]
+      properties:
+        entry:
+          $ref: '#/components/schemas/QuarantineEntry'
+        raw:
+          description: The payload as received, with keys and secrets masked; null once removed
+        rawAvailable: {type: boolean}
+        attempts:
+          type: array
+          description: Every replay of the original, oldest first
+          items:
+            type: object
+            required: [receptionId, receivedAt, status, events, published]
+            properties:
+              receptionId: {type: string, format: uuid}
+              receivedAt: {type: string, format: date-time}
+              status: {type: string, enum: [RECEIVED, NORMALIZED, QUARANTINED]}
+              reasonCode: {type: [string, 'null']}
+              detail: {type: [string, 'null']}
+              events: {type: integer, description: Canonical events the replay produced}
+              published: {type: integer, description: How many of them the gateway has published}
+    IdentityMapping:
+      type: object
+      required: [id, sourceSystem, sourceEntityType, sourceId, canonicalId, effectiveFrom, createdBy, createdAt]
+      properties:
+        id: {type: integer, format: int64}
+        sourceSystem: {type: string, enum: [cbas, itap, scss, edic, sensors]}
+        sourceEntityType: {type: string, enum: [EQUIPMENT, STORAGE, BERTH, GATE, VESSEL_CALL]}
+        sourceId: {type: string}
+        canonicalId: {type: string}
+        effectiveFrom: {type: string, format: date-time}
+        effectiveTo: {type: [string, 'null'], format: date-time}
+        createdBy: {type: string}
+        createdAt: {type: string, format: date-time}
     LayoutVersionSummary:
       type: object
       required: [id, versionNo, status, createdBy, createdAt, assetCount]
@@ -1670,7 +2100,7 @@ components:
           type: string
     Role:
       type: string
-      enum: [VIEWER, EDITOR, PUBLISHER, ADMIN]
+      enum: [VIEWER, OPERATOR, EDITOR, PUBLISHER, ADMIN]
     ProblemDetails:
       type: object
       required: [type, title, status]

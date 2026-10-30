@@ -19,6 +19,7 @@ public class JdbcRetentionStore implements RetentionStore {
             + "where status = 'NORMALIZED' and raw is not null and normalized_at < ?";
     private static final String EMPTY_QUARANTINED_RAW = "update ingest.inbox set raw = null "
             + "where raw is not null and reception_id in (select reception_id from ingest.quarantine where created_at < ?)";
+    private static final String DELETE_DUPLICATE_COUNTS = "delete from ingest.intake_duplicate where minute < ?";
     private static final String DELETE_QUARANTINE = "delete from ingest.quarantine where created_at < ?";
 
     private final Jdbc jdbc;
@@ -31,6 +32,7 @@ public class JdbcRetentionStore implements RetentionStore {
     public Purged purge(Instant publishedBefore, Instant normalizedBefore, Instant quarantinedBefore) {
         return jdbc.inTransaction(c -> {
             int outbox = run(c, DELETE_OUTBOX, publishedBefore);
+            run(c, DELETE_DUPLICATE_COUNTS, publishedBefore);
             int raw = run(c, EMPTY_NORMALIZED_RAW, normalizedBefore) + run(c, EMPTY_QUARANTINED_RAW, quarantinedBefore);
             int quarantine = run(c, DELETE_QUARANTINE, quarantinedBefore);
             return new Purged(outbox, raw, quarantine);

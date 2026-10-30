@@ -1,7 +1,7 @@
 import { expect, type Page } from '@playwright/test'
 
 /** Signs in with a demo user of the dev stack and waits for the Monitor stage. */
-export async function signInAsDemo(page: Page, user: 'viewer' | 'editor') {
+export async function signInAsDemo(page: Page, user: 'viewer' | 'editor' | 'admin') {
   await page.goto('/login')
   await page.getByLabel('Choose a demo user').selectOption(user)
   await page.getByRole('button', { name: 'Sign in' }).click()

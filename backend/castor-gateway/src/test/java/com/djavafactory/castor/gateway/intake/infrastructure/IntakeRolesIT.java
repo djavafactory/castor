@@ -74,14 +74,14 @@ class IntakeRolesIT {
             assertTrue(tables.next());
             assertEquals(
                     "api_key,cargo_code_mapping,cargo_family_unit,flyway_schema_history,identity_mapping,inbox,"
-                            + "integration_source,outbox,quarantine",
+                            + "intake_duplicate,integration_source,outbox,quarantine",
                     tables.getString(1));
 
             var versions = s.executeQuery(
                     "select string_agg(version, ',' order by installed_rank) from ingest.flyway_schema_history "
                             + "where version is not null and success");
             assertTrue(versions.next());
-            assertEquals("1,2", versions.getString(1));
+            assertEquals("1,2,3", versions.getString(1));
         }
     }
 

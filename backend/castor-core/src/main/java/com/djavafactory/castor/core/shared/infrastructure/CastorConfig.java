@@ -1,6 +1,7 @@
 package com.djavafactory.castor.core.shared.infrastructure;
 
 import java.time.Duration;
+import java.util.Optional;
 import java.util.Set;
 
 import jakarta.validation.constraints.NotBlank;
@@ -43,6 +44,27 @@ public interface CastorConfig {
     Layout layout();
 
     Kafka kafka();
+
+    Gateway gateway();
+
+    interface Gateway {
+        /** Base URL of castor-gateway's API (GATEWAY_URL); core calls its internal admin API there, never a browser. */
+        @WithDefault("http://localhost:8082")
+        String url();
+
+        /**
+         * The shared secret of the internal APIs (CASTOR_SERVICE_TOKEN), sent to the gateway as a bearer token. Required
+         * in a protected environment.
+         */
+        Optional<String> serviceToken();
+
+        /** How long one call to the gateway may take before it is reported as unavailable. */
+        @WithDefault("PT10S")
+        Duration timeout();
+
+        @WithDefault("PT3S")
+        Duration connectTimeout();
+    }
 
     interface Kafka {
         /** Replication factor of the topics created at start. 1 in local and dev (one broker). */

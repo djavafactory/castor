@@ -20,6 +20,8 @@ import org.jboss.resteasy.reactive.server.ServerExceptionMapper;
 
 import com.djavafactory.castor.core.shared.domain.ConflictException;
 import com.djavafactory.castor.core.shared.domain.DraftAlreadyExistsException;
+import com.djavafactory.castor.core.shared.domain.GatewayRefusedException;
+import com.djavafactory.castor.core.shared.domain.GatewayUnavailableException;
 import com.djavafactory.castor.core.shared.domain.InvalidRequestException;
 import com.djavafactory.castor.core.shared.domain.MissingIfMatchException;
 import com.djavafactory.castor.core.shared.domain.ResourceNotFoundException;
@@ -96,6 +98,30 @@ public class ProblemExceptionMappers {
                 e.violations().stream().map(ProblemExceptionMappers::toError).toList();
         String detail = errors.size() + (errors.size() == 1 ? " rule failed" : " rules failed");
         return problem(422, "validation", e.title(), detail, uri, errors);
+    }
+
+    @ServerExceptionMapper
+    public Response gatewayRefused(GatewayRefusedException e, UriInfo uri) {
+        List<ProblemDetail.Error> errors =
+                e.code() == null ? null : List.of(new ProblemDetail.Error(e.code(), null, null, e.getMessage()));
+        return switch (e.status()) {
+            case 404 -> problem(404, "not-found", "Not found", e.getMessage(), uri, errors);
+            case 409 -> problem(409, "conflict", "Conflict", e.getMessage(), uri, errors);
+            case 422 -> problem(422, "validation", "Invalid request", e.getMessage(), uri, errors);
+            default -> problem(400, "bad-request", "Invalid request", e.getMessage(), uri, errors);
+        };
+    }
+
+    @ServerExceptionMapper
+    public Response gatewayUnavailable(GatewayUnavailableException e, UriInfo uri) {
+        LOG.warnf("Ingest gateway unavailable: %s", e.getMessage());
+        return problem(
+                502,
+                "gateway-unavailable",
+                "Ingest gateway unavailable",
+                "The ingest gateway did not answer. Try again in a moment.",
+                uri,
+                null);
     }
 
     @ServerExceptionMapper

@@ -1,8 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { reportLogout } from '@/lib/auth-api'
-import { canDesign } from '@/lib/roles'
+import { canDesign, canViewIntegrations } from '@/lib/roles'
 import { useAuthStore, type Role } from '@/lib/stores/auth-store'
 import { useEditorStore } from '@/lib/stores/editor-store'
 import { useSelectionStore } from '@/lib/stores/selection-store'
@@ -19,7 +19,7 @@ import { PublishedVersion } from './published-version'
 import { usePort } from './use-port'
 import { useMenu } from './use-menu'
 
-const ROLE_ORDER: Role[] = ['ADMIN', 'PUBLISHER', 'EDITOR', 'VIEWER']
+const ROLE_ORDER: Role[] = ['ADMIN', 'OPERATOR', 'PUBLISHER', 'EDITOR', 'VIEWER']
 const SYNTHETIC_TIP = SYNTHETIC_EXPLANATION
 
 export function AppBar() {
@@ -41,11 +41,26 @@ export function AppBar() {
         </Badge>
       )}
       <ModeSwitch />
+      <IntegrationsLink />
       <LayoutStatusBadge />
       <div className="ml-auto flex items-center gap-3">
         <UserMenu />
       </div>
     </header>
+  )
+}
+
+/** The Integrations page (sources, quarantine, mappings): OPERATOR and ADMIN only. */
+function IntegrationsLink() {
+  const roles = useAuthStore((s) => s.roles)
+  if (!canViewIntegrations(roles)) return null
+  return (
+    <Link
+      to="/integrations"
+      className="rounded-full px-3 py-1 text-[13px] font-medium hover:bg-paper-2"
+    >
+      Integrations
+    </Link>
   )
 }
 

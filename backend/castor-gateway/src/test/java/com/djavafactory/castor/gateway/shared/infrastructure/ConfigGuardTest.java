@@ -79,7 +79,9 @@ class ConfigGuardTest {
 
     @Test
     void aProtectedEnvironmentWithSafeSettingsStarts() {
-        assertDoesNotThrow(() -> ConfigGuard.verify(config("staging"), Map.of("castor.relay.batch-size", "500")));
+        var config = config("staging", Map.of("castor.admin.service-token", "a-random-token"));
+
+        assertDoesNotThrow(() -> ConfigGuard.verify(config, Map.of("castor.relay.batch-size", "500")));
     }
 
     @Test

@@ -53,6 +53,22 @@ public class AuditService {
                 requestId == null ? null : requestId.toString());
     }
 
+    /** Records a change that belongs to a port rather than to a layout version, such as an integration action. */
+    @Transactional(Transactional.TxType.MANDATORY)
+    public void recordForPort(
+            String portCode, AuditAction action, String entityKind, String entityId, JsonNode before, JsonNode after) {
+        Object requestId = MDC.get("requestId");
+        repository.appendForPort(
+                portCode,
+                actor(),
+                action,
+                entityKind,
+                entityId,
+                before == null ? null : before.toString(),
+                after == null ? null : after.toString(),
+                requestId == null ? null : requestId.toString());
+    }
+
     private String actor() {
         return identity == null || identity.isAnonymous()
                 ? SYSTEM

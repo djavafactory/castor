@@ -52,6 +52,34 @@ public class JdbcAuditRepository implements AuditRepository {
     }
 
     @Override
+    public void appendForPort(
+            String portCode,
+            String actor,
+            AuditAction action,
+            String entityKind,
+            String entityId,
+            String before,
+            String after,
+            String requestId) {
+        int rows = em.createNativeQuery("insert into audit.audit_log (port_id, actor, action, entity_kind, entity_id, "
+                        + "before, after, request_id) "
+                        + "select p.id, :actor, :action, :kind, :entity, cast(cast(:before as varchar) as jsonb), "
+                        + "cast(cast(:after as varchar) as jsonb), :request from ref.port p where p.code = :port")
+                .setParameter("port", portCode)
+                .setParameter("actor", truncate(actor, 128))
+                .setParameter("action", action.name())
+                .setParameter("kind", truncate(entityKind, 64))
+                .setParameter("entity", truncate(entityId, 128))
+                .setParameter("before", before)
+                .setParameter("after", after)
+                .setParameter("request", truncate(requestId, 64))
+                .executeUpdate();
+        if (rows != 1) {
+            throw new IllegalStateException("No port " + portCode + " to audit a change of");
+        }
+    }
+
+    @Override
     @SuppressWarnings("unchecked")
     public List<AuditEntry> find(String portCode, AuditFilter f) {
         var sql = new StringBuilder("select a.id, a.at, a.actor, a.action, a.entity_kind, a.entity_id, "

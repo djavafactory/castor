@@ -19,13 +19,32 @@ public final class MappingException extends Exception {
     public static final String UNKNOWN_CARGO_MAPPING = "UNKNOWN_CARGO_MAPPING";
 
     private final String reasonCode;
+    private final String entityType;
+    private final String sourceId;
 
     public MappingException(String reasonCode, String detail) {
+        this(reasonCode, detail, null, null);
+    }
+
+    /** A failure about one source id of an identity mapping (UNKNOWN_MAPPING, AMBIGUOUS_MAPPING). */
+    public MappingException(String reasonCode, String detail, String entityType, String sourceId) {
         super(detail);
         this.reasonCode = reasonCode;
+        this.entityType = entityType;
+        this.sourceId = sourceId;
     }
 
     public String reasonCode() {
         return reasonCode;
+    }
+
+    /** The source entity type of the id the failure is about, null when it is not about an id. */
+    public String entityType() {
+        return entityType;
+    }
+
+    /** The id the source used, null when the failure is not about an id. */
+    public String sourceId() {
+        return sourceId;
     }
 }

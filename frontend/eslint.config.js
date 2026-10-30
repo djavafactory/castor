@@ -15,6 +15,7 @@ const FEATURES = [
   'versions',
   'catalogue',
   'details',
+  'integrations',
 ]
 
 const HEX_COLOUR = '#[0-9a-fA-F]{3,8}\\b'

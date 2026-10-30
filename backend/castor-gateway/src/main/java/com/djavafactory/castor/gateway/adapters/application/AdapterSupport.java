@@ -103,6 +103,7 @@ public class AdapterSupport {
     }
 
     static Rejection rejection(MappingException e) {
-        return new Rejection(e.reasonCode(), e.getMessage());
+        Rejection.Subject subject = e.sourceId() == null ? null : new Rejection.Subject(e.entityType(), e.sourceId());
+        return new Rejection(e.reasonCode(), e.getMessage(), subject);
     }
 }

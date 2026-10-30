@@ -29,6 +29,8 @@ public interface CastorConfig {
 
     Intake intake();
 
+    Admin admin();
+
     Workers workers();
 
     Normalizer normalizer();
@@ -95,6 +97,22 @@ public interface CastorConfig {
         /** Largest difference between X-Castor-Timestamp and the gateway clock. */
         @WithDefault("PT5M")
         Duration maxClockSkew();
+    }
+
+    interface Admin {
+        /**
+         * The shared secret of the internal APIs (CASTOR_SERVICE_TOKEN): castor-core sends it as a bearer token to the
+         * admin API under /internal/. Unset or blank: the admin API refuses every request. Required in a protected
+         * environment.
+         */
+        Optional<String> serviceToken();
+
+        /**
+         * How old the last record of a source may be before the sources page shows it STALE, when the source has no
+         * freshness SLA of its own (a source with one uses the longest of its entries).
+         */
+        @WithDefault("PT15M")
+        Duration sourceFreshness();
     }
 
     interface Workers {

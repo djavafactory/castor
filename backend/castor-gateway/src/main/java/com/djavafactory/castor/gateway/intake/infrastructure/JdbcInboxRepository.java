@@ -23,9 +23,13 @@ public class JdbcInboxRepository implements InboxRepository {
     private static final String INSERT =
             "insert into ingest.inbox (reception_id, port_id, source, source_event_id, received_at, raw, status) "
                     + "values (?, ?, ?, ?, ?, ?::jsonb, 'RECEIVED') "
-                    + "on conflict (port_id, source, source_event_id) do nothing returning reception_id";
-    private static final String EXISTING =
-            "select reception_id from ingest.inbox where port_id = ? and source = ? and source_event_id = ?";
+                    + "on conflict (port_id, source, source_event_id) where replay_of is null do nothing returning reception_id";
+    private static final String EXISTING = "select reception_id from ingest.inbox "
+            + "where port_id = ? and source = ? and source_event_id = ? and replay_of is null";
+    private static final String COUNT_DUPLICATE =
+            "insert into ingest.intake_duplicate (port_id, source, minute, count) "
+                    + "values (?, ?, date_trunc('minute', ?::timestamptz), 1) "
+                    + "on conflict (port_id, source, minute) do update set count = ingest.intake_duplicate.count + 1";
 
     private final Jdbc jdbc;
 
@@ -40,7 +44,8 @@ public class JdbcInboxRepository implements InboxRepository {
             // One record needs no savepoint: if it cannot be stored nothing else is in the transaction to protect
             boolean protect = records.size() > 1;
             try (var insert = c.prepareStatement(INSERT);
-                    var existing = c.prepareStatement(EXISTING)) {
+                    var existing = c.prepareStatement(EXISTING);
+                    var duplicate = c.prepareStatement(COUNT_DUPLICATE)) {
                 for (NewRecord record : records) {
                     Savepoint savepoint = protect ? c.setSavepoint() : null;
                     try {
@@ -55,6 +60,7 @@ public class JdbcInboxRepository implements InboxRepository {
                                 stored.add(new Stored.Accepted(rs.getObject(1, UUID.class)));
                             } else {
                                 stored.add(new Stored.Duplicate(firstOf(existing, portId, source, record)));
+                                countDuplicate(duplicate, portId, source, record);
                             }
                         }
                         if (savepoint != null) {
@@ -73,6 +79,15 @@ public class JdbcInboxRepository implements InboxRepository {
             }
             return stored;
         });
+    }
+
+    /** The sources page shows how many repeats a source sent: a repeat stores no row, so it is counted here. */
+    private static void countDuplicate(PreparedStatement duplicate, String portId, Source source, NewRecord record)
+            throws SQLException {
+        duplicate.setString(1, portId);
+        duplicate.setString(2, source.code());
+        duplicate.setTimestamp(3, Timestamp.from(record.receivedAt()));
+        duplicate.executeUpdate();
     }
 
     private static UUID firstOf(PreparedStatement existing, String portId, Source source, NewRecord record)
